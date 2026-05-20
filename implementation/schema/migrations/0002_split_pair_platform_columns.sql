@@ -63,9 +63,13 @@ WHERE platform_b IS NULL;
 -- schema_metadata
 -- ------------------------------------------------------------------------
 
-UPDATE schema_metadata SET value = '0002' WHERE key = 'schema_version';
+UPDATE schema_metadata
+  SET value = '0002',
+      updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+  WHERE key = 'schema_version';
 
-INSERT INTO schema_metadata (key, value) VALUES (
+INSERT INTO schema_metadata (key, value, updated_at) VALUES (
   'pair_features_same_identifier_cross_platform_limitation',
-  'The CHECK (account_a < account_b) constraint on pair_features and attribution_runs orders by account identifier only, not by (account, platform) tuple. Same-identifier-cross-platform pairs (e.g., ''bob'' on two platforms) cannot be inserted. See schema/migrations/0002_split_pair_platform_columns.sql for the full rationale. A future 0003 migration can rebuild with a tuple CHECK if this edge case becomes operationally important.'
+  'The CHECK (account_a < account_b) constraint on pair_features and attribution_runs orders by account identifier only, not by (account, platform) tuple. Same-identifier-cross-platform pairs (e.g., ''bob'' on two platforms) cannot be inserted. See schema/migrations/0002_split_pair_platform_columns.sql for the full rationale. A future 0003 migration can rebuild with a tuple CHECK if this edge case becomes operationally important.',
+  strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
 );
