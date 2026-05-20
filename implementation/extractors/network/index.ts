@@ -8,15 +8,12 @@
  *       following_set)
  *     - pair-level: FollowerOverlapExtractor
  *
- *   §4.4.2 Mutual-follow patterns: NOT YET IMPLEMENTED.
- *     Requires both follower_set AND following_set features for
- *     both accounts in a pair. The account-level Twitter extractor
- *     in this directory already emits both; the pair extractor is
- *     small (about 50 lines) and would compute the boolean
- *     "A follows B AND B follows A" and report mutual-follow
- *     duration when timestamps are available. Queued for a
- *     follow-on pass after collection-layer follower-list support
- *     is verified.
+ *   §4.4.2 Mutual-follow patterns
+ *     - pair-level: MutualFollowExtractor
+ *     - consumes both follower_set and following_set produced by
+ *       TwitterNetworkExtractor; surfaces a per-direction corroboration
+ *       score so the attribution reasoner can downweight pairs where
+ *       the two evidence sources disagree
  *
  *   §4.4.3 Co-engagement timing on third-party content: NOT YET
  *     IMPLEMENTED. Requires engagement-event data (likes, reposts,
@@ -58,6 +55,7 @@
 
 import { TwitterNetworkExtractor } from './twitter';
 import { FollowerOverlapExtractor } from './follower-overlap';
+import { MutualFollowExtractor } from './mutual-follow';
 import type { AccountFeatureExtractor } from '../types';
 import type { PairFeatureExtractor } from '../pair-types';
 
@@ -67,11 +65,12 @@ export const NETWORK_EXTRACTORS: AccountFeatureExtractor[] = [
 
 export const NETWORK_PAIR_EXTRACTORS: PairFeatureExtractor[] = [
   new FollowerOverlapExtractor(), // §4.4.1
+  new MutualFollowExtractor(),    // §4.4.2
   // Future:
-  // new MutualFollowExtractor(),         // §4.4.2
   // new CoEngagementTimingExtractor(),   // §4.4.3
   // new AmplificationExtractor(),        // §4.4.4
 ];
 
 export { TwitterNetworkExtractor } from './twitter';
 export { FollowerOverlapExtractor } from './follower-overlap';
+export { MutualFollowExtractor } from './mutual-follow';
