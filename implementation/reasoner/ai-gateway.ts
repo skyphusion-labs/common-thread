@@ -175,17 +175,70 @@ export function extractJSONObject(text: string): unknown {
   try {
     return JSON.parse(s);
   } catch {
-    // Fall through to brace-extraction.
+    // Fall through to balanced-scan extraction.
   }
 
-  // Fallback: take the outermost {...}. This handles cases where the
-  // model leaks a sentence of prose before or after the object.
-  const start = s.indexOf('{');
-  const end = s.lastIndexOf('}');
-  if (start >= 0 && end > start) {
-    const slice = s.slice(start, end + 1);
-    return JSON.parse(slice); // re-throws if still malformed
+  // Fallback: scan the string and collect every balanced top-level
+  // {...} substring, ignoring braces that appear inside string
+  // literals. Try parsing them in order of longest to shortest so we
+  // prefer the most-complete object when the model leaks both an
+  // example and the real output, or when prose surrounds the JSON.
+  // This handles cases like:
+  //   "here is an example {"x":1} and the real answer {"a":1,"b":2}"
+  // where the simple indexOf/lastIndexOf approach would slice across
+  // both and produce invalid JSON.
+  const candidates: string[] = [];
+  let depth = 0;
+  let openIdx = -1;
+  let inString = false;
+  let escape = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (inString) {
+      if (escape) {
+        escape = false;
+      } else if (c === '\\') {
+        escape = true;
+      } else if (c === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (c === '"') {
+      inString = true;
+      continue;
+    }
+    if (c === '{') {
+      if (depth === 0) openIdx = i;
+      depth++;
+    } else if (c === '}') {
+      depth--;
+      if (depth === 0 && openIdx >= 0) {
+        candidates.push(s.slice(openIdx, i + 1));
+        openIdx = -1;
+      } else if (depth < 0) {
+        // Stray closing brace; reset so a later balanced {...} can
+        // still be captured.
+        depth = 0;
+        openIdx = -1;
+      }
+    }
   }
 
-  throw new Error('No JSON object found in response text');
+  if (candidates.length === 0) {
+    throw new Error('No JSON object found in response text');
+  }
+
+  candidates.sort((a, b) => b.length - a.length);
+  let lastErr: unknown;
+  for (const cand of candidates) {
+    try {
+      return JSON.parse(cand);
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  // Surface the last parse error so callers see the SyntaxError
+  // shape they would have seen from a direct JSON.parse call.
+  throw lastErr;
 }

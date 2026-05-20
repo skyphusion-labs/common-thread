@@ -236,7 +236,7 @@ export async function runAttribution(
       });
 
       const attributionRunId = await writeAttributionRun(env.DB, {
-        investigationId: options.investigationId,
+        investigation_id: options.investigationId,
         accounts: [left.account, right.account],
         platforms: [left.platform, right.platform],
         model_name:

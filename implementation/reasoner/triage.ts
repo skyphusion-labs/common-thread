@@ -128,15 +128,27 @@ function sanitizeVerdict(parsed: unknown): TriageVerdict {
 }
 
 function extractReason(parsed: unknown, verdict: TriageVerdict): string | undefined {
+  // Detect §7.5.2 escalation: the verdict we're returning is
+  // ESCALATE_ON_PARSE_FAILURE, but the model's own verdict field did
+  // not say 'warrants_further_analysis'. In that case the model's
+  // reason field describes whatever it thought it was emitting (e.g.,
+  // a 'consistent' verdict with a confidence statement), which is now
+  // stale. Record the §7.5.2 reason for downstream diagnostics.
+  if (verdict === ESCALATE_ON_PARSE_FAILURE) {
+    const modelVerdict =
+      parsed && typeof parsed === 'object' && 'verdict' in parsed
+        ? (parsed as Record<string, unknown>).verdict
+        : undefined;
+    if (modelVerdict !== 'warrants_further_analysis') {
+      return 'triage verdict missing or off-spec; conservatively escalating per §7.5.2';
+    }
+  }
+  // Either the verdict was 'obviously_not_coordinated' or the model
+  // legitimately escalated by emitting 'warrants_further_analysis'.
+  // In both cases, preserve the model's reason field if present.
   if (parsed && typeof parsed === 'object' && 'reason' in parsed) {
     const r = (parsed as Record<string, unknown>).reason;
     if (typeof r === 'string' && r.length > 0) return r;
-  }
-  // If we escalated because of a verdict-sanitization failure, the
-  // model's original output was off-spec. Note that for downstream
-  // diagnostics.
-  if (verdict === ESCALATE_ON_PARSE_FAILURE) {
-    return 'triage verdict missing or off-spec; conservatively escalating per §7.5.2';
   }
   return undefined;
 }
