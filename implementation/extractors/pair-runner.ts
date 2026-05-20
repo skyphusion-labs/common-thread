@@ -17,6 +17,12 @@
  * run time (the same hash the account extractors saw). Rerunning with
  * the same manifest hash and the same input account features produces
  * the same pair feature rows.
+ *
+ * Platform handling (migration 0002): pair_features stores platform_a
+ * and platform_b paired by index with account_a and account_b. The
+ * runner resolves each candidate account's platform from seed_accounts
+ * (or account_features as fallback) and threads platform_a / platform_b
+ * through to writePairFeature.
  */
 
 import {
@@ -75,17 +81,29 @@ export async function runPairExtractors(
     );
   }
 
-  // Determine the candidate account set.
-  const candidates =
+  // Determine the candidate account set, resolving platforms for each.
+  // accountFilter takes the filter path (resolveAccountPlatforms); seed
+  // path loads from seed_accounts directly.
+  const candidatesWithPlatforms: Array<{ account: string; platform: string }> =
     options.accountFilter && options.accountFilter.length > 0
-      ? [...new Set(options.accountFilter)].sort()
+      ? await resolveAccountPlatforms(
+          env.DB,
+          options.investigationId,
+          [...new Set(options.accountFilter)].sort()
+        )
       : await loadSeedAccounts(env.DB, options.investigationId);
 
-  if (candidates.length < 2) {
+  if (candidatesWithPlatforms.length < 2) {
     throw new Error(
-      `Pair extractors require at least 2 accounts; got ${candidates.length}`
+      `Pair extractors require at least 2 accounts; got ${candidatesWithPlatforms.length}`
     );
   }
+
+  const accountPlatformMap = new Map<string, string>();
+  for (const cp of candidatesWithPlatforms) {
+    accountPlatformMap.set(cp.account, cp.platform);
+  }
+  const candidates: string[] = candidatesWithPlatforms.map(cp => cp.account);
 
   const results: PairExtractorRunResult[] = [];
 
@@ -205,10 +223,14 @@ export async function runPairExtractors(
           // Gather artifact_hashes that produced those contributing features.
           const artifactHashes = await tracProvenance(env.DB, contributingIds);
 
+          const platformA = accountPlatformMap.get(a)!;
+          const platformB = accountPlatformMap.get(b)!;
+
           for (const feature of pairFeatures) {
             await writePairFeature(env.DB, {
               investigationId: options.investigationId,
-              platform: 'twitter', // TODO: derive platform per pair; see note below
+              platformA,
+              platformB,
               accountA: a,
               accountB: b,
               feature,
@@ -258,19 +280,106 @@ export async function runPairExtractors(
 // D1 helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * Load active seed accounts for the investigation, one row per
+ * account_identifier. If the same identifier exists on multiple
+ * platforms in seed_accounts (rare), MIN(platform) selects one
+ * deterministically. This preserves the runner's prior "one platform
+ * per identifier" assumption (which the cross-platform plumbing in
+ * migration 0002 does not yet change at the runner level).
+ */
 async function loadSeedAccounts(
   db: D1Database,
   investigationId: string
-): Promise<string[]> {
+): Promise<Array<{ account: string; platform: string }>> {
   const res = await db
     .prepare(
-      `SELECT DISTINCT account_identifier FROM seed_accounts
+      `SELECT account_identifier, MIN(platform) AS platform
+       FROM seed_accounts
        WHERE investigation_id = ? AND removed_at IS NULL
+       GROUP BY account_identifier
        ORDER BY account_identifier ASC`
     )
     .bind(investigationId)
-    .all<{ account_identifier: string }>();
-  return (res.results ?? []).map(r => r.account_identifier);
+    .all<{ account_identifier: string; platform: string }>();
+  return (res.results ?? []).map(r => ({
+    account: r.account_identifier,
+    platform: r.platform,
+  }));
+}
+
+/**
+ * Resolve platforms for a caller-supplied list of account identifiers
+ * (the accountFilter path). Two-pass resolution:
+ *
+ *   Pass 1: seed_accounts for the investigation (ignores removed_at,
+ *           so historical seeds still resolve).
+ *   Pass 2: account_features fallback for identifiers not in
+ *           seed_accounts (e.g., accounts that were never seeded but
+ *           have features extracted via another path).
+ *
+ * Throws if any identifier cannot be resolved in either pass; this is
+ * a hard error rather than a silent drop because pair_features cannot
+ * be written without a platform.
+ */
+async function resolveAccountPlatforms(
+  db: D1Database,
+  investigationId: string,
+  accounts: string[]
+): Promise<Array<{ account: string; platform: string }>> {
+  if (accounts.length === 0) return [];
+
+  const placeholders = accounts.map(() => '?').join(', ');
+
+  // Pass 1: seed_accounts (any removed_at).
+  const seedRes = await db
+    .prepare(
+      `SELECT account_identifier, MIN(platform) AS platform
+       FROM seed_accounts
+       WHERE investigation_id = ?
+         AND account_identifier IN (${placeholders})
+       GROUP BY account_identifier`
+    )
+    .bind(investigationId, ...accounts)
+    .all<{ account_identifier: string; platform: string }>();
+
+  const resolved = new Map<string, string>();
+  for (const row of seedRes.results ?? []) {
+    resolved.set(row.account_identifier, row.platform);
+  }
+
+  // Pass 2: account_features fallback for any identifiers not yet resolved.
+  const unresolved = accounts.filter(a => !resolved.has(a));
+  if (unresolved.length > 0) {
+    const fbPlaceholders = unresolved.map(() => '?').join(', ');
+    const fbRes = await db
+      .prepare(
+        `SELECT account_identifier, MIN(platform) AS platform
+         FROM account_features
+         WHERE investigation_id = ?
+           AND account_identifier IN (${fbPlaceholders})
+         GROUP BY account_identifier`
+      )
+      .bind(investigationId, ...unresolved)
+      .all<{ account_identifier: string; platform: string }>();
+
+    for (const row of fbRes.results ?? []) {
+      resolved.set(row.account_identifier, row.platform);
+    }
+  }
+
+  // Hard error on still-unresolved identifiers.
+  const stillUnresolved = accounts.filter(a => !resolved.has(a));
+  if (stillUnresolved.length > 0) {
+    throw new Error(
+      `Cannot resolve platform for accounts in investigation '${investigationId}': ` +
+        `[${stillUnresolved.join(', ')}]. ` +
+        `Account must exist in seed_accounts (current or historical) or in ` +
+        `account_features for the investigation.`
+    );
+  }
+
+  return accounts.map(a => ({ account: a, platform: resolved.get(a)! }));
 }
 
 async function loadAccountFeatures(
@@ -338,7 +447,8 @@ async function writePairFeature(
   db: D1Database,
   params: {
     investigationId: string;
-    platform: string;
+    platformA: string;
+    platformB: string;
     accountA: string;
     accountB: string;
     feature: ExtractedFeature;
@@ -354,15 +464,16 @@ async function writePairFeature(
   const result = await db
     .prepare(
       `INSERT INTO pair_features (
-         investigation_id, platform, account_a, account_b,
+         investigation_id, platform_a, platform_b, account_a, account_b,
          feature_category, feature_name,
          feature_value_text, feature_value_numeric, feature_value_json,
          extracted_at, extractor_name, extractor_version, extractor_run_id
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       params.investigationId,
-      params.platform,
+      params.platformA,
+      params.platformB,
       params.accountA,
       params.accountB,
       params.feature.category,

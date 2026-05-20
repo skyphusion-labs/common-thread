@@ -10,9 +10,12 @@ paper at §6 and §7.
 ```
 schema/
   migrations/
-    0001_initial.sql       Initial schema migration
-  db-types.ts              TypeScript types for schema rows and inserts
-  README.md                This file
+    0001_initial.sql                          Initial schema migration
+    0002_split_pair_platform_columns.sql      Split pair_features.platform
+                                              and attribution_runs.platform
+                                              into platform_a / platform_b
+  db-types.ts                                 TypeScript types for schema rows and inserts
+  README.md                                   This file
 ```
 
 ## Applying the schema
@@ -23,7 +26,7 @@ The schema is applied via Wrangler:
 # Create the D1 database
 wrangler d1 create common-thread
 
-# Apply the initial migration to local development
+# Apply migrations to local development
 wrangler d1 migrations apply common-thread --local
 
 # Apply to remote (production)
@@ -68,7 +71,9 @@ Three tables for the three feature shapes:
 
 Each feature row has:
 
-- Investigation scope (`investigation_id`, `platform`)
+- Investigation scope (`investigation_id`, plus `platform` for
+  `account_features` and `event_features`, or `platform_a` /
+  `platform_b` for `pair_features`; see migration 0002)
 - Identity (`account_identifier` or pair, plus `feature_name`)
 - Value (in one of three columns: text, numeric, or JSON)
 - Provenance (in a separate provenance table, see below)
@@ -176,7 +181,10 @@ authoritative when they disagree. The CHECK constraint forces a
 canonical order, eliminating the duplication.
 
 Application code calls `canonicalPair(a, b)` (in `db-types.ts`)
-before inserting to satisfy the constraint.
+before inserting to satisfy the constraint. For cross-platform pairs
+introduced by migration 0002, `canonicalPlatformedPair(left, right)`
+applies the same ordering while carrying each account's platform
+through to `platform_a` / `platform_b`.
 
 ### Why `extractor_version` and `model_version` as TEXT?
 
@@ -206,7 +214,7 @@ The `schema_metadata` table records the current schema version.
 Future migrations should:
 
 1. Be added as numbered SQL files in `migrations/` (e.g.
-   `0002_add_signal_strength.sql`).
+   `0003_add_signal_strength.sql`).
 2. Update `schema_metadata.value` for the `schema_version` key.
 3. Be additive when possible (new columns, new tables) rather than
    destructive (dropped columns, renamed tables). The evidentiary
@@ -238,12 +246,14 @@ provenance tables, or UNION across all three.)
 ### Get pair features between two accounts
 
 ```sql
--- After canonicalPair() to ensure account_a < account_b
+-- After canonicalPair() to ensure account_a < account_b. For
+-- cross-platform pairs, platform_a and platform_b may differ.
 SELECT * FROM pair_features
 WHERE investigation_id = ?
-  AND platform = ?
   AND account_a = ?
   AND account_b = ?
+  AND platform_a = ?
+  AND platform_b = ?
 ORDER BY feature_category, feature_name;
 ```
 
@@ -269,9 +279,12 @@ ORDER BY completed_at DESC;
 See `db-types.ts` for TypeScript types corresponding to the schema rows
 and the input shapes for inserts. Helper functions:
 
-- `canonicalPair(a, b)` — produces the canonical pair ordering for
-  pair_features and attribution_runs.
-- `readFeatureValue(row)` — extracts the populated value from a
+- `canonicalPair(a, b)`: produces the canonical pair ordering for
+  `pair_features` and `attribution_runs` by account identifier.
+- `canonicalPlatformedPair(left, right)`: same ordering, paired with
+  per-account platforms; use this when populating `platform_a` /
+  `platform_b` on the pair tables (per migration 0002).
+- `readFeatureValue(row)`: extracts the populated value from a
   feature row's three value columns, parsing JSON if needed.
-- `packFeatureValue(value)` — produces the three column values for
+- `packFeatureValue(value)`: produces the three column values for
   an INSERT given a typed FeatureValue.

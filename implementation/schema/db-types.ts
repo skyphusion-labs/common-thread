@@ -87,7 +87,16 @@ export interface AccountFeatureRow extends FeatureValueColumns {
 export interface PairFeatureRow extends FeatureValueColumns {
   id: number;
   investigation_id: string;
-  platform: string;
+  /**
+   * Platform for account_a. After migration 0002 this is paired with
+   * platform_b; for same-platform pairs platform_a === platform_b.
+   */
+  platform_a: string;
+  /**
+   * Platform for account_b. After migration 0002 this is paired with
+   * platform_a; for same-platform pairs platform_b === platform_a.
+   */
+  platform_b: string;
   account_a: string;  // canonical: account_a < account_b
   account_b: string;
   feature_category: FeatureCategory | string;
@@ -155,7 +164,10 @@ export interface AttributionRunRow {
   investigation_id: string;
   account_a: string;
   account_b: string;
-  platform: string;
+  /** Platform for account_a. Paired with platform_b per migration 0002. */
+  platform_a: string;
+  /** Platform for account_b. Paired with platform_a per migration 0002. */
+  platform_b: string;
   model_name: string;
   model_version: string;
   reasoning_prompt_version: string;
@@ -213,9 +225,15 @@ export interface NewAccountFeature {
 
 export interface NewPairFeature {
   investigation_id: string;
-  platform: string;
   /** Account names will be canonically ordered before insert. */
   accounts: [string, string];
+  /**
+   * Platforms paired by index with `accounts` after canonical ordering.
+   * platforms[0] corresponds to accounts[0]; platforms[1] to accounts[1].
+   * Used to populate platform_a and platform_b on pair_features per
+   * migration 0002.
+   */
+  platforms: [string, string];
   feature_category: FeatureCategory | string;
   feature_name: string;
   value: FeatureValue;
@@ -255,7 +273,13 @@ export interface NewAttributionRun {
   investigation_id: string;
   /** Account names will be canonically ordered before insert. */
   accounts: [string, string];
-  platform: string;
+  /**
+   * Platforms paired by index with `accounts` after canonical ordering.
+   * platforms[0] corresponds to accounts[0]; platforms[1] to accounts[1].
+   * Used to populate platform_a and platform_b on attribution_runs per
+   * migration 0002.
+   */
+  platforms: [string, string];
   model_name: string;
   model_version: string;
   reasoning_prompt_version: string;
@@ -282,6 +306,36 @@ export function canonicalPair(a: string, b: string): [string, string] {
     throw new Error('Pair features require two distinct accounts');
   }
   return a < b ? [a, b] : [b, a];
+}
+
+/**
+ * Canonical pair ordering with per-account platforms. Use this when
+ * populating pair_features or attribution_runs (platform_a / account_a,
+ * platform_b / account_b) after migration 0002.
+ *
+ * Returns the two records in canonical order by account identifier. The
+ * platform field travels with its account, supporting cross-platform
+ * pairs (e.g., a Twitter account paired with a Reddit account).
+ *
+ * Throws if the two accounts share the same identifier. The schema's
+ * CHECK (account_a < account_b) constraint orders by account identifier
+ * alone, not by (account, platform) tuple, so a same-identifier pair
+ * cannot be inserted regardless of platform. See
+ * schema/migrations/0002_split_pair_platform_columns.sql for the
+ * documented limitation.
+ */
+export function canonicalPlatformedPair(
+  left: { account: string; platform: string },
+  right: { account: string; platform: string }
+): [{ account: string; platform: string }, { account: string; platform: string }] {
+  if (left.account === right.account) {
+    throw new Error(
+      `Pair features require two distinct account identifiers; got '${left.account}' on both sides. ` +
+        `Same-identifier-cross-platform pairs are a documented limitation of migration 0002 ` +
+        `(see schema/migrations/0002_split_pair_platform_columns.sql).`
+    );
+  }
+  return left.account < right.account ? [left, right] : [right, left];
 }
 
 /**
