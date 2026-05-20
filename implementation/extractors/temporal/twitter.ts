@@ -53,6 +53,20 @@
  *     the derived per-account characterization that the burst-overlap
  *     pair extractor reads. Both are emitted at the account layer so
  *     they appear as separately auditable rows in account_features.
+ *
+ *   Joint hour-of-week distribution (v1.2.0):
+ *     posting_hour_dow_distribution (json, 168-element array of ints)
+ *
+ *     A 7x24 joint distribution flattened in row-major order: index
+ *     dow * 24 + hour, where dow is the UTC day-of-week (Sunday=0)
+ *     and hour is the UTC hour-of-day (0..23). The marginals of this
+ *     distribution are the existing posting_hour_distribution and
+ *     posting_dow_distribution features. The joint distribution is the
+ *     input to the cadence_jsd_temporal pair extractor (§4.2.1); it
+ *     distinguishes patterns that the marginals collapse, e.g., an
+ *     account that posts at 8am weekdays-only versus an account that
+ *     posts at 8am weekends-only would look identical on the hour
+ *     marginal but different on the joint distribution.
  */
 
 import type {
@@ -63,7 +77,7 @@ import type {
 import type { ManifestEntry } from '../../archive/types';
 
 const NAME = 'temporal_twitter';
-const VERSION = '1.1.0';
+const VERSION = '1.2.0';
 
 const MS_PER_DAY = 86_400_000;
 const BURST_BASELINE_DAYS = 14;
@@ -132,6 +146,7 @@ export class TwitterTemporalExtractor implements AccountFeatureExtractor {
     const timestamps: number[] = []; // Unix ms
     const hourBuckets = new Array(24).fill(0) as number[];
     const dowBuckets = new Array(7).fill(0) as number[];
+    const hourDowBuckets = new Array(168).fill(0) as number[]; // index = dow * 24 + hour
     const clientApps = new Map<string, number>();
     let replyCount = 0;
 
@@ -143,8 +158,11 @@ export class TwitterTemporalExtractor implements AccountFeatureExtractor {
 
       timestamps.push(ts);
       const d = new Date(ts);
-      hourBuckets[d.getUTCHours()]++;
-      dowBuckets[d.getUTCDay()]++;
+      const hour = d.getUTCHours();
+      const dow = d.getUTCDay();
+      hourBuckets[hour]++;
+      dowBuckets[dow]++;
+      hourDowBuckets[dow * 24 + hour]++;
 
       if (
         post.in_reply_to_status_id ||
@@ -337,6 +355,16 @@ export class TwitterTemporalExtractor implements AccountFeatureExtractor {
       category: cat,
       name: 'burst_windows_2sigma_14day',
       value: { kind: 'json', value: burstWindows },
+    });
+
+    // -----------------------------------------------------------------
+    // v1.2.0 addition: joint hour-of-week distribution (24h x 7DOW = 168 bins)
+    // -----------------------------------------------------------------
+
+    features.push({
+      category: cat,
+      name: 'posting_hour_dow_distribution',
+      value: { kind: 'json', value: hourDowBuckets },
     });
 
     return features;
