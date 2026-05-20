@@ -4,16 +4,37 @@
  * Two parallel hierarchies:
  *
  *   Account-level extractors: read artifact bytes via the account
- *   runner, produce account_features rows. Categories: account_metadata,
- *   temporal, stylometric, network, visual, metadata_leakage.
+ *   runner, produce account_features rows. Categories:
+ *   account_metadata (Twitter, Reddit), temporal (Twitter, Reddit),
+ *   stylometric (Twitter, Reddit), network (Twitter follower/
+ *   following lists), visual (image-hash, posted-image-corpus,
+ *   exif-corpus, color-palette-corpus), metadata_leakage (Twitter
+ *   tweet-timeline source/lang aggregation).
  *
- *   Pair-level extractors: read pre-computed account features via the
- *   pair runner, produce pair_features rows. Categories: stylometric
- *   (Burrows' Delta, JSD on character bigrams), temporal (burst-overlap,
- *   cadence JSD, active-hour JSD, quiet-period overlap), cross_platform
- *   (handle reuse, bio link overlap), network (follower overlap,
- *   mutual follow), visual (profile image, banner image), and
- *   metadata_leakage (client app, tweet language).
+ *   Pair-level extractors: read pre-computed account features via
+ *   the pair runner, produce pair_features rows. Categories:
+ *     stylometric (Burrows' Delta, JSD on character bigrams)
+ *     temporal (burst-overlap, cadence JSD, active-hour JSD,
+ *       quiet-period overlap)
+ *     cross_platform (handle reuse, bio link overlap, external
+ *       link overlap)
+ *     network (follower overlap, mutual follow)
+ *     visual (profile image, banner image, posted image dHash,
+ *       color palette)
+ *     metadata_leakage (client app, tweet language, profile lang,
+ *       EXIF)
+ *
+ * Per-category registries live in subdirectory index.ts files. The
+ * top-level aggregator imports the sub-arrays by name, so adding
+ * new extractors in a subdirectory registry propagates here
+ * automatically. When adding a new CATEGORY, update both
+ * ACCOUNT_EXTRACTORS_BY_CATEGORY and PAIR_EXTRACTORS_BY_CATEGORY
+ * below.
+ *
+ * Cross-folder pair extractor: ExifOverlapExtractor source lives in
+ * extractors/visual/exif-overlap.ts but emits metadata_leakage
+ * features and is registered under
+ * METADATA_LEAKAGE_PAIR_EXTRACTORS.
  */
 
 import { ACCOUNT_METADATA_EXTRACTORS } from './account-metadata';
