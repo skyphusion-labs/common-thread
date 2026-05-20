@@ -9,12 +9,16 @@
  *
  *   Pair-level extractors: read pre-computed account features via the
  *   pair runner, produce pair_features rows. Categories: stylometric
- *   (Burrows' Delta, JSD) for now; future additions in network,
- *   temporal (cross-account burst correlation), cross_platform.
+ *   (Burrows' Delta, JSD on character bigrams) and temporal (burst-
+ *   overlap) for now; future additions in network, cross-platform, and
+ *   more temporal pair extractors (cadence-JSD, quiet-period overlap).
  */
 
 import { ACCOUNT_METADATA_EXTRACTORS } from './account-metadata';
-import { TEMPORAL_EXTRACTORS } from './temporal';
+import {
+  TEMPORAL_EXTRACTORS,
+  TEMPORAL_PAIR_EXTRACTORS,
+} from './temporal';
 import {
   STYLOMETRIC_EXTRACTORS,
   STYLOMETRIC_PAIR_EXTRACTORS,
@@ -47,12 +51,14 @@ export const ACCOUNT_EXTRACTORS_BY_CATEGORY = {
 /** All pair-feature extractors across all categories. */
 export const ALL_PAIR_EXTRACTORS: PairFeatureExtractor[] = [
   ...STYLOMETRIC_PAIR_EXTRACTORS,
+  ...TEMPORAL_PAIR_EXTRACTORS,
 ];
 
 /** Pair-level extractors grouped by signal category. */
 export const PAIR_EXTRACTORS_BY_CATEGORY = {
   stylometric: STYLOMETRIC_PAIR_EXTRACTORS,
-  // Future: network, temporal, cross_platform
+  temporal: TEMPORAL_PAIR_EXTRACTORS,
+  // Future: network, cross_platform
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -60,7 +66,7 @@ export const PAIR_EXTRACTORS_BY_CATEGORY = {
 // ---------------------------------------------------------------------------
 
 export { ACCOUNT_METADATA_EXTRACTORS } from './account-metadata';
-export { TEMPORAL_EXTRACTORS } from './temporal';
+export { TEMPORAL_EXTRACTORS, TEMPORAL_PAIR_EXTRACTORS } from './temporal';
 export { STYLOMETRIC_EXTRACTORS, STYLOMETRIC_PAIR_EXTRACTORS } from './stylometric';
 
 export { runAccountExtractors } from './runner';
