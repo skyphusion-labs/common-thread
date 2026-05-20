@@ -49,11 +49,19 @@
  *   - HTTP-header leakage (User-Agent, Accept-Language): would
  *     require collection-layer cooperation to retain headers, which
  *     no current scraper does. Out of scope for v1.0.0.
+ *
+ * Cross-folder pair extractor: ExifOverlapExtractor (§4.5.5 in the
+ * paper's taxonomy, but emitting metadata_leakage category features)
+ * lives in extractors/visual/exif-overlap.ts because the code is
+ * tightly coupled to the EXIF parser and corpus extractor there.
+ * It registers here because feature classification is what matters
+ * for downstream tooling.
  */
 
 import { TwitterMetadataLeakageExtractor } from './twitter';
 import { ClientAppOverlapExtractor } from './client-app-overlap';
 import { TweetLanguageOverlapExtractor } from './language-overlap';
+import { ExifOverlapExtractor } from '../visual/exif-overlap';
 import type { AccountFeatureExtractor } from '../types';
 import type { PairFeatureExtractor } from '../pair-types';
 
@@ -64,6 +72,7 @@ export const METADATA_LEAKAGE_EXTRACTORS: AccountFeatureExtractor[] = [
 export const METADATA_LEAKAGE_PAIR_EXTRACTORS: PairFeatureExtractor[] = [
   new ClientAppOverlapExtractor(),
   new TweetLanguageOverlapExtractor(),
+  new ExifOverlapExtractor(),  // §4.5.5; source in extractors/visual/
 ];
 
 export { TwitterMetadataLeakageExtractor } from './twitter';
