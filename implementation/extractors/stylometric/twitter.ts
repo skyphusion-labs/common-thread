@@ -3,8 +3,8 @@
  *
  * Reads a timeline artifact and emits account-level stylometric
  * features in the 'stylometric' category. These features are the
- * inputs to Burrows' Delta (the pair-level computation that lives
- * in a future pair extractor, per §4.3 of the methodology paper).
+ * inputs to Burrows' Delta and JSD-on-character-bigrams (the pair-
+ * level computations in §4.3 of the methodology paper).
  *
  * Features produced:
  *
@@ -33,9 +33,9 @@
  *     hashtag_per_post_mean, mention_per_post_mean,
  *     emoji_per_post_mean, url_per_post_mean
  *
- * Determinism: same input bytes produce the same output. JSON-encoded
- * features use sorted keys via JSON.stringify on objects with insertion
- * order matching iteration order.
+ * Determinism: same input bytes produce the same output. Platform-
+ * agnostic text math lives in text-helpers.ts; this file holds only
+ * the Twitter-specific parsing and cleaning.
  */
 
 import type {
@@ -49,6 +49,15 @@ import {
   FUNCTION_WORD_INDEX,
   FUNCTION_WORD_VECTOR_LENGTH,
 } from './function-words';
+import {
+  tokenize,
+  splitSentences,
+  computeCharBigrams,
+  shannonEntropyFromMap,
+  computeCharacterRatios,
+  countMatches,
+  median,
+} from './text-helpers';
 
 const NAME = 'stylometric_twitter';
 const VERSION = '1.0.0';
@@ -68,7 +77,6 @@ export class TwitterStylometricExtractor implements AccountFeatureExtractor {
     const tool = entry.collectionMethod.tool.toLowerCase();
     const source = entry.source.toLowerCase();
 
-    // Positive signals for timeline artifacts
     if (
       tool.includes('timeline') ||
       tool.includes('tweets') ||
@@ -84,7 +92,6 @@ export class TwitterStylometricExtractor implements AccountFeatureExtractor {
       return true;
     }
 
-    // Twitter-scoped tools without specific timeline hint: let through.
     if (tool.includes('twitter') || tool.includes('x-com')) return true;
     if (source.includes('twitter.com') || source.includes('x.com')) return true;
 
@@ -317,7 +324,7 @@ export class TwitterStylometricExtractor implements AccountFeatureExtractor {
 }
 
 // ---------------------------------------------------------------------------
-// Parsing
+// Twitter-specific parsing and cleaning
 // ---------------------------------------------------------------------------
 
 function tryParseTimeline(bytes: Uint8Array): TwitterPost[] | null {
@@ -348,110 +355,23 @@ function isPostLike(value: unknown): value is TwitterPost {
   return 'text' in obj || 'full_text' in obj;
 }
 
-// ---------------------------------------------------------------------------
-// Text cleaning and tokenization
-// ---------------------------------------------------------------------------
-
 function stripRetweetPrefix(text: string): string {
   // "RT @user: actual content" → "actual content"
   return text.replace(/^RT @\w+:\s*/i, '');
 }
 
+/**
+ * Clean Twitter post text for stylometric analysis. Strips URLs,
+ * @mentions, hashtags, and HTML entities, then lowercases. The
+ * stripped tokens are identity/topic/affordance markers rather than
+ * stylistic markers, so removing them yields a cleaner signal for the
+ * writer's word-pattern fingerprint.
+ */
 function cleanForStylometry(text: string): string {
   return text
-    .replace(/https?:\/\/\S+/gi, ' ')     // strip URLs (not stylistic)
-    .replace(/@\w+/g, ' ')                // strip @mentions (identity, not style)
-    .replace(/#[\w\u00C0-\uFFFF]+/g, ' ') // strip hashtags (topic, not style)
-    .replace(/&\w+;/g, ' ')               // strip HTML entities
+    .replace(/https?:\/\/\S+/gi, ' ')      // strip URLs (not stylistic)
+    .replace(/@\w+/g, ' ')                  // strip @mentions (identity, not style)
+    .replace(/#[\w\u00C0-\uFFFF]+/g, ' ')  // strip hashtags (topic, not style)
+    .replace(/&\w+;/g, ' ')                 // strip HTML entities
     .toLowerCase();
-}
-
-/**
- * Tokenize cleaned text into stylometric tokens.
- * Keeps contractions intact (don't → "don't") so they can match the
- * function-word list's contraction entries.
- */
-function tokenize(text: string): string[] {
-  // Match alphabetic sequences with optional internal apostrophes.
-  // Also captures bare clitics like 'n't, 's, 've.
-  const matches = text.match(/[a-z]+(?:'[a-z]+)*|'[a-z]+/g);
-  return matches ?? [];
-}
-
-function splitSentences(text: string): string[] {
-  // Split on sentence-ending punctuation followed by whitespace or end-of-string.
-  // Imperfect for tweets but a reasonable approximation.
-  return text
-    .split(/(?<=[.!?])\s+/)
-    .map(s => s.trim())
-    .filter(s => s.length > 0);
-}
-
-// ---------------------------------------------------------------------------
-// Feature computation helpers
-// ---------------------------------------------------------------------------
-
-function computeCharBigrams(text: string): Map<string, number> {
-  const bigrams = new Map<string, number>();
-  // Lowercase already happened in cleanForStylometry; collapse whitespace.
-  const normalized = text.replace(/\s+/g, ' ').toLowerCase();
-  for (let i = 0; i < normalized.length - 1; i++) {
-    const a = normalized[i];
-    const b = normalized[i + 1];
-    // Keep only alphabetic-and-space bigrams (drop punctuation and digits)
-    if (!isAlphaOrSpace(a) || !isAlphaOrSpace(b)) continue;
-    const bg = a + b;
-    bigrams.set(bg, (bigrams.get(bg) ?? 0) + 1);
-  }
-  return bigrams;
-}
-
-function isAlphaOrSpace(c: string): boolean {
-  return (c >= 'a' && c <= 'z') || c === ' ';
-}
-
-function shannonEntropyFromMap(counts: Map<string, number>, total: number): number {
-  if (total === 0) return 0;
-  let h = 0;
-  for (const c of counts.values()) {
-    if (c === 0) continue;
-    const p = c / total;
-    h -= p * Math.log2(p);
-  }
-  return h;
-}
-
-function computeCharacterRatios(text: string): {
-  uppercase: number;
-  digit: number;
-  punctuation: number;
-} {
-  let upper = 0;
-  let lower = 0;
-  let digit = 0;
-  let punct = 0;
-  let total = 0;
-  for (const c of text) {
-    total++;
-    if (c >= 'A' && c <= 'Z') upper++;
-    else if (c >= 'a' && c <= 'z') lower++;
-    else if (c >= '0' && c <= '9') digit++;
-    else if (/[!-/:-@[-`{-~]/.test(c)) punct++;
-  }
-  const alpha = upper + lower;
-  return {
-    uppercase: alpha > 0 ? upper / alpha : 0,
-    digit: total > 0 ? digit / total : 0,
-    punctuation: total > 0 ? punct / total : 0,
-  };
-}
-
-function countMatches(text: string, re: RegExp): number {
-  return (text.match(re) ?? []).length;
-}
-
-function median(sorted: number[]): number {
-  if (sorted.length === 0) return 0;
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
