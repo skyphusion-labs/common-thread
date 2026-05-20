@@ -1,0 +1,51 @@
+/**
+ * Content-addressed path derivation for archive storage.
+ *
+ * Paths follow the convention: sha256/ab/cd/<full-hash>[.ext]
+ *
+ * The two-level directory prefix (first two pairs of hex chars) avoids
+ * filesystem and object-store performance problems with directories
+ * containing millions of files. With 256 first-level prefixes and 256
+ * second-level prefixes per first-level, a billion artifacts spread
+ * evenly across ~65,000 leaf directories.
+ *
+ * The extension is preserved for human convenience but is not part of
+ * the content address: two files with the same bytes but different
+ * extensions resolve to different paths, even though the methodology
+ * treats them as the same artifact.
+ *
+ * See methodology paper §3.1.1 and §5.4.1.
+ */
+
+import { isValidSha256Hex } from './hash';
+
+/**
+ * Derive the content-addressed path for a SHA-256 hash.
+ *
+ * @param hash - SHA-256 hex string, lowercase, 64 characters
+ * @param extension - Optional file extension (with or without leading dot)
+ * @returns Path of the form sha256/ab/cd/<full-hash>[.ext]
+ * @throws Error if the hash is not a valid SHA-256 hex string
+ */
+export function pathForHash(hash: string, extension?: string): string {
+  if (!isValidSha256Hex(hash)) {
+    throw new Error(`Invalid SHA-256 hash: ${hash}`);
+  }
+
+  const prefix1 = hash.substring(0, 2);
+  const prefix2 = hash.substring(2, 4);
+  const ext = extension ? `.${extension.replace(/^\./, '')}` : '';
+
+  return `sha256/${prefix1}/${prefix2}/${hash}${ext}`;
+}
+
+/**
+ * Extract the SHA-256 hash from a content-addressed path.
+ *
+ * @param path - A path of the form sha256/ab/cd/<full-hash>[.ext]
+ * @returns The 64-character hash, or null if the path doesn't match the format
+ */
+export function hashFromPath(path: string): string | null {
+  const match = path.match(/^sha256\/[0-9a-f]{2}\/[0-9a-f]{2}\/([0-9a-f]{64})(?:\.[^/]*)?$/);
+  return match ? match[1] : null;
+}
