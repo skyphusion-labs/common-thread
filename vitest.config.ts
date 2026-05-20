@@ -9,6 +9,12 @@
  * schema migrations and the runner depend on are exercised against
  * the real engine, not a JS approximation.
  *
+ * Migrations are read at config-load time by readD1Migrations() and
+ * passed into the runtime as the TEST_MIGRATIONS binding. The setup
+ * file (tests/setup.ts) applies them via applyD1Migrations() from
+ * cloudflare:test, which handles multi-statement SQL, comments, and
+ * transactions correctly without a hand-rolled splitter.
+ *
  * Env bindings: TRIAGE_MODEL and REASONING_MODEL inherit from
  * wrangler.toml's [vars] block. AI_GATEWAY_URL and ANTHROPIC_API_KEY
  * are documented as secrets in wrangler.toml (not present in source
@@ -17,27 +23,46 @@
  * gateway URL, so the URL only needs to be syntactically valid.
  */
 
-import { defineWorkersConfig } from '@cloudflare/vitest-pool-workers/config';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import {
+  defineWorkersConfig,
+  readD1Migrations,
+} from '@cloudflare/vitest-pool-workers/config';
 
-export default defineWorkersConfig({
-  test: {
-    setupFiles: ['./tests/setup.ts'],
-    include: ['tests/**/*.test.ts'],
-    poolOptions: {
-      workers: {
-        wrangler: { configPath: './wrangler.toml' },
-        miniflare: {
-          d1Databases: ['DB'],
-          r2Buckets: ['ARCHIVE'],
-          // Test-only values for the secrets documented in wrangler.toml.
-          // fetchMock intercepts requests to AI_GATEWAY_URL before they
-          // leave the runtime; the value just needs a valid origin.
-          bindings: {
-            AI_GATEWAY_URL: 'https://gateway.test/anthropic',
-            ANTHROPIC_API_KEY: 'sk-test-key',
+export default defineWorkersConfig(async () => {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const migrationsPath = path.join(
+    here,
+    'implementation',
+    'schema',
+    'migrations'
+  );
+  const migrations = await readD1Migrations(migrationsPath);
+
+  return {
+    test: {
+      setupFiles: ['./tests/setup.ts'],
+      include: ['tests/**/*.test.ts'],
+      poolOptions: {
+        workers: {
+          wrangler: { configPath: './wrangler.toml' },
+          miniflare: {
+            d1Databases: ['DB'],
+            r2Buckets: ['ARCHIVE'],
+            // Test-only values for the secrets documented in wrangler.toml.
+            // fetchMock intercepts requests to AI_GATEWAY_URL before they
+            // leave the runtime; the value just needs a valid origin.
+            // TEST_MIGRATIONS is read at config load time above and
+            // consumed by tests/setup.ts.
+            bindings: {
+              AI_GATEWAY_URL: 'https://gateway.test/anthropic',
+              ANTHROPIC_API_KEY: 'sk-test-key',
+              TEST_MIGRATIONS: migrations,
+            },
           },
         },
       },
     },
-  },
+  };
 });
