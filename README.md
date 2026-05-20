@@ -26,7 +26,7 @@ paper/                  Methodology paper, twelve sections plus references
 implementation/         Reference implementation
   workers/              Cloudflare Workers handlers
   extractors/           Deterministic feature extractors per signal category
-  reasoning/            LLM-assisted attribution reasoning layer
+  reasoner/             LLM-assisted attribution reasoning layer
   schema/               D1 schema and migrations
   archive/              Archival utilities for R2 content-addressed storage
 docs/                   Practitioner documentation, prompt versions, manifest format
@@ -43,7 +43,7 @@ Common Thread is bring-your-own-keys for both the scraping layer and the LLM rea
 4. Run the setup script to initialize the schema
 5. Start your first investigation by registering a seed set with basis statements
 
-Full setup documentation is in `docs/setup.md`.
+Full setup documentation is in `docs/SETUP.md`. For test runner setup, see `docs/TESTING_SETUP.md`.
 
 ## Methodology paper
 

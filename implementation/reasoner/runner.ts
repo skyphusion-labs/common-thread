@@ -364,8 +364,10 @@ function synthesizeAttributionOutput(args: SynthesizeArgs): SynthesizedOutput {
  * matches, return 'insufficient'. Cluster claims are ignored when
  * choosing the band for a pair row because clusters span multiple
  * accounts; the cluster band is preserved in output_json.
+ *
+ * Exported for direct unit testing.
  */
-function derivePairBand(
+export function derivePairBand(
   output: ReasoningOutput,
   pair: { account_a: string; account_b: string; platform_a: string; platform_b: string }
 ): ConfidenceBand {
@@ -860,7 +862,7 @@ async function writeAttributionRun(
  * Not cryptographically random; methodology paper does not require
  * cryptographic guarantees on signal order, only reproducibility.
  */
-function seededShuffle<T>(arr: ReadonlyArray<T>, seed: string): T[] {
+export function seededShuffle<T>(arr: ReadonlyArray<T>, seed: string): T[] {
   const out = arr.slice();
   let state = djb2(seed);
   if (state === 0) state = 1; // xorshift32 cannot escape zero

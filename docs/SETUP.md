@@ -265,7 +265,7 @@ manifest entries, and verify signatures. The next layers to build:
 
 - **Feature extractors** (`implementation/extractors/`): deterministic
   modules that read artifacts from R2 and write feature rows to D1.
-- **Attribution reasoning** (`implementation/reasoning/`): LLM-assisted
+- **Attribution reasoning** (`implementation/reasoner/`): LLM-assisted
   module that reads features from D1 and produces attribution outputs.
 - **HTTP API expansion**: routes for seed accounts, features, attribution
   runs, evidence packets.
