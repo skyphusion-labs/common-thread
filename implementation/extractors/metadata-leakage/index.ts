@@ -6,9 +6,11 @@
  *   §4.7 Platform-supplied metadata leakage
  *     - account-level: TwitterMetadataLeakageExtractor (emits
  *       client_app_distribution and tweet_language_distribution
- *       from tweet timeline artifacts)
+ *       from tweet timeline artifacts). Profile-lang field is
+ *       emitted by the account-metadata extractor as 'profile_lang'.
  *     - pair-level: ClientAppOverlapExtractor,
- *       TweetLanguageOverlapExtractor
+ *       TweetLanguageOverlapExtractor,
+ *       ProfileLangOverlapExtractor
  *
  * Platform parity:
  *
@@ -31,10 +33,6 @@
  *     extractor; they're already covered or out-of-scope.
  *
  * Notable additional §4.7 signals NOT YET IMPLEMENTED:
- *
- *   - Profile lang field (the account-metadata extractor for Twitter
- *     would need to start emitting 'profile_lang' from the 'lang'
- *     field of the user object; small addition to that extractor).
  *
  *   - Default profile / default avatar flags: already emitted by
  *     the existing account-metadata extractor (default_profile,
@@ -61,6 +59,7 @@
 import { TwitterMetadataLeakageExtractor } from './twitter';
 import { ClientAppOverlapExtractor } from './client-app-overlap';
 import { TweetLanguageOverlapExtractor } from './language-overlap';
+import { ProfileLangOverlapExtractor } from './profile-lang-overlap';
 import { ExifOverlapExtractor } from '../visual/exif-overlap';
 import type { AccountFeatureExtractor } from '../types';
 import type { PairFeatureExtractor } from '../pair-types';
@@ -72,12 +71,14 @@ export const METADATA_LEAKAGE_EXTRACTORS: AccountFeatureExtractor[] = [
 export const METADATA_LEAKAGE_PAIR_EXTRACTORS: PairFeatureExtractor[] = [
   new ClientAppOverlapExtractor(),
   new TweetLanguageOverlapExtractor(),
+  new ProfileLangOverlapExtractor(),
   new ExifOverlapExtractor(),  // §4.5.5; source in extractors/visual/
 ];
 
 export { TwitterMetadataLeakageExtractor } from './twitter';
 export { ClientAppOverlapExtractor } from './client-app-overlap';
 export { TweetLanguageOverlapExtractor } from './language-overlap';
+export { ProfileLangOverlapExtractor } from './profile-lang-overlap';
 export {
   dictJensenShannonDivergence,
   dictKeyJaccard,

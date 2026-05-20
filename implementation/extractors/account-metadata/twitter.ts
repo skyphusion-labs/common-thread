@@ -25,6 +25,7 @@
  *                    listed_count, favourites_count,
  *                    follower_following_ratio
  *   Profile images:  profile_image_url, banner_image_url
+ *   Language:        profile_lang
  *
  * All numeric counts are emitted as 'numeric' feature values. Booleans
  * are emitted as 'numeric' 0/1 (the schema doesn't have a boolean type).
@@ -82,6 +83,7 @@ interface TwitterProfile {
   profile_image_url_https?: string;
   profileBannerUrl?: string;
   profile_banner_url?: string;
+  lang?: string;
 }
 
 export class TwitterAccountMetadataExtractor implements AccountFeatureExtractor {
@@ -187,6 +189,15 @@ export class TwitterAccountMetadataExtractor implements AccountFeatureExtractor 
       profile.profileImageUrl ?? profile.profile_image_url ?? profile.profile_image_url_https
     );
     pushText(features, 'banner_image_url', profile.profileBannerUrl ?? profile.profile_banner_url);
+
+    // Profile language. Twitter deprecated 'lang' from default API
+    // responses around 2019 (alongside source/timezone), but some
+    // archives and scrapers still expose it. When present it's a
+    // low-but-nonzero diagnostic signal: weak alone, more useful when
+    // the value is uncommon (e.g., 'ja', 'tr') or when it corroborates
+    // other signals in a sockpuppet network. Reddit doesn't have a
+    // public-profile equivalent, so this is Twitter-only.
+    pushText(features, 'profile_lang', profile.lang);
 
     return features;
   }
