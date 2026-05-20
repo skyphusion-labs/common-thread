@@ -1,0 +1,337 @@
+/**
+ * TypeScript types matching the Common Thread D1 schema.
+ *
+ * These types describe the shape of rows returned by D1 queries.
+ * SQLite/D1 stores everything as TEXT, INTEGER, REAL, BLOB, or NULL,
+ * so:
+ *
+ *   - Timestamps are TEXT (ISO 8601 UTC). Parse to Date if needed.
+ *   - JSON columns are TEXT. Parse with JSON.parse() to access structure.
+ *   - Booleans are INTEGER (0 or 1). The schema doesn't currently use
+ *     any boolean columns.
+ *
+ * These types do not impose runtime validation; they describe the
+ * expected shape. Application code is responsible for parsing JSON
+ * columns and validating values where needed.
+ */
+
+// ---------------------------------------------------------------------------
+// Investigations
+// ---------------------------------------------------------------------------
+
+export interface InvestigationRow {
+  id: string;
+  name: string;
+  description: string | null;
+  status: 'active' | 'archived' | 'sealed';
+  created_at: string;
+  updated_at: string;
+  metadata_json: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Seed accounts
+// ---------------------------------------------------------------------------
+
+export interface SeedAccountRow {
+  id: number;
+  investigation_id: string;
+  platform: string;
+  account_identifier: string;
+  basis_statement: string;
+  added_at: string;
+  added_by: string | null;
+  removed_at: string | null;
+  removed_reason: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Features
+// ---------------------------------------------------------------------------
+
+/**
+ * Signal categories from §4 of the methodology paper.
+ * The schema does not enforce this enum at the database level
+ * (feature_category is just TEXT), but the application should use
+ * these values when inserting.
+ */
+export type FeatureCategory =
+  | 'account_metadata'
+  | 'temporal'
+  | 'stylometric'
+  | 'network'
+  | 'visual'
+  | 'cross_platform'
+  | 'content_artifacts'
+  | 'metadata_leakage';
+
+interface FeatureValueColumns {
+  feature_value_text: string | null;
+  feature_value_numeric: number | null;
+  feature_value_json: string | null;
+}
+
+export interface AccountFeatureRow extends FeatureValueColumns {
+  id: number;
+  investigation_id: string;
+  platform: string;
+  account_identifier: string;
+  feature_category: FeatureCategory | string;
+  feature_name: string;
+  extracted_at: string;
+  extractor_name: string;
+  extractor_version: string;
+  extractor_run_id: number | null;
+}
+
+export interface PairFeatureRow extends FeatureValueColumns {
+  id: number;
+  investigation_id: string;
+  platform: string;
+  account_a: string;  // canonical: account_a < account_b
+  account_b: string;
+  feature_category: FeatureCategory | string;
+  feature_name: string;
+  extracted_at: string;
+  extractor_name: string;
+  extractor_version: string;
+  extractor_run_id: number | null;
+}
+
+export interface EventFeatureRow {
+  id: number;
+  investigation_id: string;
+  platform: string;
+  account_identifier: string;
+  event_timestamp: string;
+  event_type: string;
+  event_data_json: string | null;
+  extracted_at: string;
+  extractor_name: string;
+  extractor_version: string;
+  extractor_run_id: number | null;
+}
+
+// ---------------------------------------------------------------------------
+// Provenance
+// ---------------------------------------------------------------------------
+
+export interface FeatureProvenanceRow {
+  id: number;
+  /** Foreign key column name varies per provenance table. */
+  feature_id: number;
+  artifact_hash: string;
+  manifest_entry_hash: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Runs
+// ---------------------------------------------------------------------------
+
+export interface ExtractorRunRow {
+  id: number;
+  investigation_id: string;
+  extractor_name: string;
+  extractor_version: string;
+  configuration_json: string | null;
+  manifest_hash_at_run: string;
+  started_at: string;
+  completed_at: string | null;
+  status: 'running' | 'completed' | 'failed' | 'partial';
+  input_artifact_count: number | null;
+  output_feature_count: number | null;
+  error_message: string | null;
+}
+
+/**
+ * The three-band confidence scheme from §7.3 of the methodology paper.
+ * Numeric probability outputs are explicitly not stored; the methodology
+ * commits to coarse confidence bands as the operational output.
+ */
+export type ConfidenceBand = 'insufficient' | 'consistent' | 'strongly_consistent';
+
+export interface AttributionRunRow {
+  id: number;
+  investigation_id: string;
+  account_a: string;
+  account_b: string;
+  platform: string;
+  model_name: string;
+  model_version: string;
+  reasoning_prompt_version: string;
+  input_feature_count: number;
+  confidence_band: ConfidenceBand;
+  output_summary: string;
+  output_json: string;
+  started_at: string;
+  completed_at: string;
+  manifest_hash_at_run: string;
+}
+
+// ---------------------------------------------------------------------------
+// Input types: shapes for writing rows
+// ---------------------------------------------------------------------------
+
+/**
+ * Discriminated union for writing a feature value. Exactly one variant
+ * is valid; the schema's CHECK constraint will reject attempts to set
+ * more than one column.
+ */
+export type FeatureValue =
+  | { kind: 'text'; value: string }
+  | { kind: 'numeric'; value: number }
+  | { kind: 'json'; value: unknown };
+
+export interface NewInvestigation {
+  id: string;
+  name: string;
+  description?: string;
+  status?: 'active' | 'archived' | 'sealed';
+  metadata?: Record<string, unknown>;
+}
+
+export interface NewSeedAccount {
+  investigation_id: string;
+  platform: string;
+  account_identifier: string;
+  basis_statement: string;
+  added_by?: string;
+}
+
+export interface NewAccountFeature {
+  investigation_id: string;
+  platform: string;
+  account_identifier: string;
+  feature_category: FeatureCategory | string;
+  feature_name: string;
+  value: FeatureValue;
+  extractor_name: string;
+  extractor_version: string;
+  extractor_run_id?: number;
+  provenance: FeatureProvenance[];
+}
+
+export interface NewPairFeature {
+  investigation_id: string;
+  platform: string;
+  /** Account names will be canonically ordered before insert. */
+  accounts: [string, string];
+  feature_category: FeatureCategory | string;
+  feature_name: string;
+  value: FeatureValue;
+  extractor_name: string;
+  extractor_version: string;
+  extractor_run_id?: number;
+  provenance: FeatureProvenance[];
+}
+
+export interface NewEventFeature {
+  investigation_id: string;
+  platform: string;
+  account_identifier: string;
+  event_timestamp: string;
+  event_type: string;
+  event_data?: Record<string, unknown>;
+  extractor_name: string;
+  extractor_version: string;
+  extractor_run_id?: number;
+  provenance: FeatureProvenance[];
+}
+
+export interface FeatureProvenance {
+  artifact_hash: string;
+  manifest_entry_hash?: string;
+}
+
+export interface NewExtractorRun {
+  investigation_id: string;
+  extractor_name: string;
+  extractor_version: string;
+  configuration?: Record<string, unknown>;
+  manifest_hash_at_run: string;
+}
+
+export interface NewAttributionRun {
+  investigation_id: string;
+  /** Account names will be canonically ordered before insert. */
+  accounts: [string, string];
+  platform: string;
+  model_name: string;
+  model_version: string;
+  reasoning_prompt_version: string;
+  input_feature_count: number;
+  confidence_band: ConfidenceBand;
+  output_summary: string;
+  output: Record<string, unknown>;
+  started_at: string;
+  completed_at: string;
+  manifest_hash_at_run: string;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Canonical pair ordering: returns [smaller, larger] alphabetically.
+ * Use before inserting into pair_features or attribution_runs to satisfy
+ * the schema's CHECK (account_a < account_b) constraint.
+ */
+export function canonicalPair(a: string, b: string): [string, string] {
+  if (a === b) {
+    throw new Error('Pair features require two distinct accounts');
+  }
+  return a < b ? [a, b] : [b, a];
+}
+
+/**
+ * Extract the populated value from a feature row's three feature_value_* columns.
+ * Returns the JSON-decoded value if feature_value_json is set.
+ */
+export function readFeatureValue(
+  row: FeatureValueColumns
+): { kind: 'text'; value: string } |
+   { kind: 'numeric'; value: number } |
+   { kind: 'json'; value: unknown } {
+  if (row.feature_value_text !== null) {
+    return { kind: 'text', value: row.feature_value_text };
+  }
+  if (row.feature_value_numeric !== null) {
+    return { kind: 'numeric', value: row.feature_value_numeric };
+  }
+  if (row.feature_value_json !== null) {
+    return { kind: 'json', value: JSON.parse(row.feature_value_json) };
+  }
+  throw new Error('Feature row has no populated value column (should be impossible per schema CHECK)');
+}
+
+/**
+ * Pack a FeatureValue into the three column slots, returning the values
+ * to bind in an INSERT. Exactly one element is non-null.
+ */
+export function packFeatureValue(value: FeatureValue): {
+  feature_value_text: string | null;
+  feature_value_numeric: number | null;
+  feature_value_json: string | null;
+} {
+  switch (value.kind) {
+    case 'text':
+      return {
+        feature_value_text: value.value,
+        feature_value_numeric: null,
+        feature_value_json: null,
+      };
+    case 'numeric':
+      return {
+        feature_value_text: null,
+        feature_value_numeric: value.value,
+        feature_value_json: null,
+      };
+    case 'json':
+      return {
+        feature_value_text: null,
+        feature_value_numeric: null,
+        feature_value_json: JSON.stringify(value.value),
+      };
+  }
+}
