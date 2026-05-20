@@ -1,0 +1,35 @@
+{
+  "name": "common-thread",
+  "version": "0.1.0",
+  "description": "Methodology and reference implementation for sockpuppet attribution from public behavioral signals on social platforms.",
+  "private": true,
+  "license": "AGPL-3.0",
+  "type": "module",
+  "homepage": "https://github.com/SkyPhusion/common-thread",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SkyPhusion/common-thread.git"
+  },
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:prod": "wrangler deploy --env production",
+    "typecheck": "tsc --noEmit",
+    "db:create": "wrangler d1 create common-thread",
+    "db:create:prod": "wrangler d1 create common-thread-prod",
+    "db:migrate:local": "wrangler d1 migrations apply common-thread --local",
+    "db:migrate": "wrangler d1 migrations apply common-thread --remote",
+    "db:migrate:prod": "wrangler d1 migrations apply common-thread-prod --remote --env production",
+    "r2:create": "wrangler r2 bucket create common-thread-archive",
+    "r2:create:prod": "wrangler r2 bucket create common-thread-archive-prod",
+    "keygen": "node scripts/keygen.mjs"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250101.0",
+    "typescript": "^5.4.0",
+    "wrangler": "^3.80.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

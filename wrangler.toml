@@ -1,0 +1,69 @@
+# Common Thread Worker configuration.
+#
+# Two environments are defined:
+#   - default (development): for local `wrangler dev` and personal staging
+#   - production: for the publicly-deployed Worker
+#
+# Before first use:
+#   1. Run `npm run db:create` to create the D1 database, then paste the
+#      database_id below.
+#   2. Run `npm run r2:create` to create the R2 bucket.
+#   3. Run `npm run db:migrate:local` to apply the schema to local D1.
+#   4. (Optional) Run `npm run keygen` to generate a signer keypair,
+#      then add the public key to .dev.vars as SIGNER_PUBLIC_KEY.
+#   5. Run `npm run dev` to start the Worker locally.
+
+name = "common-thread"
+main = "implementation/workers/index.ts"
+compatibility_date = "2025-09-01"
+# Ed25519 in Web Crypto API became standard in Workers runtime in 2024.
+# A compat date of 2025-09-01 (or any recent date) suffices. Bump to the
+# latest stable date when convenient; Workers maintains backward compat
+# for previously-pinned dates indefinitely.
+
+# Default (development) bindings.
+
+[[d1_databases]]
+binding = "DB"
+database_name = "common-thread"
+database_id = "REPLACE_AFTER_RUNNING_db:create"
+migrations_dir = "implementation/schema/migrations"
+
+[[r2_buckets]]
+binding = "ARCHIVE"
+bucket_name = "common-thread-archive"
+
+[vars]
+ENVIRONMENT = "development"
+
+# -----------------------------------------------------------------------------
+# Production environment.
+# Deploy with `wrangler deploy --env production`.
+# -----------------------------------------------------------------------------
+
+[env.production]
+name = "common-thread-prod"
+
+[env.production.vars]
+ENVIRONMENT = "production"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "common-thread-prod"
+database_id = "REPLACE_AFTER_RUNNING_db:create:prod"
+migrations_dir = "implementation/schema/migrations"
+
+[[env.production.r2_buckets]]
+binding = "ARCHIVE"
+bucket_name = "common-thread-archive-prod"
+
+# -----------------------------------------------------------------------------
+# Optional: observability and limits.
+# Uncomment and adjust if you want stricter resource limits.
+# -----------------------------------------------------------------------------
+
+# [observability]
+# enabled = true
+
+# [limits]
+# cpu_ms = 30000

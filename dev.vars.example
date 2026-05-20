@@ -1,0 +1,16 @@
+# Common Thread local development secrets.
+#
+# Copy this file to .dev.vars (which is gitignored) and fill in your values.
+# Wrangler will load these as Worker env vars when running `wrangler dev`.
+#
+# For production secrets, use:
+#   wrangler secret put SIGNER_PUBLIC_KEY --env production
+
+# Public key of the practitioner authorized to sign manifests for this
+# investigation. Generate a keypair with `npm run keygen` and paste the
+# public key here. The private key is stored separately (password manager,
+# hardware key) and never enters the Worker.
+SIGNER_PUBLIC_KEY=
+
+# Optional: investigation-scoped identifier shown in API responses.
+INVESTIGATION_NAMESPACE=local-dev
