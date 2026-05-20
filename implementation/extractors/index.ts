@@ -5,14 +5,15 @@
  *
  *   Account-level extractors: read artifact bytes via the account
  *   runner, produce account_features rows. Categories: account_metadata,
- *   temporal, stylometric, network, visual.
+ *   temporal, stylometric, network, visual, metadata_leakage.
  *
  *   Pair-level extractors: read pre-computed account features via the
  *   pair runner, produce pair_features rows. Categories: stylometric
  *   (Burrows' Delta, JSD on character bigrams), temporal (burst-overlap,
  *   cadence JSD, active-hour JSD, quiet-period overlap), cross_platform
  *   (handle reuse, bio link overlap), network (follower overlap,
- *   mutual follow), and visual (profile image, banner image).
+ *   mutual follow), visual (profile image, banner image), and
+ *   metadata_leakage (client app, tweet language).
  */
 
 import { ACCOUNT_METADATA_EXTRACTORS } from './account-metadata';
@@ -35,6 +36,10 @@ import {
   VISUAL_EXTRACTORS,
   VISUAL_PAIR_EXTRACTORS,
 } from './visual';
+import {
+  METADATA_LEAKAGE_EXTRACTORS,
+  METADATA_LEAKAGE_PAIR_EXTRACTORS,
+} from './metadata-leakage';
 import type { AccountFeatureExtractor } from './types';
 import type { PairFeatureExtractor } from './pair-types';
 
@@ -49,6 +54,7 @@ export const ALL_ACCOUNT_EXTRACTORS: AccountFeatureExtractor[] = [
   ...STYLOMETRIC_EXTRACTORS,
   ...NETWORK_EXTRACTORS,
   ...VISUAL_EXTRACTORS,
+  ...METADATA_LEAKAGE_EXTRACTORS,
 ];
 
 /** Account-level extractors grouped by signal category. */
@@ -58,6 +64,7 @@ export const ACCOUNT_EXTRACTORS_BY_CATEGORY = {
   stylometric: STYLOMETRIC_EXTRACTORS,
   network: NETWORK_EXTRACTORS,
   visual: VISUAL_EXTRACTORS,
+  metadata_leakage: METADATA_LEAKAGE_EXTRACTORS,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -71,6 +78,7 @@ export const ALL_PAIR_EXTRACTORS: PairFeatureExtractor[] = [
   ...CROSS_PLATFORM_PAIR_EXTRACTORS,
   ...NETWORK_PAIR_EXTRACTORS,
   ...VISUAL_PAIR_EXTRACTORS,
+  ...METADATA_LEAKAGE_PAIR_EXTRACTORS,
 ];
 
 /** Pair-level extractors grouped by signal category. */
@@ -80,6 +88,7 @@ export const PAIR_EXTRACTORS_BY_CATEGORY = {
   cross_platform: CROSS_PLATFORM_PAIR_EXTRACTORS,
   network: NETWORK_PAIR_EXTRACTORS,
   visual: VISUAL_PAIR_EXTRACTORS,
+  metadata_leakage: METADATA_LEAKAGE_PAIR_EXTRACTORS,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -92,6 +101,7 @@ export { STYLOMETRIC_EXTRACTORS, STYLOMETRIC_PAIR_EXTRACTORS } from './stylometr
 export { CROSS_PLATFORM_PAIR_EXTRACTORS } from './cross-platform';
 export { NETWORK_EXTRACTORS, NETWORK_PAIR_EXTRACTORS } from './network';
 export { VISUAL_EXTRACTORS, VISUAL_PAIR_EXTRACTORS } from './visual';
+export { METADATA_LEAKAGE_EXTRACTORS, METADATA_LEAKAGE_PAIR_EXTRACTORS } from './metadata-leakage';
 
 export { runAccountExtractors } from './runner';
 export { runPairExtractors } from './pair-runner';
