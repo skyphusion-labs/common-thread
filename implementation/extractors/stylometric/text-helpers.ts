@@ -134,6 +134,114 @@ export function countMatches(text: string, re: RegExp): number {
   return (text.match(re) ?? []).length;
 }
 
+// ---------------------------------------------------------------------------
+// URL extraction and normalization
+// ---------------------------------------------------------------------------
+
+/**
+ * URL-matching regex tuned to avoid common trailing punctuation that
+ * would corrupt URL parsing (closing brackets, quotes, etc.). Matches
+ * http and https URLs.
+ */
+const URL_REGEX = /https?:\/\/[^\s<>"'`)\]}]+/gi;
+
+/**
+ * Query parameters known to be tracking-only. Stripped during URL
+ * normalization so two accounts linking to the same target with
+ * different tracking context still compare equal.
+ */
+const TRACKING_PARAMS = new Set([
+  'utm_source',
+  'utm_medium',
+  'utm_campaign',
+  'utm_term',
+  'utm_content',
+  'utm_id',
+  'fbclid',
+  'gclid',
+  'igshid',
+  'mc_eid',
+  'mc_cid',
+  'ref',
+  'ref_src',
+  'ref_url',
+  'source',
+]);
+
+/**
+ * Extract all URL-like substrings from the given text, normalize each
+ * to canonical comparable form, and return the deduplicated set.
+ *
+ * Canonical form is host (lowercased, www. stripped) + path (trailing
+ * slash removed) + sorted non-tracking query string. Protocol is
+ * dropped so http and https variants of the same target compare equal.
+ *
+ * Determinism: pure string parsing. No randomness, no clock, no
+ * network. Two accounts pointing at the same target via different
+ * surface forms (case differences, www. prefix, tracking params,
+ * protocol difference) will produce identical normalized strings;
+ * SHORTENER REDIRECTS are NOT resolved here (would require network),
+ * so t.co/abc and bit.ly/xyz remain distinct even when they point at
+ * the same target. Resolution is a collection-layer responsibility.
+ *
+ * Returns null entries are filtered out; the returned set contains
+ * only successfully parsed URLs.
+ */
+export function extractAndNormalizeUrls(text: string): Set<string> {
+  const out = new Set<string>();
+  for (const match of text.matchAll(URL_REGEX)) {
+    const normalized = normalizeUrl(match[0]);
+    if (normalized) out.add(normalized);
+  }
+  return out;
+}
+
+/**
+ * Normalize a single URL to canonical comparable form. Returns null
+ * when parsing fails or the protocol is not http/https.
+ */
+export function normalizeUrl(raw: string): string | null {
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return null;
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return null;
+  }
+
+  const host = parsed.host.toLowerCase().replace(/^www\./, '');
+  if (host.length === 0) return null;
+
+  const path = parsed.pathname.replace(/\/$/, '');
+
+  const params: string[] = [];
+  for (const [k, v] of parsed.searchParams.entries()) {
+    if (!TRACKING_PARAMS.has(k.toLowerCase())) {
+      params.push(`${k}=${v}`);
+    }
+  }
+  params.sort();
+  const query = params.length > 0 ? `?${params.join('&')}` : '';
+
+  return `${host}${path}${query}`;
+}
+
+/**
+ * Extract just the host portion of a normalized URL string. Returns
+ * empty string if the URL is malformed beyond recognition.
+ */
+export function urlHost(normalizedUrl: string): string {
+  const slashIdx = normalizedUrl.indexOf('/');
+  const qIdx = normalizedUrl.indexOf('?');
+  let end = normalizedUrl.length;
+  if (slashIdx >= 0 && slashIdx < end) end = slashIdx;
+  if (qIdx >= 0 && qIdx < end) end = qIdx;
+  return normalizedUrl.slice(0, end);
+}
+
 /**
  * Median of an already-sorted numeric array. Returns 0 for empty
  * input (rather than NaN) so callers don't have to special-case it.

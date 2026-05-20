@@ -81,6 +81,7 @@ import {
   computeCharacterRatios,
   countMatches,
   median,
+  extractAndNormalizeUrls,
 } from './text-helpers';
 
 const NAME = 'stylometric_reddit';
@@ -141,6 +142,9 @@ export class RedditStylometricExtractor implements AccountFeatureExtractor {
     const tokenLengths: number[] = [];
     const markdownChars: number[] = []; // count of markdown-syntax characters per post
 
+    // Aggregate posted URL set across all posts (§4.6.3 input).
+    const postedUrls = new Set<string>();
+
     let submissionCount = 0;
     let commentCount = 0;
 
@@ -159,6 +163,7 @@ export class RedditStylometricExtractor implements AccountFeatureExtractor {
       mentionCounts.push(countMatches(raw, /\b(?:\/?[ur]\/)\w+/g));
       emojiCounts.push(countMatches(raw, /\p{Extended_Pictographic}/gu));
       urlCounts.push(countMatches(raw, /https?:\/\/\S+/gi));
+      for (const u of extractAndNormalizeUrls(raw)) postedUrls.add(u);
       charLengths.push(raw.length);
       markdownChars.push(countMarkdownSyntaxChars(raw));
 
@@ -368,6 +373,23 @@ export class RedditStylometricExtractor implements AccountFeatureExtractor {
         kind: 'numeric',
         value: totalRawChars > 0 ? totalMarkdownChars / totalRawChars : 0,
       },
+    });
+
+    // ----- Posted URLs (content_artifacts category per paper §4.7) -----
+    //
+    // The URL list is emitted regardless of count (including the empty
+    // case) so the pair extractor (external_link_overlap_cross_platform)
+    // can fire on every pair where both accounts have at least one post.
+    // Empty list is itself informative.
+    features.push({
+      category: 'content_artifacts',
+      name: 'posted_urls',
+      value: { kind: 'json', value: [...postedUrls].sort() },
+    });
+    features.push({
+      category: 'content_artifacts',
+      name: 'posted_urls_unique_count',
+      value: { kind: 'numeric', value: postedUrls.size },
     });
 
     return features;

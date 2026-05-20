@@ -57,6 +57,7 @@ import {
   computeCharacterRatios,
   countMatches,
   median,
+  extractAndNormalizeUrls,
 } from './text-helpers';
 
 const NAME = 'stylometric_twitter';
@@ -118,6 +119,9 @@ export class TwitterStylometricExtractor implements AccountFeatureExtractor {
     const charLengths: number[] = [];
     const tokenLengths: number[] = [];
 
+    // Aggregate posted URL set across all posts (§4.6.3 input).
+    const postedUrls = new Set<string>();
+
     // Build the cleaned corpus for stylometric analysis
     const cleanedTexts: string[] = [];
 
@@ -126,6 +130,7 @@ export class TwitterStylometricExtractor implements AccountFeatureExtractor {
       mentionCounts.push(countMatches(raw, /@\w+/g));
       emojiCounts.push(countMatches(raw, /\p{Extended_Pictographic}/gu));
       urlCounts.push(countMatches(raw, /https?:\/\/\S+/gi));
+      for (const u of extractAndNormalizeUrls(raw)) postedUrls.add(u);
       charLengths.push(raw.length);
 
       const cleaned = cleanForStylometry(raw);
@@ -317,6 +322,23 @@ export class TwitterStylometricExtractor implements AccountFeatureExtractor {
       category: cat,
       name: 'url_per_post_mean',
       value: { kind: 'numeric', value: urlCounts.reduce((s, x) => s + x, 0) / postCount },
+    });
+
+    // ----- Posted URLs (content_artifacts category per paper §4.7) -----
+    //
+    // The URL list is emitted regardless of count (including the empty
+    // case) so the pair extractor (external_link_overlap_cross_platform)
+    // can fire on every pair where both accounts have at least one post.
+    // Empty list is itself informative (no link-sharing pattern to compare).
+    features.push({
+      category: 'content_artifacts',
+      name: 'posted_urls',
+      value: { kind: 'json', value: [...postedUrls].sort() },
+    });
+    features.push({
+      category: 'content_artifacts',
+      name: 'posted_urls_unique_count',
+      value: { kind: 'numeric', value: postedUrls.size },
     });
 
     return features;
