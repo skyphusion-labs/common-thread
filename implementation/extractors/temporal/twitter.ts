@@ -67,6 +67,29 @@
  *     account that posts at 8am weekdays-only versus an account that
  *     posts at 8am weekends-only would look identical on the hour
  *     marginal but different on the joint distribution.
+ *
+ *   Quiet periods (v1.3.0):
+ *     quiet_periods_24hr (json, array of quiet-period objects)
+ *
+ *     quiet_periods_24hr entries each carry:
+ *       { startMs, endMs, durationMs }
+ *
+ *     A quiet period is the time interval between two consecutive posts
+ *     whose gap exceeds 24 hours (the methodology paper §4.2.4 default
+ *     threshold). startMs is the timestamp of the last post before the
+ *     silence; endMs is the timestamp of the next post after the
+ *     silence; durationMs is endMs - startMs. The threshold is encoded
+ *     in the feature name so future versions with different thresholds
+ *     receive distinct feature names (paralleling the
+ *     burst_windows_2sigma_14day convention). Within an account, quiet
+ *     periods are necessarily disjoint by construction.
+ *
+ *     This feature is the input to the quiet_period_overlap_temporal
+ *     pair extractor: when a single human operates multiple accounts,
+ *     those accounts tend to go silent at the same times (sleep, work
+ *     commitments, travel, illness), and quiet-period overlap captures
+ *     coordinated absence in a way that complements burst-overlap
+ *     (coordinated presence).
  */
 
 import type {
@@ -77,12 +100,13 @@ import type {
 import type { ManifestEntry } from '../../archive/types';
 
 const NAME = 'temporal_twitter';
-const VERSION = '1.2.0';
+const VERSION = '1.3.0';
 
 const MS_PER_DAY = 86_400_000;
 const BURST_BASELINE_DAYS = 14;
 const BURST_STDEV_THRESHOLD = 2;
 const BURST_MIN_COUNT = 3;
+const QUIET_THRESHOLD_MS = 24 * 3600 * 1000;
 
 interface TwitterPost {
   id?: string | number;
@@ -103,6 +127,12 @@ interface BurstWindow {
   endMs: number;
   peakDailyCount: number;
   durationDays: number;
+}
+
+interface QuietPeriod {
+  startMs: number;
+  endMs: number;
+  durationMs: number;
 }
 
 export class TwitterTemporalExtractor implements AccountFeatureExtractor {
@@ -367,6 +397,17 @@ export class TwitterTemporalExtractor implements AccountFeatureExtractor {
       value: { kind: 'json', value: hourDowBuckets },
     });
 
+    // -----------------------------------------------------------------
+    // v1.3.0 addition: quiet periods at 24-hour threshold
+    // -----------------------------------------------------------------
+
+    const quietPeriods = computeQuietPeriods(timestamps);
+    features.push({
+      category: cat,
+      name: 'quiet_periods_24hr',
+      value: { kind: 'json', value: quietPeriods },
+    });
+
     return features;
   }
 }
@@ -470,6 +511,36 @@ function computeBurstWindows(sortedTimestampsMs: number[]): BurstWindow[] {
   }
 
   return windows;
+}
+
+// ---------------------------------------------------------------------------
+// Quiet-period detection
+// ---------------------------------------------------------------------------
+
+/**
+ * Detect quiet periods using a fixed 24-hour gap threshold. The algorithm
+ * walks consecutive timestamps in the sorted series; for each pair whose
+ * gap exceeds QUIET_THRESHOLD_MS, emit a quiet period spanning the gap.
+ *
+ * Within an account, quiet periods are necessarily disjoint by construction
+ * (each period sits between two specific posts; the next period starts at
+ * the second of those posts or later).
+ *
+ * Returns an empty array if the timestamp series has fewer than 2 posts
+ * (no consecutive pair to gap-check).
+ */
+function computeQuietPeriods(sortedTimestampsMs: number[]): QuietPeriod[] {
+  if (sortedTimestampsMs.length < 2) return [];
+  const periods: QuietPeriod[] = [];
+  for (let i = 1; i < sortedTimestampsMs.length; i++) {
+    const start = sortedTimestampsMs[i - 1];
+    const end = sortedTimestampsMs[i];
+    const duration = end - start;
+    if (duration > QUIET_THRESHOLD_MS) {
+      periods.push({ startMs: start, endMs: end, durationMs: duration });
+    }
+  }
+  return periods;
 }
 
 // ---------------------------------------------------------------------------
