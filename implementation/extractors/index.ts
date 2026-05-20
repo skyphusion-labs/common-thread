@@ -5,13 +5,14 @@
  *
  *   Account-level extractors: read artifact bytes via the account
  *   runner, produce account_features rows. Categories: account_metadata,
- *   temporal, stylometric, network.
+ *   temporal, stylometric, network, visual.
  *
  *   Pair-level extractors: read pre-computed account features via the
  *   pair runner, produce pair_features rows. Categories: stylometric
  *   (Burrows' Delta, JSD on character bigrams), temporal (burst-overlap,
  *   cadence JSD, active-hour JSD, quiet-period overlap), cross_platform
- *   (handle reuse, bio link overlap), and network (follower overlap).
+ *   (handle reuse, bio link overlap), network (follower overlap,
+ *   mutual follow), and visual (profile image, banner image).
  */
 
 import { ACCOUNT_METADATA_EXTRACTORS } from './account-metadata';
@@ -30,6 +31,10 @@ import {
   NETWORK_EXTRACTORS,
   NETWORK_PAIR_EXTRACTORS,
 } from './network';
+import {
+  VISUAL_EXTRACTORS,
+  VISUAL_PAIR_EXTRACTORS,
+} from './visual';
 import type { AccountFeatureExtractor } from './types';
 import type { PairFeatureExtractor } from './pair-types';
 
@@ -43,6 +48,7 @@ export const ALL_ACCOUNT_EXTRACTORS: AccountFeatureExtractor[] = [
   ...TEMPORAL_EXTRACTORS,
   ...STYLOMETRIC_EXTRACTORS,
   ...NETWORK_EXTRACTORS,
+  ...VISUAL_EXTRACTORS,
 ];
 
 /** Account-level extractors grouped by signal category. */
@@ -51,6 +57,7 @@ export const ACCOUNT_EXTRACTORS_BY_CATEGORY = {
   temporal: TEMPORAL_EXTRACTORS,
   stylometric: STYLOMETRIC_EXTRACTORS,
   network: NETWORK_EXTRACTORS,
+  visual: VISUAL_EXTRACTORS,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -63,6 +70,7 @@ export const ALL_PAIR_EXTRACTORS: PairFeatureExtractor[] = [
   ...TEMPORAL_PAIR_EXTRACTORS,
   ...CROSS_PLATFORM_PAIR_EXTRACTORS,
   ...NETWORK_PAIR_EXTRACTORS,
+  ...VISUAL_PAIR_EXTRACTORS,
 ];
 
 /** Pair-level extractors grouped by signal category. */
@@ -71,6 +79,7 @@ export const PAIR_EXTRACTORS_BY_CATEGORY = {
   temporal: TEMPORAL_PAIR_EXTRACTORS,
   cross_platform: CROSS_PLATFORM_PAIR_EXTRACTORS,
   network: NETWORK_PAIR_EXTRACTORS,
+  visual: VISUAL_PAIR_EXTRACTORS,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -82,6 +91,7 @@ export { TEMPORAL_EXTRACTORS, TEMPORAL_PAIR_EXTRACTORS } from './temporal';
 export { STYLOMETRIC_EXTRACTORS, STYLOMETRIC_PAIR_EXTRACTORS } from './stylometric';
 export { CROSS_PLATFORM_PAIR_EXTRACTORS } from './cross-platform';
 export { NETWORK_EXTRACTORS, NETWORK_PAIR_EXTRACTORS } from './network';
+export { VISUAL_EXTRACTORS, VISUAL_PAIR_EXTRACTORS } from './visual';
 
 export { runAccountExtractors } from './runner';
 export { runPairExtractors } from './pair-runner';
