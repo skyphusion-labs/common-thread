@@ -53,12 +53,6 @@ Migration 0002 documented the same-identifier-cross-platform pair limitation in 
 - [ ] `docs/TESTING_SETUP.md`: add a Windows section noting (a) the path-with-spaces issue and the `mklink /J` junction workaround, (b) the `nodejs_compat` requirement in `wrangler.toml`, (c) that the Workers runtime's max supported `compatibility_date` lags behind what `wrangler dev` accepts.
 - [ ] `docs/SETUP.md`: cross-reference the Windows junction note in the Prerequisites block.
 
-### Repo workflow
-
-- [ ] Decide on a single working-tree convention. The current pattern is `Documents/common-thread` as the local working tree and `G:\My Drive\common-thread` as the source pushed to GitHub. Two-tree edits require manual mirroring, which is a known footgun. Either:
-  - Make Documents the only working tree; treat Drive as a `git pull` mirror from GitHub.
-  - Pick one and remove the other.
-
 ## Documentation
 
 ### Methodology paper
@@ -70,12 +64,6 @@ Migration 0002 documented the same-identifier-cross-platform pair limitation in 
 
 - [ ] Prompt version registry. Versions are currently embedded in `implementation/reasoner/prompts.ts` (`triage-v1`, `reasoning-v1`). Worth surfacing into `docs/` for citation in the methodology paper and for changelog-style tracking when prompts evolve.
 - [ ] Schema migrations changelog, or a deliberate decision that the migrations directory itself is the changelog (preferred; less duplication).
-
-### LICENSE for the methodology paper
-
-The root `LICENSE` is AGPL-3.0 for the reference implementation. The methodology paper is CC-BY-4.0 per the README, but no `paper/LICENSE` exists yet.
-
-- [ ] Add `paper/LICENSE` containing the CC-BY-4.0 legal code text. Canonical source: `https://creativecommons.org/licenses/by/4.0/legalcode.txt`.
 
 ## Audience and outreach
 
