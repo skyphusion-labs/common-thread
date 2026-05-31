@@ -1,0 +1,201 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What this is
+
+Common Thread is a **methodology paper plus a Cloudflare Workers reference
+implementation** for sockpuppet attribution from public behavioral signals.
+Given a seed set of accounts, it attributes coordinated inauthentic behavior to
+a common operator and emits **calibrated probabilistic claims at three coarse
+confidence bands** — `insufficient`, `consistent`, `strongly_consistent`. It
+stops at cluster-level attribution by design; it never identifies natural
+persons.
+
+Two halves, two licenses:
+
+- `paper/` — the twelve-section methodology paper (CC-BY-4.0). **The paper is the
+  spec.** The implementation realizes it; code comments and prompts cite paper
+  sections (e.g. `§7.4`, `§3.4`). When changing behavior governed by a section,
+  keep the code consistent with the paper.
+- `implementation/` — the reference implementation (AGPL-3.0).
+
+## Commands
+
+```bash
+npm test                 # vitest (one-shot) via @cloudflare/vitest-pool-workers
+npx vitest run tests/reasoner/runner.test.ts   # single test file
+npm run typecheck        # tsc --noEmit  (NOT run by vitest — esbuild skips types)
+
+npm run dev              # wrangler dev (local Worker on :8787)
+npm run deploy           # wrangler deploy (default env)
+npm run deploy:prod      # wrangler deploy --env production
+
+npm run db:create        # create D1 db, then paste database_id into wrangler.toml
+npm run r2:create        # create R2 bucket
+npm run db:migrate:local # apply schema migrations to local D1
+npm run keygen           # generate an Ed25519 signer keypair (scripts/keygen.mjs)
+```
+
+There is **no build step** and **no lint script**. `tsc` is not part of the test
+run, so type errors pass tests silently — run `npm run typecheck` before
+committing (an `investigationId`/`investigation_id` mismatch slipped past tests
+once for exactly this reason; see `TODO.md`).
+
+## Runtime & bindings
+
+Targets the **Cloudflare Workers runtime**, not Node. In `implementation/` use
+only Web/Workers APIs (Web Crypto, `fetch`, etc.); `node:*` imports appear only
+in `scripts/` and `vitest.config.ts`, which run on the host.
+
+Bindings (`wrangler.toml`): `DB` (D1), `ARCHIVE` (R2). Vars: `ENVIRONMENT`,
+`TRIAGE_MODEL` (default `claude-haiku-4-5`), `REASONING_MODEL` (default
+`claude-opus-4-7`). Secrets (never committed; local via `.dev.vars`):
+`AI_GATEWAY_URL` (Cloudflare AI Gateway base ending in `/anthropic` — secret
+because it embeds the account ID) and `ANTHROPIC_API_KEY`. Note the LLM layer
+calls Anthropic **through the AI Gateway**, not Workers AI.
+
+`wrangler.toml`'s `main` is `implementation/workers/index.ts`. After
+`db:create`, paste the printed `database_id` into `wrangler.toml`.
+
+## Architecture
+
+A document flows through three deterministic-then-probabilistic stages. The
+ordering is a hard pipeline: **archive → extract → reason**, each writing D1
+rows that the next stage reads.
+
+### 1. Archive (`implementation/archive/`) — content-addressed, signed
+
+Raw artifacts are stored in R2 by SHA-256 content address before any
+transformation (§3.1). `ArchiveStore` (`store.ts`) keys objects at
+`sha256/AB/CD/<hash>`; `put` is idempotent and race-safe (R2 `onlyIf`), `get`
+re-verifies the hash on read. `ManifestStore` (`manifest.ts`) is an append-only
+JSONL log of `ManifestEntry` rows (source, collection method, investigation,
+account, `status: present|absent` tombstones, `supersedes`). `ManifestSigner`
+(`signing.ts`) signs the manifest hash with **Ed25519** via Web Crypto; `keygen`
+produces the keypair. The `manifestHash()` is captured into every extractor and
+attribution run for reproducibility (§3.4).
+
+> Known v1 limitation: manifest append is read-modify-write, so concurrent
+> appends can race (last-write-wins). Serialize via a Durable Object per
+> investigation if this matters.
+
+### 2. Extract (`implementation/extractors/`) — deterministic features
+
+Two extractor kinds, two runners:
+
+- **Account extractors** (`runner.ts` → `runAccountExtractors`) read artifact
+  bytes from R2 and write `account_features` (+ `account_feature_provenance`).
+- **Pair extractors** (`pair-runner.ts` → `runPairExtractors`) read *already
+  computed* account features for a canonical account pair and write
+  `pair_features` (+ `pair_feature_provenance`). These are the "overlap"/distance
+  signals.
+
+Both log an `extractor_runs` row (manifest hash, status, counts; partial work is
+preserved on failure). Extractors are registered by signal category in
+subdirectories under `extractors/` — `stylometric`, `temporal`, `network`,
+`visual`, `metadata-leakage`, `cross-platform`, `account-metadata` — and
+aggregated in `index.ts` (`ALL_ACCOUNT_EXTRACTORS`, `ALL_PAIR_EXTRACTORS`, and
+`*_BY_CATEGORY` maps). Each extractor carries a `name` + `version`; the version
+is recorded per run and is part of the reproducibility contract. Concrete
+examples: stylometric `burrows-delta` / `jsd-bigrams`, visual `dhash` /
+`color-palette`, cross-platform `handle-reuse`.
+
+`event_features` exist in the schema and `SignalId` taxonomy (`event:N`) but are
+**not populated in v1** — engagement-event collection is not built yet.
+
+### 3. Reason (`implementation/reasoner/`) — LLM, citation-required
+
+`runner.ts` → `runAttribution(env, options)` is the entry point. For every
+canonical ordered pair of seed accounts it:
+
+1. **Builds a signal table** (`buildSignalTable`) from that pair's
+   `pair_features` plus each account's `account_features`, joining
+   `extractor_runs` to flag each signal `sufficient`/`degraded`, attaching an
+   8-hex-char provenance fingerprint, and **randomizing signal order** with
+   `seededShuffle` (deterministic djb2→xorshift32; the seed is recorded so a
+   reviewer can reproduce the order — §7.4.1).
+2. **Triage** (`triage.ts` → `runTriage`, cheap `TRIAGE_MODEL`) returns
+   `obviously_not_coordinated` (filtered out) or `warrants_further_analysis`
+   (escalate). On any parse/JSON failure it **conservatively escalates** (§7.5.2).
+   `skipTriage` bypasses this.
+3. **Reasoning** (`reasoner.ts` → `runReasoning`, `REASONING_MODEL`) runs the
+   §7.4 prompt, then validates (`validator.ts`, `validateReasoningOutput`) over a
+   **format layer** (citations parse, cited signals exist, alternatives present,
+   cluster composition) and a **content layer** (category coverage §7.3.1,
+   citation directionality). On failure it **retries up to `maxRetries`
+   (default 3)** appending retry feedback; on exhaustion it returns the §7.2.3
+   **declination** default (no claims, `declined_pairs` populated).
+4. **Writes one `attribution_runs` row per pair regardless of outcome**, with the
+   band chosen by `derivePairBand` (highest band among matching pair-scope
+   claims; cluster claims are ignored for the pair row but kept in
+   `output_json`).
+
+`ai-gateway.ts` (`callLLM`, `extractJSONObject`) is the shared transport to the
+AI Gateway. **Provenance metadata on outputs is authored by the runner, never
+trusted from the model** — model self-reported `methodology_metadata` is
+overwritten. Prompt versions live in `prompts.ts` (`triage-v1`, `reasoning-v1`)
+and are written to each run row.
+
+`derivePairBand` and `seededShuffle` are exported from `runner.ts` solely for
+unit testing (`tests/reasoner/runner-internals.test.ts`).
+
+### HTTP surface (`implementation/workers/index.ts`)
+
+Minimal v0.1 scaffolding only: `GET /` (health), `GET`/`POST /investigations`,
+`GET /manifest`, `GET /signatures`, `GET /verify`. The reasoner and extractors
+are **library code not yet wired to routes** — invoke them in tests. Planned
+routes (seeds, features, `/attribute`, runs, evidence packet) are in `TODO.md`.
+
+## Data model (`implementation/schema/`)
+
+Ordered SQL migrations in `schema/migrations/` (`0001_initial.sql`,
+`0002_split_pair_platform_columns.sql`). Core tables: `investigations`,
+`seed_accounts` (with `basis_statement`, soft-deleted via `removed_at`),
+`account_features` / `pair_features` / `event_features` (each stores a value in
+exactly one of `feature_value_text|numeric|json`, enforced by CHECK), parallel
+`*_provenance` tables linking features → `artifact_hash`, `extractor_runs`, and
+`attribution_runs`. Migration 0002 split pair tables from a single `platform`
+into `platform_a`/`platform_b` for cross-platform pairs; its CHECK orders by
+account identifier only, so same-identifier-cross-platform pairs are
+unsupported (a future 0003 with a tuple CHECK is noted in `TODO.md`).
+
+`db-types.ts` holds row/insert types and the canonicalization + value helpers
+the runners depend on: `canonicalPair`, `canonicalPlatformedPair`,
+`packFeatureValue`, `readFeatureValue`. Use these rather than re-deriving pair
+ordering or column packing.
+
+## Testing conventions
+
+Tests run **inside a real Miniflare Workers runtime** via
+`@cloudflare/vitest-pool-workers`, so `env.DB` (in-memory SQLite) and
+`env.ARCHIVE` (in-memory R2) are real — SQLite functions like `GROUP_CONCAT` /
+`SUBSTR` are exercised for real, not mocked.
+
+- Migrations are read at config-load time in `vitest.config.ts`
+  (`readD1Migrations`) and passed in via the `TEST_MIGRATIONS` binding;
+  `tests/setup.ts` applies them in a `beforeAll` with `applyD1Migrations`. **Add
+  a new migration file and it is picked up automatically** — no test wiring
+  needed.
+- LLM calls never hit the network: `fetchMock` from `cloudflare:test` intercepts
+  requests to the (stubbed) gateway URL. Helpers live in `tests/helpers/`
+  (`db.ts` for seeding, `llm.ts` for shaping triage/reasoning responses).
+- Use a **unique `investigation_id` per test** — schema/D1 state is shared
+  across a vitest run.
+- Pure exported helpers (`derivePairBand`, `seededShuffle`) are tested directly
+  without any binding.
+
+The reasoner layer has full coverage; **extractors have no direct tests yet**
+(see `TODO.md` for the planned pattern: seed D1 with artifacts → run extractor →
+assert feature rows).
+
+## Conventions
+
+- Code comments and prompts cite methodology paper sections (`§N.N`). Preserve
+  these references and keep them accurate when you touch the governed behavior.
+- Failure modes are deliberately conservative: triage escalates on uncertainty,
+  reasoning declines rather than guesses, extractors preserve partial work.
+- Runner internals are bundled with their entry point (signal-table assembly
+  lives in `reasoner/runner.ts`, not a sibling) because they are tightly coupled
+  to the pair-iteration loop — follow that pattern rather than splitting helpers
+  that just re-take the same `D1Database` handle.
