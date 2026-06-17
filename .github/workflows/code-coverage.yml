@@ -28,7 +28,7 @@ jobs:
         run: npm ci
 
       - name: Run Common Thread Pool Tests with Coverage
-        run: npx vitest run --coverage.enabled=true --coverage.provider=istanbul --coverage.reporter=cobertura
+        run: npx vitest run --coverage.enabled=true --coverage.reporter=cobertura
 
       - name: Upload coverage report
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository

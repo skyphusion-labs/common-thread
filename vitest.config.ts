@@ -62,10 +62,10 @@ export default defineConfig(async () => {
       include: ['tests/**/*.test.ts'],
       
       coverage: {
-        provider: 'istanbul',
+        provider: 'custom',
+        customProviderModule: '@cloudflare/vitest-pool-workers/coverage',
         reporter: ['cobertura'],
-        reportsDirectory: './coverage'
-      }
+        reportsDirectory: './coverage'      }
     },
   };
 });
