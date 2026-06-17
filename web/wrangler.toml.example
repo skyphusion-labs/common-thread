@@ -9,26 +9,49 @@ name = "common-thread-web"
 main = "worker.js"
 compatibility_date = "2025-06-17"
 
-# Fallback backend URL (used when no service binding is active)
+# Fallback backend URL (used when no service binding is available)
 [vars]
-DEFAULT_BACKEND_URL = "https://your-backend.workers.dev"
+# DEFAULT_BACKEND_URL = "https://common-thread-web.your-subdomain.workers.dev"
 
-# Top-level service binding (used for dev / non-env deploys)
-services = [
-  { binding = "BACKEND", service = "common-thread" }
-]
+# =============================================================================
+# Service Bindings
+# =============================================================================
+#
+# Service bindings are non-inheritable, so they must be declared separately
+# for each environment.
+#
+# The web frontend uses the binding name "BACKEND" to talk to the main backend.
 
-# ============================================
-# Production environment
-# ============================================
+# --- Development (default / top level) ---
+[[services]]
+binding = "BACKEND"
+service = "common-thread"
+
+# --- Explicit dev environment ---
+[env.dev]
+name = "common-thread-web-dev"
+
+[env.dev.vars]
+# DEFAULT_BACKEND_URL = "https://common-thread-web-dev.your-subdomain.workers.dev"
+
+[[env.dev.services]]
+binding = "BACKEND"
+service = "common-thread-dev"
+
+# --- Production ---
 [env.production]
 name = "common-thread-web-prod"
 
 [env.production.vars]
-DEFAULT_BACKEND_URL = "https://common-thread-prod.your-subdomain.workers.dev"
+# DEFAULT_BACKEND_URL = "https://common-thread-web-prod.your-subdomain.workers.dev"
 
-# Service binding for production.
-# Must be declared inside [env.production] because service bindings are non-inheritable.
-services = [
-  { binding = "BACKEND", service = "common-thread-prod" }
-]
+[[env.production.services]]
+binding = "BACKEND"
+service = "common-thread-prod"
+
+# =============================================================================
+# Observability
+# =============================================================================
+[observability.logs]
+enabled = true
+invocation_logs = true

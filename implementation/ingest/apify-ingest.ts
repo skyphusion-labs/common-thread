@@ -20,15 +20,11 @@ export interface ApifyIngestResult {
   uniqueAccounts: number;
   artifactsCreated: number;
   seedsRegistered: number;
-  accountExtractorRuns: any[];
-  pairExtractorRuns: any[];
+  accountExtractorRuns?: any[];
+  pairExtractorRuns?: any[];
   pairExtractorsSkipped?: boolean;
   pairExtractorsSkippedReason?: string;
 }
-
-// ============================================
-// Twitter-relevant extractors (filtered)
-// ============================================
 
 export const TWITTER_ACCOUNT_EXTRACTORS: AccountFeatureExtractor[] =
   ALL_ACCOUNT_EXTRACTORS.filter((e) =>
@@ -50,6 +46,35 @@ export const TWITTER_PAIR_EXTRACTORS: PairFeatureExtractor[] =
     /mutual_follow/i.test(e.name)
   );
 
+function hasNetworkData(payload: any): boolean {
+  const items = Array.isArray(payload) ? payload :
+                Array.isArray(payload?.items) ? payload.items :
+                Array.isArray(payload?.data) ? payload.data : [payload];
+
+  for (const item of items) {
+    if (!item || typeof item !== 'object') continue;
+
+    // Direct follower/following lists
+    if (Array.isArray(item.followers) || Array.isArray(item.following) || Array.isArray(item.friends)) {
+      return true;
+    }
+
+    // Profile-level counts (often present when lists were scraped)
+    const author = item.author || item.user || item;
+    if (author.followers || author.following || 
+        author.followersCount || author.followingCount ||
+        author.fastFollowersCount) {
+      return true;
+    }
+
+    // Common Apify list scrape shapes
+    if (item.target || (item.username && (item.followers || item.following))) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export async function ingestApifyTwitter(
   env: { DB: D1Database; ARCHIVE: R2Bucket },
   investigationId: string,
@@ -60,7 +85,7 @@ export async function ingestApifyTwitter(
 
   const now = new Date().toISOString();
 
-  // 1. Archive the full raw payload (for chain of custody)
+  // 1. Archive the full raw payload
   const rawBytes = new TextEncoder().encode(JSON.stringify(payload, null, 2));
   const { hash: rawHash } = await archive.put(rawBytes, {
     mimeType: 'application/json',
@@ -77,13 +102,12 @@ export async function ingestApifyTwitter(
     status: 'present',
   } as any);
 
-  // 2. Parse tweets
   const parsedTweets = parseApifyTwitterItems(payload);
   const handles = extractAllHandlesFromApifyTwitter(payload);
 
   let artifactsCreated = 0;
 
-  // 3. Create one manifest entry per tweet with account
+  // 2. Create one manifest entry per tweet
   for (const pt of parsedTweets) {
     const tweetBytes = new TextEncoder().encode(JSON.stringify(pt.tweet));
     const { hash: tweetHash } = await archive.put(tweetBytes, {
@@ -109,7 +133,7 @@ export async function ingestApifyTwitter(
     artifactsCreated++;
   }
 
-  // 4. Register seed accounts
+  // 3. Register seeds
   let seedsRegistered = 0;
   for (const handle of handles) {
     try {
@@ -122,19 +146,32 @@ export async function ingestApifyTwitter(
         .bind(investigationId, handle, now)
         .run();
       seedsRegistered++;
-    } catch {
-      // duplicate — ignore
+    } catch {}
+  }
+
+  // 4. Build account extractors dynamically
+  const baseExtractors = TWITTER_ACCOUNT_EXTRACTORS.filter(
+    (e) => !/network/i.test(e.name)
+  );
+
+  const accountExtractors = [...baseExtractors];
+
+  if (hasNetworkData(payload)) {
+    const networkExtractor = ALL_ACCOUNT_EXTRACTORS.find(
+      (e) => e.name === 'network_twitter'
+    );
+    if (networkExtractor) {
+      accountExtractors.push(networkExtractor);
     }
   }
 
-  // 5. Run account extractors
+  // 5. Run extractors
   const accountRuns = await runAccountExtractors(env, {
     investigationId,
-    extractors: TWITTER_ACCOUNT_EXTRACTORS,
+    extractors: accountExtractors,
     accountFilter: handles.length > 0 ? handles : undefined,
   });
 
-  // 6. Run pair extractors only if we have 2+ accounts
   let pairRuns: any[] = [];
   let pairExtractorsSkipped = false;
   let pairExtractorsSkippedReason: string | undefined;

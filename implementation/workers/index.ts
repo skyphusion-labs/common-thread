@@ -160,9 +160,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
         .bind(investigationId)
         .first<{ count: number }>();
       extractorRunCount = (acc?.count || 0) + (pair?.count || 0);
-    } catch {
-      // Tables may not exist yet
-    }
+    } catch {}
 
     return jsonResponse({
       investigationId,
@@ -229,32 +227,36 @@ async function handle(request: Request, env: Env): Promise<Response> {
     const allEntries = await manifest.list({ investigationId });
     const entriesWithAccount = allEntries.filter((e) => e.account);
 
-    const accountVisibility: Record<string, number> = {};
-    const pairVisibility: Record<string, number> = {};
+    const accountVisibility: Record<string, any> = {};
+    const pairVisibility: Record<string, any> = {};
 
-    // Account extractors have filterEntry
     for (const ex of TWITTER_ACCOUNT_EXTRACTORS) {
-      const count = entriesWithAccount.filter((e) => {
+      const matching = entriesWithAccount.filter((e) => {
         try {
           return ex.filterEntry?.(e) ?? false;
         } catch {
           return false;
         }
-      }).length;
-      accountVisibility[ex.name] = count;
+      });
+
+      accountVisibility[ex.name] = {
+        count: matching.length,
+        sampleCollectionMethod: matching[0]?.collectionMethod,
+        sampleSource: matching[0]?.source,
+      };
     }
 
-    // Pair extractors do NOT have filterEntry on individual entries.
-    // We just report how many accounts are available.
     for (const ex of TWITTER_PAIR_EXTRACTORS) {
-      pairVisibility[ex.name] = entriesWithAccount.length;
+      pairVisibility[ex.name] = {
+        count: entriesWithAccount.length,
+      };
     }
 
     return jsonResponse({
       investigationId,
       totalEntries: allEntries.length,
       entriesWithAccount: entriesWithAccount.length,
-      sampleEntries: entriesWithAccount.slice(0, 3),
+      sampleEntry: entriesWithAccount[0],
       extractorVisibility: {
         account: accountVisibility,
         pair: pairVisibility,
@@ -285,7 +287,6 @@ async function handle(request: Request, env: Env): Promise<Response> {
 
     const contentType = request.headers.get('content-type') || '';
     let allItems: any[] = [];
-    let filesProcessed = 1;
 
     if (contentType.includes('multipart/form-data')) {
       const formData = await request.formData();
@@ -312,10 +313,6 @@ async function handle(request: Request, env: Env): Promise<Response> {
         }
       }
 
-      filesProcessed = fileEntries.filter(
-        (e) => e && typeof e !== 'string' && 'text' in e
-      ).length;
-
       if (allItems.length === 0) {
         return jsonResponse({ error: 'No valid files uploaded. Use field name "file"' }, 400);
       }
@@ -340,8 +337,10 @@ async function handle(request: Request, env: Env): Promise<Response> {
       allItems
     );
 
-    // Rich response with extractor summary
-    const accountProducing = result.accountExtractorRuns
+    const accountRuns = result.accountExtractorRuns ?? [];
+    const pairRuns = result.pairExtractorRuns ?? [];
+
+    const accountProducing = accountRuns
       .filter((r: any) => (r.outputFeatureCount || 0) > 0)
       .map((r: any) => ({
         name: r.extractorName,
@@ -349,7 +348,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
         features: r.outputFeatureCount,
       }));
 
-    const pairProducing = result.pairExtractorRuns
+    const pairProducing = pairRuns
       .filter((r: any) => (r.outputFeatureCount || 0) > 0)
       .map((r: any) => ({
         name: r.extractorName,
@@ -360,19 +359,18 @@ async function handle(request: Request, env: Env): Promise<Response> {
     return jsonResponse(
       {
         ...result,
-        filesProcessed,
         summary: {
           tweetsProcessed: result.tweetsProcessed,
           uniqueAccounts: result.uniqueAccounts,
           artifactsCreated: result.artifactsCreated,
           seedsRegistered: result.seedsRegistered,
-          accountExtractorsRun: result.accountExtractorRuns.length,
-          pairExtractorsRun: result.pairExtractorRuns.length,
+          accountExtractorsRun: accountRuns.length,
+          pairExtractorsRun: pairRuns.length,
           pairExtractorsSkipped: result.pairExtractorsSkipped ?? false,
           pairExtractorsSkippedReason: result.pairExtractorsSkippedReason,
           totalFeaturesProduced:
-            result.accountExtractorRuns.reduce((s: number, r: any) => s + (r.outputFeatureCount || 0), 0) +
-            result.pairExtractorRuns.reduce((s: number, r: any) => s + (r.outputFeatureCount || 0), 0),
+            accountRuns.reduce((s: number, r: any) => s + (r.outputFeatureCount || 0), 0) +
+            pairRuns.reduce((s: number, r: any) => s + (r.outputFeatureCount || 0), 0),
         },
         extractorsWithFeatures: {
           account: accountProducing,
