@@ -14,7 +14,7 @@
  *
  *   POST /investigations/:id/ingest/apify-twitter
  *        → Ingest Apify Twitter/X data
- *          Supports raw JSON, single file, or multiple files
+ *          Supports raw JSON or file upload (single or multiple)
  */
 
 import { ManifestStore } from '../archive/manifest';
@@ -235,44 +235,58 @@ async function handle(request: Request, env: Env): Promise<Response> {
     }
 
     const contentType = request.headers.get('content-type') || '';
-    let payloads: any[] = [];
+    let allItems: any[] = [];
+    let filesProcessed = 1;
 
     if (contentType.includes('multipart/form-data')) {
       const formData = await request.formData();
       const fileEntries = formData.getAll('file');
 
       for (const entry of fileEntries) {
-        // Safe check that avoids instanceof File type error
         if (entry && typeof entry !== 'string' && 'text' in entry) {
           try {
             const text = await (entry as File).text();
             const parsed = JSON.parse(text);
-            payloads.push(parsed);
+
+            if (Array.isArray(parsed)) {
+              allItems.push(...parsed);
+            } else if (Array.isArray(parsed?.items)) {
+              allItems.push(...parsed.items);
+            } else if (Array.isArray(parsed?.data)) {
+              allItems.push(...parsed.data);
+            } else {
+              allItems.push(parsed);
+            }
           } catch {
             return jsonResponse({ error: 'Invalid JSON in one of the uploaded files' }, 400);
           }
         }
       }
 
-      if (payloads.length === 0) {
+      filesProcessed = fileEntries.filter(e => e && typeof e !== 'string' && 'text' in e).length;
+
+      if (allItems.length === 0) {
         return jsonResponse({ error: 'No valid files uploaded. Use field name "file"' }, 400);
       }
     } else {
       // Raw JSON body
-      try {
-        const body = await request.json();
-        payloads = Array.isArray(body) ? body : [body];
-      } catch {
-        return jsonResponse({ error: 'Invalid JSON body' }, 400);
+      const body = await request.json() as any;
+
+      if (Array.isArray(body)) {
+        allItems = body;
+      } else if (Array.isArray(body?.items)) {
+        allItems = body.items;
+      } else if (Array.isArray(body?.data)) {
+        allItems = body.data;
+      } else {
+        allItems = [body];
       }
     }
-
-    const combinedPayload = payloads.length === 1 ? payloads[0] : payloads;
 
     const result = await ingestApifyTwitter(
       { DB: env.DB, ARCHIVE: env.ARCHIVE },
       investigationId,
-      combinedPayload
+      allItems
     );
 
     // Rich response with extractor summary
@@ -295,7 +309,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     return jsonResponse(
       {
         ...result,
-        filesProcessed: payloads.length,
+        filesProcessed,
         summary: {
           tweetsProcessed: result.tweetsProcessed,
           uniqueAccounts: result.uniqueAccounts,

@@ -8,7 +8,7 @@ const args = process.argv.slice(2);
 const envArg = args.find(a => a.startsWith('--env=')) || '--env=dev';
 const rawEnv = envArg.split('=')[1] || 'dev';
 
-// Normalize for Wrangler
+// Normalize environment
 let wranglerEnvFlag = '';
 let tempEnv = rawEnv;
 
@@ -22,11 +22,15 @@ if (rawEnv === 'prod' || rawEnv === 'production') {
   wranglerEnvFlag = `--env ${rawEnv}`;
 }
 
-const BACKEND_NAME = process.env.BACKEND_WORKER_NAME || process.env.BACKEND || getBackendNameFromToml();
+let BACKEND_NAME = process.env.BACKEND_WORKER_NAME || process.env.BACKEND;
+
+if (!BACKEND_NAME) {
+  BACKEND_NAME = getBackendNameFromToml(rawEnv);
+}
 
 if (!BACKEND_NAME) {
   console.error('❌ Could not determine backend worker name.');
-  console.error('   Set BACKEND_WORKER_NAME=your-backend-name or ensure wrangler.toml has a top-level "name".');
+  console.error('   Set BACKEND_WORKER_NAME=common-thread-prod (or common-thread) or ensure wrangler.toml has a name.');
   process.exit(1);
 }
 
@@ -43,34 +47,13 @@ if (!fs.existsSync(configPath)) {
 
 let config = fs.readFileSync(configPath, 'utf8');
 
-// === Patch top-level services binding ===
+// Patch the service binding (works for both top-level and [env.production])
 config = config.replace(
-  /services\s*=\s*\[[^\]]*\]/,
-  `services = [ { binding = "BACKEND", service = "${BACKEND_NAME}" } ]`
+  /service\s*=\s*"[^"]*"/g,
+  `service = "${BACKEND_NAME}"`
 );
 
-// === Production-specific patching (place services directly under [env.production]) ===
-if (rawEnv === 'prod' || rawEnv === 'production') {
-  if (config.includes('[env.production]')) {
-    // Replace existing services line inside the production block, or insert one
-    config = config.replace(
-      /(\[env\.production\][^\[]*?)(services\s*=\s*\[[^\]]*\])?/s,
-      (match, headerPart, existingServices) => {
-        const servicesLine = `services = [ { binding = "BACKEND", service = "${BACKEND_NAME}" } ]`;
-        if (existingServices) {
-          return headerPart.replace(/services\s*=\s*\[[^\]]*\]/, servicesLine);
-        } else {
-          // Insert after the [env.production] header
-          return headerPart.trimEnd() + '\n' + servicesLine + '\n';
-        }
-      }
-    );
-  } else {
-    // No [env.production] section yet — append one
-    config += `\n\n[env.production]\nservices = [ { binding = "BACKEND", service = "${BACKEND_NAME}" } ]\n`;
-  }
-}
-
+// Write temp config
 const tempConfig = path.join(webDir, `wrangler.${tempEnv}.generated.toml`);
 fs.writeFileSync(tempConfig, config);
 
@@ -83,11 +66,27 @@ try {
   if (fs.existsSync(tempConfig)) fs.unlinkSync(tempConfig);
 }
 
-function getBackendNameFromToml() {
+function getBackendNameFromToml(env) {
   try {
     const toml = fs.readFileSync(path.join(__dirname, '..', 'wrangler.toml'), 'utf8');
-    const match = toml.match(/^\s*name\s*=\s*"([^"]+)"/m);
-    return match ? match[1] : null;
+
+    if (env === 'prod' || env === 'production') {
+      // Look for [env.production] name first
+      const prodMatch = toml.match(/\[env\.production\][\s\S]*?name\s*=\s*"([^"]+)"/);
+      if (prodMatch) return prodMatch[1];
+
+      // Fallback: try to derive from top-level name
+      const topMatch = toml.match(/^\s*name\s*=\s*"([^"]+)"/m);
+      if (topMatch) {
+        const base = topMatch[1].replace(/-dev$/, '');
+        return base.includes('-prod') ? base : `${base}-prod`;
+      }
+      return 'common-thread-prod';
+    }
+
+    // Development / default
+    const topMatch = toml.match(/^\s*name\s*=\s*"([^"]+)"/m);
+    return topMatch ? topMatch[1] : 'common-thread';
   } catch {
     return null;
   }
