@@ -11,7 +11,7 @@
  *   GET  /verify                        → Verify all signatures
  *
  *   POST /investigations/:id/ingest/apify-twitter
- *        → Ingest Apify Twitter/X data (archives + registers seeds + runs extractors)
+ *        → Ingest Apify Twitter/X data (one manifest entry per tweet)
  */
 
 import { ManifestStore } from '../archive/manifest';
@@ -50,10 +50,6 @@ async function handle(request: Request, env: Env): Promise<Response> {
       version: '0.1.0',
       environment: env.ENVIRONMENT,
       status: 'ok',
-      bindings: {
-        db: !!env.DB,
-        archive: !!env.ARCHIVE,
-      },
     });
   }
 
@@ -104,7 +100,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     );
   }
 
-  // List manifest entries
+  // List manifest
   if (method === 'GET' && path === '/manifest') {
     const manifest = new ManifestStore({ bucket: env.ARCHIVE });
     const investigationId = url.searchParams.get('investigation');
@@ -112,10 +108,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
       investigationId ? { investigationId } : undefined
     );
 
-    return jsonResponse({
-      entries,
-      count: entries.length,
-    });
+    return jsonResponse({ entries, count: entries.length });
   }
 
   // List signatures
@@ -123,10 +116,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     const signer = new ManifestSigner({ bucket: env.ARCHIVE });
     const signatures = await signer.listSignatures();
 
-    return jsonResponse({
-      signatures,
-      count: signatures.length,
-    });
+    return jsonResponse({ signatures, count: signatures.length });
   }
 
   // Verify signatures
@@ -158,7 +148,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
       return jsonResponse({ error: 'Invalid investigation ID in URL' }, 400);
     }
 
-    // Check that the investigation exists (prevents cryptic FOREIGN KEY error)
+    // Prevent cryptic foreign key error
     const inv = await env.DB
       .prepare('SELECT id FROM investigations WHERE id = ?')
       .bind(investigationId)
@@ -169,10 +159,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
         {
           error: `Investigation not found: ${investigationId}`,
           hint: 'Create it first with POST /investigations',
-          example: {
-            id: investigationId,
-            name: 'My Investigation Name',
-          },
+          example: { id: investigationId, name: 'My Investigation' },
         },
         404
       );
@@ -185,7 +172,44 @@ async function handle(request: Request, env: Env): Promise<Response> {
       body
     );
 
-    return jsonResponse(result, 200);
+    // === Richer response with extractor summary ===
+    const accountProducing = result.accountExtractorRuns
+      .filter((r: any) => (r.outputFeatureCount || 0) > 0)
+      .map((r: any) => ({
+        name: r.extractorName,
+        version: r.extractorVersion,
+        features: r.outputFeatureCount,
+      }));
+
+    const pairProducing = result.pairExtractorRuns
+      .filter((r: any) => (r.outputFeatureCount || 0) > 0)
+      .map((r: any) => ({
+        name: r.extractorName,
+        version: r.extractorVersion,
+        features: r.outputFeatureCount,
+      }));
+
+    return jsonResponse(
+      {
+        ...result,
+        summary: {
+          tweetsProcessed: result.tweetsProcessed,
+          uniqueAccounts: result.uniqueAccounts,
+          artifactsCreated: result.artifactsCreated,
+          seedsRegistered: result.seedsRegistered,
+          accountExtractorsRun: result.accountExtractorRuns.length,
+          pairExtractorsRun: result.pairExtractorRuns.length,
+          totalFeaturesProduced:
+            (result.accountExtractorRuns.reduce((s: number, r: any) => s + (r.outputFeatureCount || 0), 0) +
+             result.pairExtractorRuns.reduce((s: number, r: any) => s + (r.outputFeatureCount || 0), 0)),
+        },
+        extractorsWithFeatures: {
+          account: accountProducing,
+          pair: pairProducing,
+        },
+      },
+      200
+    );
   }
 
   return jsonResponse({ error: `Not found: ${method} ${path}` }, 404);
