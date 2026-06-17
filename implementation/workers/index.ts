@@ -1,41 +1,29 @@
 /**
  * Common Thread Worker entry point.
  *
- * This is a minimal entry point that exercises the D1 and R2 bindings
- * to confirm the scaffolding works end-to-end. It is not the full API
- * surface; routes will be filled in as the implementation matures.
+ * Routes:
  *
- * Routes implemented:
+ *   GET  /                              → Health check
+ *   GET  /investigations                → List investigations
+ *   POST /investigations                → Create investigation
+ *   GET  /manifest                      → List manifest entries
+ *   GET  /signatures                    → List signatures
+ *   GET  /verify                        → Verify all signatures
  *
- *   GET  /                       - health check
- *   GET  /investigations         - list investigations from D1
- *   POST /investigations         - create a new investigation
- *   GET  /manifest               - list manifest entries from R2
- *   GET  /signatures             - list manifest signatures
- *   GET  /verify                 - verify all manifest signatures
- *
- * All responses are JSON. Errors are returned as { error: string } with
- * appropriate HTTP status codes.
+ *   POST /investigations/:id/ingest/apify-twitter
+ *        → Ingest Apify Twitter/X data (archives + registers seeds + runs extractors)
  */
 
 import { ManifestStore } from '../archive/manifest';
 import { ManifestSigner } from '../archive/signing';
 import type { InvestigationRow } from '../schema/db-types';
+import { ingestApifyTwitter } from '../ingest/apify-ingest';
 
 export interface Env {
-  /** D1 database binding (see wrangler.toml). */
   DB: D1Database;
-
-  /** R2 archive binding (see wrangler.toml). */
   ARCHIVE: R2Bucket;
-
-  /** Environment identifier: 'development' or 'production'. */
   ENVIRONMENT: string;
-
-  /** Optional: public key of the authorized signer (from .dev.vars or secret). */
   SIGNER_PUBLIC_KEY?: string;
-
-  /** Optional: investigation namespace for scoping (from .dev.vars). */
   INVESTIGATION_NAMESPACE?: string;
 }
 
@@ -55,7 +43,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
   const method = request.method;
   const path = url.pathname;
 
-  // Health check.
+  // Health check
   if (method === 'GET' && path === '/') {
     return jsonResponse({
       name: 'common-thread',
@@ -65,34 +53,37 @@ async function handle(request: Request, env: Env): Promise<Response> {
       bindings: {
         db: !!env.DB,
         archive: !!env.ARCHIVE,
-        signerPublicKey: !!env.SIGNER_PUBLIC_KEY,
       },
     });
   }
 
-  // List investigations.
+  // List investigations
   if (method === 'GET' && path === '/investigations') {
     const result = await env.DB
       .prepare('SELECT * FROM investigations ORDER BY created_at DESC LIMIT ?')
       .bind(100)
       .all<InvestigationRow>();
+
     return jsonResponse({
       investigations: result.results ?? [],
       count: result.results?.length ?? 0,
     });
   }
 
-  // Create investigation.
+  // Create investigation
   if (method === 'POST' && path === '/investigations') {
     const body = (await request.json()) as {
       id?: string;
       name?: string;
       description?: string;
     };
+
     if (!body.id || !body.name) {
       return jsonResponse({ error: 'id and name are required' }, 400);
     }
+
     const now = new Date().toISOString();
+
     await env.DB
       .prepare(
         `INSERT INTO investigations (id, name, description, status, created_at, updated_at)
@@ -100,48 +91,55 @@ async function handle(request: Request, env: Env): Promise<Response> {
       )
       .bind(body.id, body.name, body.description ?? null, now, now)
       .run();
-    return jsonResponse({
-      id: body.id,
-      name: body.name,
-      description: body.description,
-      status: 'active',
-      created_at: now,
-    }, 201);
+
+    return jsonResponse(
+      {
+        id: body.id,
+        name: body.name,
+        description: body.description,
+        status: 'active',
+        created_at: now,
+      },
+      201
+    );
   }
 
-  // List manifest entries.
+  // List manifest entries
   if (method === 'GET' && path === '/manifest') {
     const manifest = new ManifestStore({ bucket: env.ARCHIVE });
     const investigationId = url.searchParams.get('investigation');
     const entries = await manifest.list(
       investigationId ? { investigationId } : undefined
     );
+
     return jsonResponse({
       entries,
       count: entries.length,
     });
   }
 
-  // List manifest signatures.
+  // List signatures
   if (method === 'GET' && path === '/signatures') {
     const signer = new ManifestSigner({ bucket: env.ARCHIVE });
     const signatures = await signer.listSignatures();
+
     return jsonResponse({
       signatures,
       count: signatures.length,
     });
   }
 
-  // Verify all signatures.
+  // Verify signatures
   if (method === 'GET' && path === '/verify') {
     const signer = new ManifestSigner({ bucket: env.ARCHIVE });
     const results = await signer.verifyAll();
-    const validCount = results.filter(r => r.valid).length;
+    const validCount = results.filter((r) => r.valid).length;
+
     return jsonResponse({
       totalSignatures: results.length,
       validSignatures: validCount,
       allValid: results.length > 0 && validCount === results.length,
-      results: results.map(r => ({
+      results: results.map((r) => ({
         publicKey: r.signature.publicKey,
         signerId: r.signature.signerId,
         signedAt: r.signature.signedAt,
@@ -149,6 +147,45 @@ async function handle(request: Request, env: Env): Promise<Response> {
         reason: r.reason,
       })),
     });
+  }
+
+  // === Apify Twitter ingest ===
+  if (method === 'POST' && path.match(/^\/investigations\/[^/]+\/ingest\/apify-twitter$/)) {
+    const match = path.match(/^\/investigations\/([^/]+)\/ingest\/apify-twitter$/);
+    const investigationId = match ? match[1] : '';
+
+    if (!investigationId) {
+      return jsonResponse({ error: 'Invalid investigation ID in URL' }, 400);
+    }
+
+    // Check that the investigation exists (prevents cryptic FOREIGN KEY error)
+    const inv = await env.DB
+      .prepare('SELECT id FROM investigations WHERE id = ?')
+      .bind(investigationId)
+      .first();
+
+    if (!inv) {
+      return jsonResponse(
+        {
+          error: `Investigation not found: ${investigationId}`,
+          hint: 'Create it first with POST /investigations',
+          example: {
+            id: investigationId,
+            name: 'My Investigation Name',
+          },
+        },
+        404
+      );
+    }
+
+    const body = await request.json();
+    const result = await ingestApifyTwitter(
+      { DB: env.DB, ARCHIVE: env.ARCHIVE },
+      investigationId,
+      body
+    );
+
+    return jsonResponse(result, 200);
   }
 
   return jsonResponse({ error: `Not found: ${method} ${path}` }, 404);
