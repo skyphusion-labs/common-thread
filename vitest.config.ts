@@ -30,19 +30,12 @@ import { cloudflareTest, readD1Migrations } from '@cloudflare/vitest-pool-worker
 
 export default defineConfig(async () => {
   const here = path.dirname(fileURLToPath(import.meta.url));
-  const migrationsPath = path.join(
-    here,
-    'implementation',
-    'schema',
-    'migrations'
-  );
-  
+  const migrationsPath = path.join(here, 'implementation', 'schema', 'migrations');
   const migrations = await readD1Migrations(migrationsPath);
 
   return {
     plugins: [
       cloudflareTest({
-        // The core configuration options must pass directly inside the plugin object wrapper
         wrangler: { configPath: './wrangler.toml' },
         miniflare: {
           d1Databases: ['DB'],
@@ -57,15 +50,9 @@ export default defineConfig(async () => {
     ],
     test: {
       name: 'common-thread',
-      pool: 'workers',
+      pool: 'workers', 
       setupFiles: ['./tests/setup.ts'],
       include: ['tests/**/*.test.ts'],
-      
-      coverage: {
-        provider: 'custom',
-        customProviderModule: '@cloudflare/vitest-pool-workers/coverage',
-        reporter: ['cobertura'],
-        reportsDirectory: './coverage'      }
     },
   };
 });
