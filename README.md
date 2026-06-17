@@ -4,7 +4,7 @@ A practitioner's methodology and reference implementation for sockpuppet attribu
 
 Common Thread is published as a documented methodology paper alongside a working reference implementation. It is designed for practitioners who have been systematically underserved by the existing tooling landscape: pro se litigants documenting coordinated harassment, small-newsroom investigative journalists, OSINT practitioners working on coordinated inauthentic behavior cases, and academic researchers studying these networks without access to platform-internal data or commercial OSINT firms.
 
-## What this is
+## What this is 
 
 Common Thread attributes coordinated inauthentic behavior across multiple online accounts to a common operator using signals observable from the public platform surface. The methodology operates on a seed set of accounts (closed-world attribution) and produces probabilistic claims at calibrated confidence bands: insufficient evidence, consistent with same operator, or strongly consistent with same operator. It does not identify natural persons; cluster-level attribution is the methodology's limit by deliberate design.
 
