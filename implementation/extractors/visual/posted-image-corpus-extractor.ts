@@ -87,6 +87,10 @@ interface CorpusBody {
   hashes?: CorpusEntry[];
 }
 
+interface ExtractorInputWithEntry extends ExtractorInput {
+  entry: ManifestEntry;
+}
+
 export class PostedImageCorpusExtractor implements AccountFeatureExtractor {
   readonly name = NAME;
   readonly version = VERSION;
@@ -97,10 +101,12 @@ export class PostedImageCorpusExtractor implements AccountFeatureExtractor {
   }
 
   extract(input: ExtractorInput): ExtractedFeature[] {
-    const imageType = detectImageType(input.entry);
-    if (!imageType) return [];
+    const inputWithEntry = input as ExtractorInputWithEntry;
+    const entry = inputWithEntry.entry;
 
-    let parsed: CorpusBody;
+    const imageType = detectImageType(entry);
+
+    let parsed: unknown;
     try {
       const decoded = new TextDecoder().decode(input.bytes);
       parsed = JSON.parse(decoded);
@@ -108,14 +114,15 @@ export class PostedImageCorpusExtractor implements AccountFeatureExtractor {
       return [];
     }
 
-    if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.hashes)) {
+    if (!parsed || typeof parsed !== 'object') {
       return [];
     }
 
-    // Collect valid dhashes; preserve duplicates for the raw count,
-    // dedupe for the set feature.
+    const body = parsed as CorpusBody;
+    const rawHashes = Array.isArray(body.hashes) ? body.hashes : [];
+
     const allHashes: string[] = [];
-    for (const entry of parsed.hashes) {
+    for (const entry of rawHashes) {
       if (!entry || typeof entry !== 'object') continue;
       const raw = entry.dhash;
       if (typeof raw !== 'string') continue;
@@ -155,8 +162,7 @@ export class PostedImageCorpusExtractor implements AccountFeatureExtractor {
 // Image type dispatch
 // ---------------------------------------------------------------------------
 
-function detectImageType(entry: ManifestEntry): ImageType | null {
-  // Explicit platformMetadata.imageType is the canonical signal.
+function detectImageType(entry: ManifestEntry): ImageType {
   const pm = entry.platformMetadata;
   if (pm && typeof pm === 'object') {
     const explicit = (pm as Record<string, unknown>).imageType;
@@ -165,15 +171,10 @@ function detectImageType(entry: ManifestEntry): ImageType | null {
     }
   }
 
-  // Tool/source fallback.
   const tool = entry.collectionMethod.tool.toLowerCase();
   if (tool.includes('posted_images') || tool.includes('post_image_corpus')) return 'posted';
   if (tool.includes('profile_image')) return 'profile';
   if (tool.includes('banner_image') || tool.includes('header_image')) return 'banner';
 
-  // Conservative default for a posted-image corpus is 'posted' since
-  // that's the §4.5.3 use case. Profile/banner corpora are
-  // architecturally possible (snapshot history of an account's
-  // profile/banner images over time) but uncommon.
   return 'posted';
 }

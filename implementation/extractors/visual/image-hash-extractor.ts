@@ -79,22 +79,22 @@ const RGBA_MIME = 'application/x-rgba8';
 
 type ImageType = 'profile' | 'banner';
 
+interface ExtractorInputWithEntry extends ExtractorInput {
+  entry: ManifestEntry;
+}
+
 export class ImageHashExtractor implements AccountFeatureExtractor {
   readonly name = NAME;
   readonly version = VERSION;
 
   filterEntry(entry: ManifestEntry): boolean {
-    // Recognize either pre-decoded RGBA artifacts or raw encoded
-    // image artifacts. Even when we can't decode encoded images,
-    // we still emit SHA-256 byte equality.
     const mime = (entry.mimeType ?? '').toLowerCase();
     if (mime === RGBA_MIME) return true;
     if (mime.startsWith('image/')) return true;
 
-    // Fallback: check the tool/source for image-collection hints in
-    // case mimeType isn't set.
     const tool = entry.collectionMethod.tool.toLowerCase();
     const source = entry.source.toLowerCase();
+
     if (
       tool.includes('image') ||
       tool.includes('avatar') ||
@@ -104,34 +104,37 @@ export class ImageHashExtractor implements AccountFeatureExtractor {
     ) {
       return true;
     }
-    if (/\.(jpe?g|png|gif|webp|bmp)(\?|$)/i.test(source)) return true;
+    if (/\.(jpe?g|png|gif|webp|bmp)(\?|$)/.test(source)) return true;
 
     return false;
   }
 
   extract(input: ExtractorInput): ExtractedFeature[] {
-    const imageType = detectImageType(input.entry);
+    const inputWithEntry = input as ExtractorInputWithEntry;
+    const entry = inputWithEntry.entry;
+
+    const imageType = detectImageType(entry);
     if (!imageType) return [];
 
     const features: ExtractedFeature[] = [];
-    const mime = (input.entry.mimeType ?? '').toLowerCase();
+    const mime = (entry.mimeType ?? '').toLowerCase();
 
     // SHA-256 byte equality (free; computed at collection time).
-    features.push({
-      category: 'visual',
-      name: `${imageType}_image_sha256`,
-      value: { kind: 'text', value: input.entry.hash },
-    });
+    const sha256 = entry.hash;
+    if (typeof sha256 === 'string' && sha256.length > 0) {
+      features.push({
+        category: 'visual',
+        name: `${imageType}_image_sha256`,
+        value: { kind: 'text', value: sha256 },
+      });
+    }
 
     if (mime === RGBA_MIME) {
-      // Pre-decoded RGBA path: perceptual hashing is possible.
-      const dims = readDimensions(input.entry);
+      const dims = readDimensions(entry);
       if (!dims) return features;
       const { width, height } = dims;
 
       if (input.bytes.length !== width * height * 4) {
-        // Manifest dimensions don't match byte count; bail out
-        // rather than emit a hash from misaligned data.
         return features;
       }
 
@@ -148,9 +151,6 @@ export class ImageHashExtractor implements AccountFeatureExtractor {
         }
       );
 
-      // Skip dHash for images smaller than 9x8; the hash is still
-      // computable but its discriminative power collapses below
-      // the resize target.
       if (width >= 9 && height >= 8) {
         try {
           const hash = dhash(input.bytes, width, height);
@@ -160,15 +160,10 @@ export class ImageHashExtractor implements AccountFeatureExtractor {
             value: { kind: 'text', value: dhashToHex(hash) },
           });
         } catch {
-          // Hashing failed (shouldn't happen given the guards above,
-          // but be defensive). Suppress the dhash feature; sha256
-          // and dimensions still emit.
+          // Defensive: suppress dhash only
         }
       }
     }
-    // For encoded image MIME types, sha256 is the only feature
-    // emitted in v1.0.0. A future decoder-augmented pass will add
-    // dhash for these.
 
     return features;
   }
@@ -179,20 +174,18 @@ export class ImageHashExtractor implements AccountFeatureExtractor {
 // ---------------------------------------------------------------------------
 
 function detectImageType(entry: ManifestEntry): ImageType | null {
-  // 1. Explicit platformMetadata.imageType.
   const pm = entry.platformMetadata;
   if (pm && typeof pm === 'object') {
     const explicit = (pm as Record<string, unknown>).imageType;
     if (explicit === 'profile' || explicit === 'banner') return explicit;
   }
 
-  // 2. Tool name hints.
   const tool = entry.collectionMethod.tool.toLowerCase();
   if (tool.includes('profile_image') || tool.includes('avatar')) return 'profile';
-  if (tool.includes('banner') || tool.includes('header_image')) return 'banner';
+  if (tool.includes('banner') || tool.includes('header') || tool.includes('header_image')) {
+    return 'banner';
+  }
 
-  // 3. Source URL hints. Twitter and similar platforms expose CDN
-  // paths that distinguish image types.
   const source = entry.source.toLowerCase();
   if (
     source.includes('/profile_images/') ||

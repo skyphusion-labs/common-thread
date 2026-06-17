@@ -29,3 +29,6 @@ Thumbs.db
 # Test output
 coverage/
 *.tsbuildinfo
+
+# Configuration
+wranger.toml

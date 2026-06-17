@@ -84,6 +84,10 @@ interface CorpusBody {
   histogram?: unknown;
 }
 
+interface ExtractorInputWithEntry extends ExtractorInput {
+  entry: ManifestEntry;
+}
+
 export class ColorPaletteCorpusExtractor implements AccountFeatureExtractor {
   readonly name = NAME;
   readonly version = VERSION;
@@ -94,7 +98,10 @@ export class ColorPaletteCorpusExtractor implements AccountFeatureExtractor {
   }
 
   extract(input: ExtractorInput): ExtractedFeature[] {
-    const imageType = detectImageType(input.entry);
+    const inputWithEntry = input as ExtractorInputWithEntry;
+    const entry = inputWithEntry.entry;
+
+    const imageType = detectImageType(entry);
 
     let parsed: CorpusBody;
     try {
@@ -105,24 +112,16 @@ export class ColorPaletteCorpusExtractor implements AccountFeatureExtractor {
 
     if (!parsed || typeof parsed !== 'object') return [];
 
-    const histogram = parseHistogram(parsed.histogram);
-    if (!histogram) return [];
+    const histogram = parseHistogram(parsed.histogram) ?? new Map<number, number>();
 
     const imageCount = readPositiveInt(parsed.imageCount) ?? 0;
     const totalPixelsHint = readPositiveInt(parsed.totalPixels);
 
-    // Compute totalPixels from the histogram if not provided. Trust
-    // the hint when present and consistent; if it disagrees with the
-    // histogram sum, prefer the actual sum (defensive).
     const histTotal = histogramTotal(histogram);
-    const totalPixels = totalPixelsHint && totalPixelsHint > 0 ? totalPixelsHint : histTotal;
+    const totalPixels =
+      totalPixelsHint && totalPixelsHint > 0 ? totalPixelsHint : histTotal;
 
-    // The histogram feature serializes to JSON as an object with
-    // string keys. Re-emit with sorted numeric keys for deterministic
-    // output.
     const sortedHistogram = histogramToSortedRecord(histogram);
-
-    // Top-K palette for human review.
     const top = topK(histogram, TOP_K_COLORS);
 
     const prefix = `${imageType}_color_palette`;
@@ -175,14 +174,17 @@ function detectImageType(entry: ManifestEntry): ImageType {
 
 function parseHistogram(raw: unknown): Map<number, number> | null {
   if (!raw || typeof raw !== 'object') return null;
+
   const obj = raw as Record<string, unknown>;
   const hist = new Map<number, number>();
+
   for (const [keyStr, valueRaw] of Object.entries(obj)) {
     const bin = Number(keyStr);
     if (!Number.isInteger(bin) || bin < 0 || bin >= PALETTE_BIN_COUNT) continue;
     if (typeof valueRaw !== 'number' || !Number.isFinite(valueRaw) || valueRaw <= 0) continue;
     hist.set(bin, valueRaw);
   }
+
   return hist;
 }
 

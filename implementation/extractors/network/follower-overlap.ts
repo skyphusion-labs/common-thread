@@ -73,7 +73,6 @@ import type {
   PairFeatureExtractor,
   AccountFeatureMap,
   PairContext,
-  SeedAccountInput,
 } from '../pair-types';
 import type { ExtractedFeature } from '../types';
 
@@ -92,13 +91,16 @@ export class FollowerOverlapExtractor implements PairFeatureExtractor {
   readonly category = 'network' as const;
   readonly requiredAccountFeatures = ['follower_set'] as const;
 
-  buildContext(seedAccounts: SeedAccountInput[]): FollowerOverlapContext {
-    // Pre-parse the follower set for every seed account once, then
-    // compute Jaccards over the upper triangle of the pair matrix.
-    const accountSets: Array<Set<string>> = [];
+  buildContext(
+    seedAccounts: readonly { account: string; features: AccountFeatureMap }[]
+  ): FollowerOverlapContext {
+    // Only include accounts that actually have a follower_set feature.
+    const accountSets: Set<string>[] = [];
     for (const acct of seedAccounts) {
       const set = parseFollowerSet(acct.features);
-      accountSets.push(set ?? new Set());
+      if (set !== null) {
+        accountSets.push(set);
+      }
     }
 
     const jaccards: number[] = [];
@@ -114,7 +116,10 @@ export class FollowerOverlapExtractor implements PairFeatureExtractor {
 
     const mean = jaccards.reduce((s, x) => s + x, 0) / jaccards.length;
     let varSum = 0;
-    for (const j of jaccards) varSum += (j - mean) * (j - mean);
+    for (const j of jaccards) {
+      const diff = j - mean;
+      varSum += diff * diff;
+    }
     const stdev = Math.sqrt(varSum / jaccards.length);
 
     return { meanJaccard: mean, stdevJaccard: stdev, pairCount: jaccards.length };
@@ -161,7 +166,7 @@ export class FollowerOverlapExtractor implements PairFeatureExtractor {
       },
     ];
 
-    if (ctx) {
+    if (ctx && typeof ctx.meanJaccard === 'number') {
       features.push(
         {
           category: cat,
@@ -174,7 +179,7 @@ export class FollowerOverlapExtractor implements PairFeatureExtractor {
           value: { kind: 'numeric', value: ctx.stdevJaccard },
         }
       );
-      // Only emit z-score when the baseline is non-degenerate.
+
       if (ctx.stdevJaccard > 0) {
         features.push({
           category: cat,
@@ -216,7 +221,6 @@ function parseFollowerSet(features: AccountFeatureMap): Set<string> | null {
 }
 
 function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
-  if (a.size === 0 && b.size === 0) return 0;
   const inter = intersect(a, b);
   const unionSize = a.size + b.size - inter.size;
   return unionSize > 0 ? inter.size / unionSize : 0;
