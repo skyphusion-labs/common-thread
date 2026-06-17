@@ -44,19 +44,21 @@ export default defineWorkersConfig(async () => {
     test: {
       setupFiles: ['./tests/setup.ts'],
       include: ['tests/**/*.test.ts'],
+      
+      coverage: {
+        provider: 'istanbul',      // Runs cleanly inside the workerd sandbox
+        reporter: ['cobertura'],   // Outputs format required by GitHub
+        reportsDirectory: './coverage'
+      },
+
       poolOptions: {
         workers: {
           wrangler: { configPath: './wrangler.toml' },
           miniflare: {
             d1Databases: ['DB'],
             r2Buckets: ['ARCHIVE'],
-            // Test-only values for the secrets documented in wrangler.toml.
-            // fetchMock intercepts requests to AI_GATEWAY_URL before they
-            // leave the runtime; the value just needs a valid origin.
-            // TEST_MIGRATIONS is read at config load time above and
-            // consumed by tests/setup.ts.
             bindings: {
-              AI_GATEWAY_URL: 'https://gateway.test/anthropic',
+              AI_GATEWAY_URL: 'https://gateway.test',
               ANTHROPIC_API_KEY: 'sk-test-key',
               TEST_MIGRATIONS: migrations,
             },

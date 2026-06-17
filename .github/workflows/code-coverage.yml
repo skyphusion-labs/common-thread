@@ -1,0 +1,38 @@
+name: Test and Native Code Coverage
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write      
+      code-quality: write    # Required for GitHub Enterprise Code Coverage API
+      pull-requests: write   # Allows appending the widget inside the PR
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Common Thread Pool Tests with Coverage
+        run: npx vitest run --coverage.enabled=true --coverage.provider=istanbul --coverage.reporter=cobertura
+
+      - name: Upload coverage report
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/upload-code-coverage@v1
+        with:
+          file: ./coverage/cobertura-coverage.xml
+          language: javascript
