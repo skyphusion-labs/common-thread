@@ -35,12 +35,16 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "common-thread"
-database_id = "REPLACE_AFTER_RUNNING_db:create"
+database_id = "YOUR_D1_ID_HERE"
 migrations_dir = "implementation/schema/migrations"
 
 [[r2_buckets]]
 binding = "ARCHIVE"
 bucket_name = "common-thread-archive"
+
+[limits]
+cpu_ms = 300000
+subrequests = 50000
 
 [vars]
 ENVIRONMENT = "development"
@@ -54,6 +58,10 @@ REASONING_MODEL = "claude-opus-4-7"
 [env.dev]
 name = "common-thread-dev"
 
+[env.dev.limits]
+cpu_ms = 300000
+subrequests = 50000
+
 [env.dev.vars]
 ENVIRONMENT = "development"
 TRIAGE_MODEL = "claude-haiku-4-5"
@@ -62,7 +70,7 @@ REASONING_MODEL = "claude-opus-4-7"
 [[env.dev.d1_databases]]
 binding = "DB"
 database_name = "common-thread-dev"
-database_id = "REPLACE_AFTER_RUNNING_db:create --env dev"
+database_id = "YOUR_DEV_D1_ID_HERE"
 migrations_dir = "implementation/schema/migrations"
 
 [[env.dev.r2_buckets]]
@@ -76,6 +84,10 @@ bucket_name = "common-thread-archive-dev"
 [env.production]
 name = "common-thread-prod"
 
+[env.production.limits]
+cpu_ms = 300000
+subrequests = 50000
+
 [env.production.vars]
 ENVIRONMENT = "production"
 TRIAGE_MODEL = "claude-haiku-4-5"
@@ -84,39 +96,45 @@ REASONING_MODEL = "claude-opus-4-7"
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "common-thread-prod"
-database_id = "REPLACE_AFTER_RUNNING_db:create:prod"
+database_id = "YOUR_PROD_D1_ID_HERE"
 migrations_dir = "implementation/schema/migrations"
 
 [[env.production.r2_buckets]]
 binding = "ARCHIVE"
 bucket_name = "common-thread-archive-prod"
 
+[observability.logs]
+enabled = true
+invocation_logs = true
+
 # =============================================================================
-# Service Bindings (for the Web Frontend)
+# Service Bindings
 # =============================================================================
-#
-# The web frontend can bind to this backend using a service binding.
-# This is the recommended production setup (no CORS, private traffic).
-#
-# Configure the binding in the web worker's config (web/wrangler.toml),
-# not here. Example in web/wrangler.toml:
-#
-#   services = [
-#     { binding = "BACKEND", service = "common-thread" }           # for dev
-#     { binding = "BACKEND", service = "common-thread-prod" }      # for production
-#   ]
 
-# [services]
-# binding = "WEB"
-# service = "common-thread-web"
+[[services]]
+binding = "WEB"
+service = "common-thread-web"
 
-# [env.dev.services]
-# binding = "WEB"
-# service = "common-thread-web-dev"
+# INGEST_CONTAINER is commented out until the container is deployed
+# [[services]]
+# binding = "INGEST_CONTAINER"
+# service = "apify-ingest-router"
 
-# [env.production.services]
-# binding = "WEB"
-# service = "common-thread-web-prod"
+[[env.dev.services]]
+binding = "WEB"
+service = "common-thread-web-dev"
+
+# [[env.dev.services]]
+# binding = "INGEST_CONTAINER"
+# service = "apify-ingest-router-dev"
+
+[[env.production.services]]
+binding = "WEB"
+service = "common-thread-web-prod"
+
+# [[env.production.services]]
+# binding = "INGEST_CONTAINER"
+# service = "apify-ingest-router-prod"
 
 # =============================================================================
 # Reasoner Secrets
