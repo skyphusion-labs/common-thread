@@ -56,6 +56,8 @@ export default defineConfig(async () => {
       }),
     ],
     test: {
+      name: 'common-thread',
+      pool: 'workers',
       setupFiles: ['./tests/setup.ts'],
       include: ['tests/**/*.test.ts'],
       
