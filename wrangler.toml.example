@@ -1,0 +1,131 @@
+# Common Thread Backend Worker configuration (EXAMPLE FILE)
+#
+# Copy this file to wrangler.toml and fill in the resource IDs.
+#
+# IMPORTANT BINDINGS (do not change these names):
+#   - D1 database → binding = "DB"
+#   - R2 bucket   → binding = "ARCHIVE"
+#
+# After copying this file, run:
+#   npm run db:create
+#   npm run r2:create
+#
+# These commands will automatically populate the correct IDs while
+# keeping the binding names as "DB" and "ARCHIVE".
+
+name = "common-thread"
+main = "implementation/workers/index.ts"
+compatibility_date = "2025-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+# -----------------------------------------------------------------------------
+# Before first use
+# -----------------------------------------------------------------------------
+# 1. Copy this file: cp wrangler.toml.example wrangler.toml
+# 2. Run: npm run db:create
+# 3. Run: npm run r2:create
+# 4. Run: npm run db:migrate:local
+# 5. (Optional) Run npm run keygen and add the public key to .dev.vars
+# -----------------------------------------------------------------------------
+
+# =============================================================================
+# Default / Local Development
+# =============================================================================
+
+[[d1_databases]]
+binding = "DB"
+database_name = "common-thread"
+database_id = "REPLACE_AFTER_RUNNING_db:create"
+migrations_dir = "implementation/schema/migrations"
+
+[[r2_buckets]]
+binding = "ARCHIVE"
+bucket_name = "common-thread-archive"
+
+[vars]
+ENVIRONMENT = "development"
+TRIAGE_MODEL = "claude-haiku-4-5"
+REASONING_MODEL = "claude-opus-4-7"
+
+# =============================================================================
+# Explicit Development Environment (env.dev)
+# =============================================================================
+
+[env.dev]
+name = "common-thread-dev"
+
+[env.dev.vars]
+ENVIRONMENT = "development"
+TRIAGE_MODEL = "claude-haiku-4-5"
+REASONING_MODEL = "claude-opus-4-7"
+
+[[env.dev.d1_databases]]
+binding = "DB"
+database_name = "common-thread-dev"
+database_id = "REPLACE_AFTER_RUNNING_db:create --env dev"
+migrations_dir = "implementation/schema/migrations"
+
+[[env.dev.r2_buckets]]
+binding = "ARCHIVE"
+bucket_name = "common-thread-archive-dev"
+
+# =============================================================================
+# Production Environment
+# =============================================================================
+
+[env.production]
+name = "common-thread-prod"
+
+[env.production.vars]
+ENVIRONMENT = "production"
+TRIAGE_MODEL = "claude-haiku-4-5"
+REASONING_MODEL = "claude-opus-4-7"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "common-thread-prod"
+database_id = "REPLACE_AFTER_RUNNING_db:create:prod"
+migrations_dir = "implementation/schema/migrations"
+
+[[env.production.r2_buckets]]
+binding = "ARCHIVE"
+bucket_name = "common-thread-archive-prod"
+
+# =============================================================================
+# Service Bindings (for the Web Frontend)
+# =============================================================================
+#
+# The web frontend can bind to this backend using a service binding.
+# This is the recommended production setup (no CORS, private traffic).
+#
+# Configure the binding in the web worker's config (web/wrangler.toml),
+# not here. Example in web/wrangler.toml:
+#
+#   services = [
+#     { binding = "BACKEND", service = "common-thread" }           # for dev
+#     { binding = "BACKEND", service = "common-thread-prod" }      # for production
+#   ]
+
+# [services]
+# binding = "WEB"
+# service = "common-thread-web"
+
+# [env.dev.services]
+# binding = "WEB"
+# service = "common-thread-web-dev"
+
+# [env.production.services]
+# binding = "WEB"
+# service = "common-thread-web-prod"
+
+# =============================================================================
+# Reasoner Secrets
+# =============================================================================
+#
+# These should NOT be committed. Use .dev.vars locally and
+# `wrangler secret put` in production.
+#
+# Required secrets:
+#   AI_GATEWAY_URL
+#   ANTHROPIC_API_KEY
+# -----------------------------------------------------------------------------

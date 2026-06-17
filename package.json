@@ -1,27 +1,40 @@
 {
   "name": "common-thread",
   "version": "0.1.0",
-  "description": "Methodology and reference implementation for sockpuppet attribution from public behavioral signals on social platforms.",
   "private": true,
+  "description": "Methodology and reference implementation for sockpuppet attribution from public behavioral signals on social platforms.",
   "license": "AGPL-3.0",
-  "type": "module",
   "homepage": "https://github.com/SkyPhusion/common-thread",
   "repository": {
     "type": "git",
     "url": "https://github.com/SkyPhusion/common-thread.git"
   },
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "deploy:prod": "wrangler deploy --env production",
+
+    "deploy:backend:dev": "wrangler deploy",
+    "deploy:backend:prod": "wrangler deploy --env production",
+
+    "deploy:web:dev": "node scripts/deploy-web.js --env=dev",
+    "deploy:web:prod": "node scripts/deploy-web.js --env=production",
+    "deploy:all:dev": "npm run deploy:backend:dev && npm run deploy:web:dev",
+    "deploy:all:prod": "npm run deploy:backend:prod && npm run deploy:web:prod",
+    "dev:web": "wrangler dev --config web/wrangler.toml",
     "typecheck": "tsc --noEmit",
-    "db:create": "wrangler d1 create common-thread",
-    "db:create:prod": "wrangler d1 create common-thread-prod",
+
+    "db:create": "wrangler d1 create common-thread --binding DB --update-config",
+    "db:create:prod": "wrangler d1 create common-thread-prod --binding DB --env production --update-config",
     "db:migrate:local": "wrangler d1 migrations apply common-thread --local",
     "db:migrate": "wrangler d1 migrations apply common-thread --remote",
     "db:migrate:prod": "wrangler d1 migrations apply common-thread-prod --remote --env production",
-    "r2:create": "wrangler r2 bucket create common-thread-archive",
-    "r2:create:prod": "wrangler r2 bucket create common-thread-archive-prod",
+
+    "r2:create": "wrangler r2 bucket create common-thread-archive --binding ARCHIVE --update-config",
+    "r2:create:prod": "wrangler r2 bucket create common-thread-archive-prod --binding ARCHIVE --env production --update-config",
     "keygen": "node scripts/keygen.mjs"
   },
   "devDependencies": {
