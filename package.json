@@ -28,7 +28,7 @@
     "@cloudflare/vitest-pool-workers": "^0.16.16",
     "@cloudflare/workers-types": "^4.20260616.1",
     "@vitest/coverage-istanbul": "^4.1.9",
-    "typescript": "^5.4.0",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.9",
     "wrangler": "^4.101.0"
   },
