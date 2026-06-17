@@ -1,0 +1,34 @@
+# web/wrangler.toml.example
+#
+# Copy this to web/wrangler.toml and customize for your deployment.
+# The real web/wrangler.toml is in .gitignore — never commit it.
+#
+# This configures the self-contained web frontend Worker.
+
+name = "common-thread-web"
+main = "worker.js"
+compatibility_date = "2025-06-17"
+
+# Fallback backend URL (used when no service binding is active)
+[vars]
+DEFAULT_BACKEND_URL = "https://your-backend.workers.dev"
+
+# Top-level service binding (used for dev / non-env deploys)
+services = [
+  { binding = "BACKEND", service = "common-thread" }
+]
+
+# ============================================
+# Production environment
+# ============================================
+[env.production]
+name = "common-thread-web-prod"
+
+[env.production.vars]
+DEFAULT_BACKEND_URL = "https://common-thread-prod.your-subdomain.workers.dev"
+
+# Service binding for production.
+# Must be declared inside [env.production] because service bindings are non-inheritable.
+services = [
+  { binding = "BACKEND", service = "common-thread-prod" }
+]

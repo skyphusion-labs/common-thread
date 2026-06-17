@@ -31,4 +31,4 @@ coverage/
 *.tsbuildinfo
 
 # Configuration
-wranger.toml
+wrangler.toml
