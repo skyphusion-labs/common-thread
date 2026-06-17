@@ -6,13 +6,14 @@
  *   GET  /                              → Health check
  *   GET  /investigations                → List investigations
  *   POST /investigations                → Create investigation
+ *   GET  /investigations/:id/seeds      → List seed accounts for an investigation
+ *   GET  /investigations/:id/summary    → Basic stats (seeds, artifacts, extractor runs, etc.)
  *   GET  /manifest                      → List manifest entries
  *   GET  /signatures                    → List signatures
  *   GET  /verify                        → Verify all signatures
  *
  *   POST /investigations/:id/ingest/apify-twitter
- *        → Ingest Apify Twitter/X data
- *          - Accepts raw JSON body OR multipart/form-data file upload
+ *        → Ingest Apify Twitter/X data (supports raw JSON or file upload)
  */
 
 import { ManifestStore } from '../archive/manifest';
@@ -101,6 +102,75 @@ async function handle(request: Request, env: Env): Promise<Response> {
     );
   }
 
+  // === NEW: List seed accounts for an investigation ===
+  if (method === 'GET' && path.match(/^\/investigations\/[^/]+\/seeds$/)) {
+    const match = path.match(/^\/investigations\/([^/]+)\/seeds$/);
+    const investigationId = match ? match[1] : '';
+
+    if (!investigationId) {
+      return jsonResponse({ error: 'Invalid investigation ID' }, 400);
+    }
+
+    const result = await env.DB
+      .prepare(
+        `SELECT * FROM seed_accounts 
+         WHERE investigation_id = ? 
+         ORDER BY added_at DESC`
+      )
+      .bind(investigationId)
+      .all();
+
+    return jsonResponse({
+      investigationId,
+      seeds: result.results ?? [],
+      count: result.results?.length ?? 0,
+    });
+  }
+
+  // === NEW: Summary for an investigation ===
+  if (method === 'GET' && path.match(/^\/investigations\/[^/]+\/summary$/)) {
+    const match = path.match(/^\/investigations\/([^/]+)\/summary$/);
+    const investigationId = match ? match[1] : '';
+
+    if (!investigationId) {
+      return jsonResponse({ error: 'Invalid investigation ID' }, 400);
+    }
+
+    // Seed accounts count
+    const seedResult = await env.DB
+      .prepare('SELECT COUNT(*) as count FROM seed_accounts WHERE investigation_id = ?')
+      .bind(investigationId)
+      .first<{ count: number }>();
+
+    // Artifact count (manifest entries)
+    const manifest = new ManifestStore({ bucket: env.ARCHIVE });
+    const artifacts = await manifest.list({ investigationId });
+
+    // Try to count extractor runs (tables may or may not exist yet)
+    let extractorRunCount = 0;
+    try {
+      const acc = await env.DB
+        .prepare('SELECT COUNT(*) as count FROM account_extractor_runs WHERE investigation_id = ?')
+        .bind(investigationId)
+        .first<{ count: number }>();
+      const pair = await env.DB
+        .prepare('SELECT COUNT(*) as count FROM pair_extractor_runs WHERE investigation_id = ?')
+        .bind(investigationId)
+        .first<{ count: number }>();
+      extractorRunCount = (acc?.count || 0) + (pair?.count || 0);
+    } catch {
+      // Tables may not exist yet — that's fine
+    }
+
+    return jsonResponse({
+      investigationId,
+      seeds: seedResult?.count ?? 0,
+      artifacts: artifacts.length,
+      extractorRuns: extractorRunCount,
+      // You can expand this later with more stats
+    });
+  }
+
   // List manifest entries
   if (method === 'GET' && path === '/manifest') {
     const manifest = new ManifestStore({ bucket: env.ARCHIVE });
@@ -174,11 +244,10 @@ async function handle(request: Request, env: Env): Promise<Response> {
     const contentType = request.headers.get('content-type') || '';
 
     if (contentType.includes('multipart/form-data')) {
-      // === File upload ===
+      // File upload
       const formData = await request.formData();
       const fileEntry = formData.get('file');
 
-      // Safe check that avoids the instanceof type error
       if (!fileEntry || typeof fileEntry === 'string' || !('text' in fileEntry)) {
         return jsonResponse({ error: 'No file uploaded. Use field name "file"' }, 400);
       }
@@ -190,7 +259,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
         return jsonResponse({ error: 'Uploaded file is not valid JSON' }, 400);
       }
     } else {
-      // === Raw JSON body ===
+      // Raw JSON body
       try {
         payload = await request.json();
       } catch {
@@ -204,7 +273,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
       payload
     );
 
-    // === Rich response with extractor summary ===
+    // Rich response with extractor summary
     const accountProducing = result.accountExtractorRuns
       .filter((r: any) => (r.outputFeatureCount || 0) > 0)
       .map((r: any) => ({
