@@ -25,44 +25,34 @@
 
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  defineWorkersConfig,
-  readD1Migrations,
-} from '@cloudflare/vitest-pool-workers/config';
+import { defineConfig } from 'vitest/config';
+import { cloudflareTest, readD1Migrations } from '@cloudflare/vitest-pool-workers';
 
-export default defineWorkersConfig(async () => {
+export default defineConfig(async () => {
   const here = path.dirname(fileURLToPath(import.meta.url));
-  const migrationsPath = path.join(
-    here,
-    'implementation',
-    'schema',
-    'migrations'
-  );
+  const migrationsPath = path.join(here, 'implementation', 'schema', 'migrations');
   const migrations = await readD1Migrations(migrationsPath);
 
   return {
-    test: {
-      setupFiles: ['./tests/setup.ts'],
-      include: ['tests/**/*.test.ts'],
-      poolOptions: {
-        workers: {
-          wrangler: { configPath: './wrangler.toml' },
-          miniflare: {
-            d1Databases: ['DB'],
-            r2Buckets: ['ARCHIVE'],
-            // Test-only values for the secrets documented in wrangler.toml.
-            // fetchMock intercepts requests to AI_GATEWAY_URL before they
-            // leave the runtime; the value just needs a valid origin.
-            // TEST_MIGRATIONS is read at config load time above and
-            // consumed by tests/setup.ts.
-            bindings: {
-              AI_GATEWAY_URL: 'https://gateway.test/anthropic',
-              ANTHROPIC_API_KEY: 'sk-test-key',
-              TEST_MIGRATIONS: migrations,
-            },
+    plugins: [
+      cloudflareTest({
+        wrangler: { configPath: './wrangler.toml' },
+        miniflare: {
+          d1Databases: ['DB'],
+          r2Buckets: ['ARCHIVE'],
+          bindings: {
+            AI_GATEWAY_URL: 'https://gateway.test',
+            ANTHROPIC_API_KEY: 'sk-test-key',
+            TEST_MIGRATIONS: migrations,
           },
         },
-      },
+      }),
+    ],
+    test: {
+      name: 'common-thread',
+      pool: 'workers', 
+      setupFiles: ['./tests/setup.ts'],
+      include: ['tests/**/*.test.ts'],
     },
   };
 });
