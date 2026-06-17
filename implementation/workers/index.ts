@@ -6,14 +6,15 @@
  *   GET  /                              → Health check
  *   GET  /investigations                → List investigations
  *   POST /investigations                → Create investigation
- *   GET  /investigations/:id/seeds      → List seed accounts for an investigation
- *   GET  /investigations/:id/summary    → Basic stats (seeds, artifacts, extractor runs, etc.)
+ *   GET  /investigations/:id/seeds      → List seed accounts
+ *   GET  /investigations/:id/summary    → Summary stats
  *   GET  /manifest                      → List manifest entries
  *   GET  /signatures                    → List signatures
- *   GET  /verify                        → Verify all signatures
+ *   GET  /verify                        → Verify signatures
  *
  *   POST /investigations/:id/ingest/apify-twitter
- *        → Ingest Apify Twitter/X data (supports raw JSON or file upload)
+ *        → Ingest Apify Twitter/X data
+ *          Supports raw JSON, single file, or multiple files
  */
 
 import { ManifestStore } from '../archive/manifest';
@@ -102,7 +103,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     );
   }
 
-  // === NEW: List seed accounts for an investigation ===
+  // List seed accounts
   if (method === 'GET' && path.match(/^\/investigations\/[^/]+\/seeds$/)) {
     const match = path.match(/^\/investigations\/([^/]+)\/seeds$/);
     const investigationId = match ? match[1] : '';
@@ -127,7 +128,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     });
   }
 
-  // === NEW: Summary for an investigation ===
+  // Summary for an investigation
   if (method === 'GET' && path.match(/^\/investigations\/[^/]+\/summary$/)) {
     const match = path.match(/^\/investigations\/([^/]+)\/summary$/);
     const investigationId = match ? match[1] : '';
@@ -136,17 +137,14 @@ async function handle(request: Request, env: Env): Promise<Response> {
       return jsonResponse({ error: 'Invalid investigation ID' }, 400);
     }
 
-    // Seed accounts count
     const seedResult = await env.DB
       .prepare('SELECT COUNT(*) as count FROM seed_accounts WHERE investigation_id = ?')
       .bind(investigationId)
       .first<{ count: number }>();
 
-    // Artifact count (manifest entries)
     const manifest = new ManifestStore({ bucket: env.ARCHIVE });
     const artifacts = await manifest.list({ investigationId });
 
-    // Try to count extractor runs (tables may or may not exist yet)
     let extractorRunCount = 0;
     try {
       const acc = await env.DB
@@ -159,7 +157,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
         .first<{ count: number }>();
       extractorRunCount = (acc?.count || 0) + (pair?.count || 0);
     } catch {
-      // Tables may not exist yet — that's fine
+      // Tables may not exist yet
     }
 
     return jsonResponse({
@@ -167,7 +165,6 @@ async function handle(request: Request, env: Env): Promise<Response> {
       seeds: seedResult?.count ?? 0,
       artifacts: artifacts.length,
       extractorRuns: extractorRunCount,
-      // You can expand this later with more stats
     });
   }
 
@@ -216,7 +213,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     });
   }
 
-  // === Apify Twitter ingest ===
+  // === Apify Twitter ingest (supports single + multiple files) ===
   if (method === 'POST' && path.match(/^\/investigations\/[^/]+\/ingest\/apify-twitter$/)) {
     const match = path.match(/^\/investigations\/([^/]+)\/ingest\/apify-twitter$/);
     const investigationId = match ? match[1] : '';
@@ -225,7 +222,6 @@ async function handle(request: Request, env: Env): Promise<Response> {
       return jsonResponse({ error: 'Invalid investigation ID in URL' }, 400);
     }
 
-    // Check that the investigation exists
     const inv = await env.DB
       .prepare('SELECT id FROM investigations WHERE id = ?')
       .bind(investigationId)
@@ -235,42 +231,48 @@ async function handle(request: Request, env: Env): Promise<Response> {
       return jsonResponse({
         error: `Investigation not found: ${investigationId}`,
         hint: 'Create it first with POST /investigations',
-        example: { id: investigationId, name: 'My Investigation Name' },
       }, 404);
     }
 
-    let payload: any;
-
     const contentType = request.headers.get('content-type') || '';
+    let payloads: any[] = [];
 
     if (contentType.includes('multipart/form-data')) {
-      // File upload
       const formData = await request.formData();
-      const fileEntry = formData.get('file');
+      const fileEntries = formData.getAll('file');
 
-      if (!fileEntry || typeof fileEntry === 'string' || !('text' in fileEntry)) {
-        return jsonResponse({ error: 'No file uploaded. Use field name "file"' }, 400);
+      for (const entry of fileEntries) {
+        // Safe check that avoids instanceof File type error
+        if (entry && typeof entry !== 'string' && 'text' in entry) {
+          try {
+            const text = await (entry as File).text();
+            const parsed = JSON.parse(text);
+            payloads.push(parsed);
+          } catch {
+            return jsonResponse({ error: 'Invalid JSON in one of the uploaded files' }, 400);
+          }
+        }
       }
 
-      try {
-        const text = await (fileEntry as File).text();
-        payload = JSON.parse(text);
-      } catch {
-        return jsonResponse({ error: 'Uploaded file is not valid JSON' }, 400);
+      if (payloads.length === 0) {
+        return jsonResponse({ error: 'No valid files uploaded. Use field name "file"' }, 400);
       }
     } else {
       // Raw JSON body
       try {
-        payload = await request.json();
+        const body = await request.json();
+        payloads = Array.isArray(body) ? body : [body];
       } catch {
         return jsonResponse({ error: 'Invalid JSON body' }, 400);
       }
     }
 
+    const combinedPayload = payloads.length === 1 ? payloads[0] : payloads;
+
     const result = await ingestApifyTwitter(
       { DB: env.DB, ARCHIVE: env.ARCHIVE },
       investigationId,
-      payload
+      combinedPayload
     );
 
     // Rich response with extractor summary
@@ -293,6 +295,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     return jsonResponse(
       {
         ...result,
+        filesProcessed: payloads.length,
         summary: {
           tweetsProcessed: result.tweetsProcessed,
           uniqueAccounts: result.uniqueAccounts,
@@ -300,6 +303,8 @@ async function handle(request: Request, env: Env): Promise<Response> {
           seedsRegistered: result.seedsRegistered,
           accountExtractorsRun: result.accountExtractorRuns.length,
           pairExtractorsRun: result.pairExtractorRuns.length,
+          pairExtractorsSkipped: result.pairExtractorsSkipped ?? false,
+          pairExtractorsSkippedReason: result.pairExtractorsSkippedReason,
           totalFeaturesProduced:
             result.accountExtractorRuns.reduce((s: number, r: any) => s + (r.outputFeatureCount || 0), 0) +
             result.pairExtractorRuns.reduce((s: number, r: any) => s + (r.outputFeatureCount || 0), 0),
