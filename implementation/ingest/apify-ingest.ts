@@ -26,13 +26,17 @@ export interface ApifyIngestResult {
   pairExtractorsSkippedReason?: string;
 }
 
-const TWITTER_ACCOUNT_EXTRACTORS: AccountFeatureExtractor[] =
-  ALL_ACCOUNT_EXTRACTORS.filter(e =>
+// ============================================
+// Twitter-relevant extractors (filtered)
+// ============================================
+
+export const TWITTER_ACCOUNT_EXTRACTORS: AccountFeatureExtractor[] =
+  ALL_ACCOUNT_EXTRACTORS.filter((e) =>
     /twitter/i.test(e.name) || /twitter/i.test(e.version)
   );
 
-const TWITTER_PAIR_EXTRACTORS: PairFeatureExtractor[] =
-  ALL_PAIR_EXTRACTORS.filter(e =>
+export const TWITTER_PAIR_EXTRACTORS: PairFeatureExtractor[] =
+  ALL_PAIR_EXTRACTORS.filter((e) =>
     /twitter/i.test(e.name) || /twitter/i.test(e.version) ||
     /burrows_delta/i.test(e.name) ||
     /jsd_character_bigrams/i.test(e.name) ||
@@ -56,7 +60,7 @@ export async function ingestApifyTwitter(
 
   const now = new Date().toISOString();
 
-  // Archive the full raw payload
+  // 1. Archive the full raw payload (for chain of custody)
   const rawBytes = new TextEncoder().encode(JSON.stringify(payload, null, 2));
   const { hash: rawHash } = await archive.put(rawBytes, {
     mimeType: 'application/json',
@@ -65,19 +69,21 @@ export async function ingestApifyTwitter(
 
   await manifest.append({
     hash: rawHash,
-    source: 'apify-twitter-raw',
+    source: 'apify-twitter',
     collectedAt: now,
     investigationId,
     collectionMethod: { tool: 'apify', version: '1' },
+    mimeType: 'application/json',
     status: 'present',
   } as any);
 
+  // 2. Parse tweets
   const parsedTweets = parseApifyTwitterItems(payload);
   const handles = extractAllHandlesFromApifyTwitter(payload);
 
   let artifactsCreated = 0;
 
-  // One manifest entry per tweet with account = author
+  // 3. Create one manifest entry per tweet with account
   for (const pt of parsedTweets) {
     const tweetBytes = new TextEncoder().encode(JSON.stringify(pt.tweet));
     const { hash: tweetHash } = await archive.put(tweetBytes, {
@@ -91,14 +97,19 @@ export async function ingestApifyTwitter(
       source: 'apify-twitter',
       collectedAt: pt.collectedAt || now,
       investigationId,
-      collectionMethod: { tool: 'apify', version: '1' },
+      collectionMethod: {
+        tool: 'apify-twitter',
+        version: '1',
+        platform: 'twitter',
+      },
+      mimeType: 'application/json',
       status: 'present',
     } as any);
 
     artifactsCreated++;
   }
 
-  // Register seed accounts
+  // 4. Register seed accounts
   let seedsRegistered = 0;
   for (const handle of handles) {
     try {
@@ -111,17 +122,19 @@ export async function ingestApifyTwitter(
         .bind(investigationId, handle, now)
         .run();
       seedsRegistered++;
-    } catch {}
+    } catch {
+      // duplicate — ignore
+    }
   }
 
-  // Always run account extractors
+  // 5. Run account extractors
   const accountRuns = await runAccountExtractors(env, {
     investigationId,
     extractors: TWITTER_ACCOUNT_EXTRACTORS,
     accountFilter: handles.length > 0 ? handles : undefined,
   });
 
-  // Only run pair extractors if we have 2+ accounts
+  // 6. Run pair extractors only if we have 2+ accounts
   let pairRuns: any[] = [];
   let pairExtractorsSkipped = false;
   let pairExtractorsSkippedReason: string | undefined;

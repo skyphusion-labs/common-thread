@@ -11,16 +11,20 @@
  *   GET  /manifest                      → List manifest entries
  *   GET  /signatures                    → List signatures
  *   GET  /verify                        → Verify signatures
+ *   GET  /debug/ingest                  → Debug extractor visibility
  *
  *   POST /investigations/:id/ingest/apify-twitter
- *        → Ingest Apify Twitter/X data
- *          Supports raw JSON or file upload (single or multiple)
+ *        → Ingest Apify Twitter/X data (supports multiple files)
  */
 
 import { ManifestStore } from '../archive/manifest';
 import { ManifestSigner } from '../archive/signing';
 import type { InvestigationRow } from '../schema/db-types';
-import { ingestApifyTwitter } from '../ingest/apify-ingest';
+import {
+  ingestApifyTwitter,
+  TWITTER_ACCOUNT_EXTRACTORS,
+  TWITTER_PAIR_EXTRACTORS,
+} from '../ingest/apify-ingest';
 
 export interface Env {
   DB: D1Database;
@@ -213,7 +217,52 @@ async function handle(request: Request, env: Env): Promise<Response> {
     });
   }
 
-  // === Apify Twitter ingest (supports single + multiple files) ===
+  // === DEBUG: Ingest / Extractor visibility ===
+  if (method === 'GET' && path.match(/^\/debug\/ingest$/)) {
+    const investigationId = url.searchParams.get('investigation');
+
+    if (!investigationId) {
+      return jsonResponse({ error: 'Missing ?investigation= parameter' }, 400);
+    }
+
+    const manifest = new ManifestStore({ bucket: env.ARCHIVE });
+    const allEntries = await manifest.list({ investigationId });
+    const entriesWithAccount = allEntries.filter((e) => e.account);
+
+    const accountVisibility: Record<string, number> = {};
+    const pairVisibility: Record<string, number> = {};
+
+    // Account extractors have filterEntry
+    for (const ex of TWITTER_ACCOUNT_EXTRACTORS) {
+      const count = entriesWithAccount.filter((e) => {
+        try {
+          return ex.filterEntry?.(e) ?? false;
+        } catch {
+          return false;
+        }
+      }).length;
+      accountVisibility[ex.name] = count;
+    }
+
+    // Pair extractors do NOT have filterEntry on individual entries.
+    // We just report how many accounts are available.
+    for (const ex of TWITTER_PAIR_EXTRACTORS) {
+      pairVisibility[ex.name] = entriesWithAccount.length;
+    }
+
+    return jsonResponse({
+      investigationId,
+      totalEntries: allEntries.length,
+      entriesWithAccount: entriesWithAccount.length,
+      sampleEntries: entriesWithAccount.slice(0, 3),
+      extractorVisibility: {
+        account: accountVisibility,
+        pair: pairVisibility,
+      },
+    });
+  }
+
+  // === Apify Twitter ingest ===
   if (method === 'POST' && path.match(/^\/investigations\/[^/]+\/ingest\/apify-twitter$/)) {
     const match = path.match(/^\/investigations\/([^/]+)\/ingest\/apify-twitter$/);
     const investigationId = match ? match[1] : '';
@@ -263,7 +312,9 @@ async function handle(request: Request, env: Env): Promise<Response> {
         }
       }
 
-      filesProcessed = fileEntries.filter(e => e && typeof e !== 'string' && 'text' in e).length;
+      filesProcessed = fileEntries.filter(
+        (e) => e && typeof e !== 'string' && 'text' in e
+      ).length;
 
       if (allItems.length === 0) {
         return jsonResponse({ error: 'No valid files uploaded. Use field name "file"' }, 400);
