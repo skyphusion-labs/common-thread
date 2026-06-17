@@ -22,9 +22,10 @@ export interface ApifyIngestResult {
   seedsRegistered: number;
   accountExtractorRuns: any[];
   pairExtractorRuns: any[];
+  pairExtractorsSkipped?: boolean;
+  pairExtractorsSkippedReason?: string;
 }
 
-// Filter to Twitter-relevant extractors only
 const TWITTER_ACCOUNT_EXTRACTORS: AccountFeatureExtractor[] =
   ALL_ACCOUNT_EXTRACTORS.filter(e =>
     /twitter/i.test(e.name) || /twitter/i.test(e.version)
@@ -41,7 +42,6 @@ const TWITTER_PAIR_EXTRACTORS: PairFeatureExtractor[] =
     /quiet_period/i.test(e.name) ||
     /client_app_overlap/i.test(e.name) ||
     /tweet_language/i.test(e.name) ||
-    /profile_lang/i.test(e.name) ||
     /follower_overlap/i.test(e.name) ||
     /mutual_follow/i.test(e.name)
   );
@@ -56,7 +56,7 @@ export async function ingestApifyTwitter(
 
   const now = new Date().toISOString();
 
-  // 1. Archive the full raw payload (for reproducibility / chain of custody)
+  // Archive the full raw payload
   const rawBytes = new TextEncoder().encode(JSON.stringify(payload, null, 2));
   const { hash: rawHash } = await archive.put(rawBytes, {
     mimeType: 'application/json',
@@ -72,13 +72,12 @@ export async function ingestApifyTwitter(
     status: 'present',
   } as any);
 
-  // 2. Parse individual tweets
   const parsedTweets = parseApifyTwitterItems(payload);
   const handles = extractAllHandlesFromApifyTwitter(payload);
 
   let artifactsCreated = 0;
 
-  // 3. One manifest entry per tweet, with account = author
+  // One manifest entry per tweet with account = author
   for (const pt of parsedTweets) {
     const tweetBytes = new TextEncoder().encode(JSON.stringify(pt.tweet));
     const { hash: tweetHash } = await archive.put(tweetBytes, {
@@ -99,7 +98,7 @@ export async function ingestApifyTwitter(
     artifactsCreated++;
   }
 
-  // 4. Register seed accounts
+  // Register seed accounts
   let seedsRegistered = 0;
   for (const handle of handles) {
     try {
@@ -115,18 +114,28 @@ export async function ingestApifyTwitter(
     } catch {}
   }
 
-  // 5. Run only Twitter-relevant extractors
+  // Always run account extractors
   const accountRuns = await runAccountExtractors(env, {
     investigationId,
     extractors: TWITTER_ACCOUNT_EXTRACTORS,
     accountFilter: handles.length > 0 ? handles : undefined,
   });
 
-  const pairRuns = await runPairExtractors(env, {
-    investigationId,
-    extractors: TWITTER_PAIR_EXTRACTORS,
-    accountFilter: handles.length > 0 ? handles : undefined,
-  });
+  // Only run pair extractors if we have 2+ accounts
+  let pairRuns: any[] = [];
+  let pairExtractorsSkipped = false;
+  let pairExtractorsSkippedReason: string | undefined;
+
+  if (handles.length >= 2) {
+    pairRuns = await runPairExtractors(env, {
+      investigationId,
+      extractors: TWITTER_PAIR_EXTRACTORS,
+      accountFilter: handles.length > 0 ? handles : undefined,
+    });
+  } else {
+    pairExtractorsSkipped = true;
+    pairExtractorsSkippedReason = `Pair extractors require at least 2 accounts; got ${handles.length}`;
+  }
 
   return {
     investigationId,
@@ -137,5 +146,7 @@ export async function ingestApifyTwitter(
     seedsRegistered,
     accountExtractorRuns: accountRuns,
     pairExtractorRuns: pairRuns,
+    pairExtractorsSkipped,
+    pairExtractorsSkippedReason,
   };
 }
