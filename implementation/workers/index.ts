@@ -11,7 +11,8 @@
  *   GET  /verify                        → Verify all signatures
  *
  *   POST /investigations/:id/ingest/apify-twitter
- *        → Ingest Apify Twitter/X data (one manifest entry per tweet)
+ *        → Ingest Apify Twitter/X data
+ *          - Accepts raw JSON body OR multipart/form-data file upload
  */
 
 import { ManifestStore } from '../archive/manifest';
@@ -100,7 +101,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     );
   }
 
-  // List manifest
+  // List manifest entries
   if (method === 'GET' && path === '/manifest') {
     const manifest = new ManifestStore({ bucket: env.ARCHIVE });
     const investigationId = url.searchParams.get('investigation');
@@ -108,7 +109,10 @@ async function handle(request: Request, env: Env): Promise<Response> {
       investigationId ? { investigationId } : undefined
     );
 
-    return jsonResponse({ entries, count: entries.length });
+    return jsonResponse({
+      entries,
+      count: entries.length,
+    });
   }
 
   // List signatures
@@ -116,7 +120,10 @@ async function handle(request: Request, env: Env): Promise<Response> {
     const signer = new ManifestSigner({ bucket: env.ARCHIVE });
     const signatures = await signer.listSignatures();
 
-    return jsonResponse({ signatures, count: signatures.length });
+    return jsonResponse({
+      signatures,
+      count: signatures.length,
+    });
   }
 
   // Verify signatures
@@ -148,31 +155,56 @@ async function handle(request: Request, env: Env): Promise<Response> {
       return jsonResponse({ error: 'Invalid investigation ID in URL' }, 400);
     }
 
-    // Prevent cryptic foreign key error
+    // Check that the investigation exists
     const inv = await env.DB
       .prepare('SELECT id FROM investigations WHERE id = ?')
       .bind(investigationId)
       .first();
 
     if (!inv) {
-      return jsonResponse(
-        {
-          error: `Investigation not found: ${investigationId}`,
-          hint: 'Create it first with POST /investigations',
-          example: { id: investigationId, name: 'My Investigation' },
-        },
-        404
-      );
+      return jsonResponse({
+        error: `Investigation not found: ${investigationId}`,
+        hint: 'Create it first with POST /investigations',
+        example: { id: investigationId, name: 'My Investigation Name' },
+      }, 404);
     }
 
-    const body = await request.json();
+    let payload: any;
+
+    const contentType = request.headers.get('content-type') || '';
+
+    if (contentType.includes('multipart/form-data')) {
+      // === File upload ===
+      const formData = await request.formData();
+      const fileEntry = formData.get('file');
+
+      // Safe check that avoids the instanceof type error
+      if (!fileEntry || typeof fileEntry === 'string' || !('text' in fileEntry)) {
+        return jsonResponse({ error: 'No file uploaded. Use field name "file"' }, 400);
+      }
+
+      try {
+        const text = await (fileEntry as File).text();
+        payload = JSON.parse(text);
+      } catch {
+        return jsonResponse({ error: 'Uploaded file is not valid JSON' }, 400);
+      }
+    } else {
+      // === Raw JSON body ===
+      try {
+        payload = await request.json();
+      } catch {
+        return jsonResponse({ error: 'Invalid JSON body' }, 400);
+      }
+    }
+
     const result = await ingestApifyTwitter(
       { DB: env.DB, ARCHIVE: env.ARCHIVE },
       investigationId,
-      body
+      payload
     );
 
-    // === Richer response with extractor summary ===
+    // === Rich response with extractor summary ===
     const accountProducing = result.accountExtractorRuns
       .filter((r: any) => (r.outputFeatureCount || 0) > 0)
       .map((r: any) => ({
@@ -200,8 +232,8 @@ async function handle(request: Request, env: Env): Promise<Response> {
           accountExtractorsRun: result.accountExtractorRuns.length,
           pairExtractorsRun: result.pairExtractorRuns.length,
           totalFeaturesProduced:
-            (result.accountExtractorRuns.reduce((s: number, r: any) => s + (r.outputFeatureCount || 0), 0) +
-             result.pairExtractorRuns.reduce((s: number, r: any) => s + (r.outputFeatureCount || 0), 0)),
+            result.accountExtractorRuns.reduce((s: number, r: any) => s + (r.outputFeatureCount || 0), 0) +
+            result.pairExtractorRuns.reduce((s: number, r: any) => s + (r.outputFeatureCount || 0), 0),
         },
         extractorsWithFeatures: {
           account: accountProducing,
