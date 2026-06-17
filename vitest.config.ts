@@ -25,13 +25,10 @@
 
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  defineWorkersConfig,
-  readD1Migrations,
+import { defineConfig } from 'vitest/config';
+import { cloudflareTest, readD1Migrations } from '@cloudflare/vitest-pool-workers';
 
-} from '@cloudflare/vitest-pool-workers';
-
-export default defineWorkersConfig(async () => {
+export default defineConfig(async () => {
   const here = path.dirname(fileURLToPath(import.meta.url));
   const migrationsPath = path.join(
     here,
@@ -39,33 +36,34 @@ export default defineWorkersConfig(async () => {
     'schema',
     'migrations'
   );
+  
   const migrations = await readD1Migrations(migrationsPath);
 
   return {
+    plugins: [
+      cloudflareTest({
+        // The core configuration options must pass directly inside the plugin object wrapper
+        wrangler: { configPath: './wrangler.toml' },
+        miniflare: {
+          d1Databases: ['DB'],
+          r2Buckets: ['ARCHIVE'],
+          bindings: {
+            AI_GATEWAY_URL: 'https://gateway.test',
+            ANTHROPIC_API_KEY: 'sk-test-key',
+            TEST_MIGRATIONS: migrations,
+          },
+        },
+      }),
+    ],
     test: {
       setupFiles: ['./tests/setup.ts'],
       include: ['tests/**/*.test.ts'],
       
       coverage: {
-        provider: 'istanbul',      // Runs cleanly inside the workerd sandbox
-        reporter: ['cobertura'],   // Outputs format required by GitHub
+        provider: 'istanbul',
+        reporter: ['cobertura'],
         reportsDirectory: './coverage'
-      },
-
-      poolOptions: {
-        workers: {
-          wrangler: { configPath: './wrangler.toml' },
-          miniflare: {
-            d1Databases: ['DB'],
-            r2Buckets: ['ARCHIVE'],
-            bindings: {
-              AI_GATEWAY_URL: 'https://gateway.test',
-              ANTHROPIC_API_KEY: 'sk-test-key',
-              TEST_MIGRATIONS: migrations,
-            },
-          },
-        },
-      },
+      }
     },
   };
 });
