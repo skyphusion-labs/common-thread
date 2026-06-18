@@ -1,20 +1,5 @@
 /**
  * Common Thread Worker entry point.
- *
- * Routes:
- *
- *   GET  /                              → Health check
- *   GET  /investigations                → List investigations
- *   POST /investigations                → Create investigation
- *   GET  /investigations/:id/seeds      → List seed accounts
- *   GET  /investigations/:id/summary    → Summary stats
- *   GET  /manifest                      → List manifest entries
- *   GET  /signatures                    → List signatures
- *   GET  /verify                        → Verify signatures
- *   GET  /debug/ingest                  → Debug extractor visibility
- *
- *   POST /investigations/:id/ingest/apify-twitter
- *        → Ingest Apify Twitter/X data (supports multiple files)
  */
 
 import { ManifestStore } from '../archive/manifest';
@@ -132,7 +117,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     });
   }
 
-  // Summary for an investigation
+  // Summary
   if (method === 'GET' && path.match(/^\/investigations\/[^/]+\/summary$/)) {
     const match = path.match(/^\/investigations\/([^/]+)\/summary$/);
     const investigationId = match ? match[1] : '';
@@ -170,7 +155,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     });
   }
 
-  // List manifest entries
+  // List manifest
   if (method === 'GET' && path === '/manifest') {
     const manifest = new ManifestStore({ bucket: env.ARCHIVE });
     const investigationId = url.searchParams.get('investigation');
@@ -195,7 +180,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     });
   }
 
-  // Verify signatures
+  // Verify
   if (method === 'GET' && path === '/verify') {
     const signer = new ManifestSigner({ bucket: env.ARCHIVE });
     const results = await signer.verifyAll();
@@ -232,13 +217,8 @@ async function handle(request: Request, env: Env): Promise<Response> {
 
     for (const ex of TWITTER_ACCOUNT_EXTRACTORS) {
       const matching = entriesWithAccount.filter((e) => {
-        try {
-          return ex.filterEntry?.(e) ?? false;
-        } catch {
-          return false;
-        }
+        try { return ex.filterEntry?.(e) ?? false; } catch { return false; }
       });
-
       accountVisibility[ex.name] = {
         count: matching.length,
         sampleCollectionMethod: matching[0]?.collectionMethod,
@@ -247,9 +227,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     }
 
     for (const ex of TWITTER_PAIR_EXTRACTORS) {
-      pairVisibility[ex.name] = {
-        count: entriesWithAccount.length,
-      };
+      pairVisibility[ex.name] = { count: entriesWithAccount.length };
     }
 
     return jsonResponse({
@@ -317,7 +295,6 @@ async function handle(request: Request, env: Env): Promise<Response> {
         return jsonResponse({ error: 'No valid files uploaded. Use field name "file"' }, 400);
       }
     } else {
-      // Raw JSON body
       const body = await request.json() as any;
 
       if (Array.isArray(body)) {

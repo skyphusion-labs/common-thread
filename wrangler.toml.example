@@ -18,6 +18,9 @@ main = "implementation/workers/index.ts"
 compatibility_date = "2025-09-01"
 compatibility_flags = ["nodejs_compat"]
 
+# Disable preview domains, enable them if you want them
+preview_urls = false
+
 # -----------------------------------------------------------------------------
 # Before first use
 # -----------------------------------------------------------------------------
