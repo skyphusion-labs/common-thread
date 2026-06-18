@@ -37,7 +37,7 @@
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.16.16",
-    "@cloudflare/workers-types": "^4.20260616.1",
+    "@cloudflare/workers-types": "^4.20260617.1",
     "@vitest/coverage-istanbul": "^4.1.9",
     "tsx": "^4.20.3",
     "typescript": "^6.0.3",
