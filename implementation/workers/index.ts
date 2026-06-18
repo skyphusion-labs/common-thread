@@ -14,6 +14,14 @@ import {
   TWITTER_PAIR_EXTRACTORS,
 } from '../ingest/apify-ingest';
 import { runAttribution } from '../reasoner/runner';
+import { listAttributionRuns, getAttributionRun } from '../attribution/query';
+import {
+  parseFeaturesQueryParams,
+  queryInvestigationFeatures,
+} from '../features/query';
+import { buildEvidencePacket } from '../reporting/evidence-packet';
+import { packetDocumentTitle, packetMarkdownToHtml } from '../reporting/packet-html';
+import { dispatchPdfRender, vpcPdfEnabled } from '../reporting/pdf-dispatch';
 
 export interface Env {
   DB: Hyperdrive;
@@ -30,6 +38,12 @@ export interface Env {
   /** Full URL for VPC_INGEST.fetch(), e.g. http://common-thread-ingest.internal/trigger */
   INGEST_WORKER_URL?: string;
   INGEST_SECRET?: string;
+  /** Workers VPC binding to the PDF/A renderer (common-thread-pdf / json-pdf). */
+  VPC_PDF?: Fetcher;
+  /** PDF/A renderer on VPC, e.g. http://json-pdf:8081/render */
+  PDF_WORKER_URL?: string;
+  /** Required for `?format=pdf` packet export (wrangler secret put PDF_SECRET). */
+  PDF_SECRET?: string;
 }
 
 export default {
@@ -104,11 +118,13 @@ async function handle(request: Request, env: Env): Promise<Response> {
   if (method === 'GET' && path.match(/^\/investigations\/[^/]+\/seeds$/)) {
     const match = path.match(/^\/investigations\/([^/]+)\/seeds$/);
     const investigationId = match ? match[1] : '';
+    const includeRemoved = url.searchParams.get('includeRemoved') === 'true';
 
     const rows = await query(
       env.DB,
       `SELECT * FROM seed_accounts 
-       WHERE investigation_id = ? 
+       WHERE investigation_id = ?
+         ${includeRemoved ? '' : 'AND removed_at IS NULL'}
        ORDER BY added_at DESC`,
       [investigationId]
     );
@@ -123,7 +139,8 @@ async function handle(request: Request, env: Env): Promise<Response> {
 
     const seedResult = await queryOne<{ count: number }>(
       env.DB,
-      'SELECT COUNT(*) as count FROM seed_accounts WHERE investigation_id = ?',
+      `SELECT COUNT(*) as count FROM seed_accounts
+       WHERE investigation_id = ? AND removed_at IS NULL`,
       [investigationId]
     );
 
@@ -274,6 +291,95 @@ async function handle(request: Request, env: Env): Promise<Response> {
     );
   }
 
+  // Soft-delete seed account (§5.1 — preserves row for audit trail)
+  if (method === 'DELETE' && path.match(/^\/investigations\/[^/]+\/seeds$/)) {
+    const match = path.match(/^\/investigations\/([^/]+)\/seeds$/);
+    const investigationId = match ? match[1] : '';
+
+    const body = (await request.json()) as {
+      platform?: string;
+      account?: string;
+      removed_reason?: string;
+      removedReason?: string;
+    };
+
+    if (!body.account || !body.platform) {
+      return jsonResponse({ error: 'platform and account are required' }, 400);
+    }
+
+    const inv = await queryOne(env.DB, 'SELECT id FROM investigations WHERE id = ?', [
+      investigationId,
+    ]);
+    if (!inv) {
+      return jsonResponse({ error: `Investigation not found: ${investigationId}` }, 404);
+    }
+
+    const active = await queryOne<{ count: number }>(
+      env.DB,
+      `SELECT COUNT(*) AS count FROM seed_accounts
+       WHERE investigation_id = ?
+         AND platform = ?
+         AND account_identifier = ?
+         AND removed_at IS NULL`,
+      [investigationId, body.platform, body.account]
+    );
+    if (!active?.count) {
+      return jsonResponse(
+        {
+          error: `Active seed not found: ${body.platform}:${body.account}`,
+        },
+        404
+      );
+    }
+
+    const now = new Date().toISOString();
+    const reason =
+      body.removed_reason ?? body.removedReason ?? 'Removed via API';
+
+    const db = resolveDatabase(env.DB);
+    const result = await db
+      .prepare(
+        `UPDATE seed_accounts
+         SET removed_at = ?, removed_reason = ?
+         WHERE investigation_id = ?
+           AND platform = ?
+           AND account_identifier = ?
+           AND removed_at IS NULL`
+      )
+      .bind(now, reason, investigationId, body.platform, body.account)
+      .run();
+
+    return jsonResponse({
+      investigationId,
+      platform: body.platform,
+      account: body.account,
+      removed_at: now,
+      removed_reason: reason,
+      removed_count: result.meta.changes,
+    });
+  }
+
+  // Investigation features (§6.3)
+  if (method === 'GET' && path.match(/^\/investigations\/[^/]+\/features$/)) {
+    const match = path.match(/^\/investigations\/([^/]+)\/features$/);
+    const investigationId = match ? match[1] : '';
+
+    const inv = await queryOne(env.DB, 'SELECT id FROM investigations WHERE id = ?', [
+      investigationId,
+    ]);
+    if (!inv) {
+      return jsonResponse({ error: `Investigation not found: ${investigationId}` }, 404);
+    }
+
+    const parsed = parseFeaturesQueryParams(investigationId, url.searchParams);
+    if ('error' in parsed) {
+      return jsonResponse({ error: parsed.error }, 400);
+    }
+
+    const result = await queryInvestigationFeatures(env.DB, parsed);
+    return jsonResponse(result);
+  }
+
   // Run attribution
   if (method === 'POST' && path.match(/^\/investigations\/[^/]+\/attribute$/)) {
     const match = path.match(/^\/investigations\/([^/]+)\/attribute$/);
@@ -350,22 +456,113 @@ async function handle(request: Request, env: Env): Promise<Response> {
     });
   }
 
-  // List attribution runs
-  if (method === 'GET' && path.match(/^\/investigations\/[^/]+\/attribution-runs$/)) {
-    const match = path.match(/^\/investigations\/([^/]+)\/attribution-runs$/);
+  // List attribution runs (canonical + legacy path)
+  if (
+    method === 'GET' &&
+    (path.match(/^\/investigations\/[^/]+\/runs$/) ||
+      path.match(/^\/investigations\/[^/]+\/attribution-runs$/))
+  ) {
+    const match =
+      path.match(/^\/investigations\/([^/]+)\/runs$/) ??
+      path.match(/^\/investigations\/([^/]+)\/attribution-runs$/);
     const investigationId = match ? match[1] : '';
 
-    const rows = await query(
-      env.DB,
-      `SELECT id, account_a, account_b, platform_a, platform_b,
-              confidence_band, output_summary, started_at, completed_at
-       FROM attribution_runs
-       WHERE investigation_id = ?
-       ORDER BY id ASC`,
-      [investigationId]
-    );
+    const inv = await queryOne(env.DB, 'SELECT id FROM investigations WHERE id = ?', [
+      investigationId,
+    ]);
+    if (!inv) {
+      return jsonResponse({ error: `Investigation not found: ${investigationId}` }, 404);
+    }
 
+    const rows = await listAttributionRuns(env.DB, investigationId);
     return jsonResponse({ investigationId, runs: rows, count: rows.length });
+  }
+
+  // Single attribution run with full output
+  if (method === 'GET' && path.match(/^\/investigations\/[^/]+\/runs\/[^/]+$/)) {
+    const match = path.match(/^\/investigations\/([^/]+)\/runs\/([^/]+)$/);
+    const investigationId = match ? match[1] : '';
+    const runId = match ? Number(match[2]) : NaN;
+
+    if (!Number.isInteger(runId) || runId < 1) {
+      return jsonResponse({ error: 'run_id must be a positive integer' }, 400);
+    }
+
+    const run = await getAttributionRun(env.DB, investigationId, runId);
+    if (!run) {
+      return jsonResponse({ error: `Attribution run not found: ${runId}` }, 404);
+    }
+
+    return jsonResponse({ investigationId, run });
+  }
+
+  // Evidence packet for an attribution run (§8.1)
+  if (method === 'GET' && path.match(/^\/investigations\/[^/]+\/packet\/[^/]+$/)) {
+    const match = path.match(/^\/investigations\/([^/]+)\/packet\/([^/]+)$/);
+    const investigationId = match ? match[1] : '';
+    const runId = match ? Number(match[2]) : NaN;
+
+    if (!Number.isInteger(runId) || runId < 1) {
+      return jsonResponse({ error: 'run_id must be a positive integer' }, 400);
+    }
+
+    const packet = await buildEvidencePacket(env.DB, env.ARCHIVE, investigationId, runId);
+    if (!packet) {
+      return jsonResponse({ error: `Attribution run not found: ${runId}` }, 404);
+    }
+
+    if (url.searchParams.get('format') === 'markdown') {
+      return new Response(packet.markdown + '\n', {
+        status: 200,
+        headers: { 'Content-Type': 'text/markdown; charset=utf-8' },
+      });
+    }
+
+    if (url.searchParams.get('format') === 'pdf') {
+      if (!vpcPdfEnabled(env)) {
+        return jsonResponse(
+          {
+            error: 'PDF rendering requires VPC_PDF, PDF_WORKER_URL, and PDF_SECRET',
+            hint: 'Set PDF_SECRET via wrangler secret put PDF_SECRET and deploy containers/pdf-worker',
+          },
+          503
+        );
+      }
+
+      const title = packetDocumentTitle(investigationId, runId);
+      const html = await packetMarkdownToHtml(packet.markdown, title);
+      const pdfResponse = await dispatchPdfRender(env, {
+        investigationId,
+        attributionRunId: runId,
+        html,
+        pdfaProfile: '2b',
+      });
+
+      if (!pdfResponse.ok) {
+        const detail = await pdfResponse.text();
+        return jsonResponse(
+          {
+            error: 'PDF renderer failed',
+            status: pdfResponse.status,
+            detail: detail.slice(0, 2000),
+          },
+          502
+        );
+      }
+
+      const pdfBytes = await pdfResponse.arrayBuffer();
+      const filename = `common-thread-${investigationId}-run-${runId}.pdf`;
+      return new Response(pdfBytes, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="${filename}"`,
+          'X-PDF-A-Profile': '2b',
+        },
+      });
+    }
+
+    return jsonResponse(packet);
   }
 
   // === Apify Twitter ingest ===
@@ -411,13 +608,10 @@ async function handle(request: Request, env: Env): Promise<Response> {
       allItems = Array.isArray(body) ? body : Array.isArray(body?.items) ? body.items : Array.isArray(body?.data) ? body.data : [body];
     }
 
-    const runExtractors = url.searchParams.get('runExtractors') === 'true';
-
     const result = await ingestApifyTwitter(
       env,
       investigationId,
-      allItems,
-      runExtractors
+      allItems
     );
 
     const status = result.delegatedToContainer ? 202 : 200;

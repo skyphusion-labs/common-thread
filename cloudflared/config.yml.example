@@ -3,6 +3,7 @@
 #
 # Worker wrangler.toml:
 #   INGEST_WORKER_URL = "http://json-ingest:8080/trigger"
+#   PDF_WORKER_URL    = "http://json-pdf:8081/render"
 
 tunnel: YOUR_TUNNEL_ID
 credentials-file: /etc/cloudflared/credentials.json
@@ -10,4 +11,6 @@ credentials-file: /etc/cloudflared/credentials.json
 ingress:
   - hostname: json-ingest
     service: http://json-ingest:8080
+  - hostname: json-pdf
+    service: http://json-pdf:8081
   - service: http_status:404

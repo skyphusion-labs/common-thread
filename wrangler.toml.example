@@ -20,6 +20,7 @@ compatibility_flags = ["nodejs_compat"]
 # 3. Create Hyperdrive and paste the id below:
 #      npm run db:hyperdrive:create -- 'mysql://USER:PASS@HOST:3306/common_thread'
 # 4. Run: npm run r2:create
+# 5. HTTP API reference: docs/API.md
 # -----------------------------------------------------------------------------
 
 # =============================================================================
@@ -152,17 +153,24 @@ max_retries = 3
 retry_delay = 10000
 
 # =============================================================================
-# Workers VPC — self-hosted extraction container
+# Workers VPC — self-hosted containers (ingest + PDF/A)
 # =============================================================================
 # [[vpc_services]]
 # binding = "VPC_INGEST"
 # service_id = "YOUR_VPC_SERVICE_ID"
 # remote = true
 #
+# [[vpc_services]]
+# binding = "VPC_PDF"
+# service_id = "YOUR_PDF_VPC_SERVICE_ID"
+# remote = true
+#
 # [vars]
-# INGEST_WORKER_URL = "http://common-thread-ingest.internal/trigger"
+# INGEST_WORKER_URL = "http://json-ingest:8080/trigger"
+# PDF_WORKER_URL = "http://json-pdf:8081/render"
 #
 # wrangler secret put INGEST_SECRET
+# wrangler secret put PDF_SECRET
 
 # =============================================================================
 # Reasoner Secrets
@@ -175,4 +183,5 @@ retry_delay = 10000
 #   AI_GATEWAY_URL
 #   ANTHROPIC_API_KEY
 #   INGEST_SECRET (when using VPC extraction container)
+#   PDF_SECRET (when using VPC PDF container for ?format=pdf packets)
 # -----------------------------------------------------------------------------

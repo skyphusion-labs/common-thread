@@ -132,16 +132,22 @@ Explicit Dev	npm run deploy:backend:dev	common-thread-dev	common-thread-web-dev
 Production	npm run deploy:backend:prod	common-thread-prod	common-thread-web-prod
 8. Post-Deployment Checklist
 
-    Backend responds at its URL (GET / returns status information)
+    Backend responds at its URL (`GET /` returns status information)
     Web frontend loads and shows the UI
     In the web UI, the “Backend Target” field points to your backend (or the service binding is configured)
-    Test uploading sample data and running extractors in the web UI
+
+    VPC fleet (production ingest + PDF):
+    - `containers/ingest-worker/` reachable at `INGEST_WORKER_URL`
+    - `containers/pdf-worker/` reachable at `PDF_WORKER_URL` (for `?format=pdf` packets)
+    - `wrangler secret put INGEST_SECRET` and `wrangler secret put PDF_SECRET`
 
     Set required secrets on the backend (especially for production):
     bash
 
     wrangler secret put AI_GATEWAY_URL --env production
     wrangler secret put ANTHROPIC_API_KEY --env production
+
+    Exercise the API workflow (`docs/API.md`): ingest → attribute → packet export
 
     Verify that wrangler.toml and web/wrangler.toml are still in .gitignore
 
@@ -199,4 +205,5 @@ npm run r2:create:prod
 
 Need help?
 
-Open an issue on GitHub or refer to the methodology paper for architectural context.
+Open an issue on GitHub, refer to **`docs/API.md`** for HTTP routes, or see the
+methodology paper for architectural context.

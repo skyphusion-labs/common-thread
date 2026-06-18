@@ -142,12 +142,17 @@ unit testing (`tests/reasoner/runner-internals.test.ts`).
 
 ### HTTP surface (`implementation/workers/index.ts`)
 
-Routes include `GET /` (health), investigations, seeds, manifest, signatures,
-`POST /investigations/:id/ingest/apify-twitter`, `GET …/ingest-jobs/:job_id`,
-`POST /investigations/:id/attribute`, and attribution run listing. When
-`VPC_INGEST` is configured, ingest archives raw JSON once and dispatches to the
-self-hosted extraction container (`containers/ingest-worker/`); otherwise pass
-`?runExtractors=true` for inline local dev. Planned routes are in `TODO.md`.
+Full route reference: **`docs/API.md`**.
+
+The Worker exposes health, investigations, seeds (including soft-delete),
+features, Apify Twitter ingest (+ job status), attribution, attribution runs,
+evidence packets (JSON / Markdown / PDF), manifest/signature endpoints, and
+debug routes.
+
+When `VPC_INGEST` is configured, ingest archives raw JSON once and dispatches
+to `containers/ingest-worker/`; PDF export (`?format=pdf`) uses `VPC_PDF` to
+reach `containers/pdf-worker/`. Without VPC, ingest runs the
+full pipeline inline in the Worker (local dev on small exports).
 
 ## Data model (`implementation/schema/`)
 

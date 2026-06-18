@@ -14,3 +14,7 @@ SIGNER_PUBLIC_KEY=
 
 # Optional: investigation-scoped identifier shown in API responses.
 INVESTIGATION_NAMESPACE=local-dev
+
+# Required for evidence-packet PDF export (?format=pdf) via VPC PDF container.
+# Must match PDF_SECRET on the json-pdf container.
+PDF_SECRET=

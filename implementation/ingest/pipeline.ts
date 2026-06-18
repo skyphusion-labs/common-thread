@@ -3,7 +3,7 @@
  *
  * Used by the Cloudflare Worker (inline local dev) and the self-hosted
  * ingest container (production). Archives per-account artifacts to R2,
- * registers seeds, and optionally runs extractors.
+ * registers seeds, and runs extractors.
  */
 
 import { ManifestStore } from '../archive/manifest';
@@ -56,7 +56,6 @@ export interface RunTwitterIngestPipelineContext {
   payload: unknown;
   rawHash: string;
   jobId: string;
-  runExtractors: boolean;
   parsedTweets?: ParsedTweet[];
   handles?: string[];
   now?: string;
@@ -181,20 +180,6 @@ export async function runTwitterIngestPipeline(
     .prepare(`UPDATE ingest_jobs SET manifest_hashes = ? WHERE job_id = ?`)
     .bind(JSON.stringify(manifestHashes), ctx.jobId)
     .run();
-
-  if (!ctx.runExtractors) {
-    await completeIngestJob(env.db, ctx.jobId, manifestHashes);
-    return {
-      investigationId: ctx.investigationId,
-      rawPayloadHash: ctx.rawHash,
-      tweetsProcessed: parsedTweets.length,
-      uniqueAccounts: handles.length,
-      artifactsCreated,
-      seedsRegistered,
-      jobId: ctx.jobId,
-      extractorsRan: false,
-    };
-  }
 
   const useNetwork = hasNetworkData(ctx.payload);
   const accountExtractors = TWITTER_ACCOUNT_EXTRACTORS.filter(

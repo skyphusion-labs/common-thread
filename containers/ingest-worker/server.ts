@@ -70,12 +70,11 @@ async function processJob(handoff: IngestJobHandoff): Promise<void> {
       payload,
       rawHash: handoff.rawFileHash,
       jobId: handoff.jobId,
-      runExtractors: handoff.runExtractors,
     }
   );
 
   console.log(
-    `[ingest] completed job ${handoff.jobId} investigation=${handoff.investigationId} extractors=${handoff.runExtractors}`
+    `[ingest] completed job ${handoff.jobId} investigation=${handoff.investigationId}`
   );
 }
 

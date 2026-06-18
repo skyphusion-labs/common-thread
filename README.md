@@ -12,7 +12,7 @@ The methodology rests on four commitments:
 Common Thread is not a bot detector (use Botometer or BotSentinel for automated-account detection). It is not an open-world discovery tool (it operates on a seed set you provide). It is not a natural-person identification tool (it stops at the cluster level by structural commitment). It is not a stalker's tool or an unmasker of legitimate pseudonymous activity. The methodology paper's §1.2 names the audiences the methodology is for and the audiences it is explicitly not for; please read it before applying the methodology to an investigation.
 ## Repository contents
 
-paper/ Methodology paper, twelve sections plus references implementation/ Backend reference implementation workers/ Cloudflare Workers handlers (core API) extractors/ Deterministic feature extractors per signal category reasoner/ LLM-assisted attribution reasoning layer schema/ TypeScript types + MySQL schema docs archive/ Archival utilities for R2 content-addressed storage web/ Self-contained web frontend Worker (browser-based UI) docs/ Practitioner documentation (DEPLOYMENT.md, SETUP.md, etc.) scripts/ Utility scripts (keygen, etc.) tests/ Tests and test utilities examples/ Worked examples (placeholder until anonymized case studies land)
+paper/ Methodology paper, twelve sections plus references implementation/ Backend reference implementation workers/ Cloudflare Workers handlers (core API) extractors/ Deterministic feature extractors per signal category reasoner/ LLM-assisted attribution reasoning layer schema/ TypeScript types + MySQL schema docs archive/ Archival utilities for R2 content-addressed storage web/ Self-contained web frontend Worker (browser-based UI) docs/ Practitioner documentation (SETUP.md, DEPLOYMENT.md, API.md, etc.) scripts/ Utility scripts (keygen, etc.) tests/ Tests and test utilities examples/ Worked examples (placeholder until anonymized case studies land)
 
 ## Deployment
 The project uses a split structure:
@@ -21,6 +21,9 @@ The project uses a split structure:
 - Each has its own `wrangler.toml` configuration
 **Full deployment instructions** (Cloudflare resources, MySQL + Hyperdrive + R2 setup, backend Worker, web frontend Worker, service bindings, local development, secrets, one-command deploys, troubleshooting, etc.) are in:
 → **`docs/DEPLOYMENT.md`**
+
+→ **`docs/API.md`** (HTTP routes and workflow)
+
 ### High-level prerequisites
 - Node.js ≥ 18
 - Cloudflare account with Workers, Hyperdrive, and R2 enabled
@@ -39,7 +42,7 @@ Full details, configuration steps, and redeployment instructions are in `docs/DE
 3. Follow the complete resource creation + deployment steps in `docs/DEPLOYMENT.md`.
 4. (Optional but recommended) Configure the web frontend to talk to your backend via service binding.
 5. Set required secrets (especially `AI_GATEWAY_URL` and `ANTHROPIC_API_KEY` for reasoning features in production).
-6. Start an investigation (via API or the web UI).
+6. Start an investigation (see **`docs/API.md`** for the full workflow).
 Common Thread is bring-your-own-keys for scraping (e.g. Apify) and the LLM reasoning layer (Anthropic via Cloudflare AI Gateway). The deterministic feature-extraction layer is portable.
 ## Methodology paper
 The methodology paper is the canonical specification. The reference implementation is one realization of the methodology, not the only valid one. Read the paper before using the tool.

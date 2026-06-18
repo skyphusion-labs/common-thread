@@ -3,6 +3,9 @@
 First-time setup for the Common Thread reference implementation. Skip
 ahead if you've already done a step.
 
+- **HTTP API** (all routes): `docs/API.md`
+- **Deployment** (production, VPC containers): `docs/DEPLOYMENT.md`
+
 ## Prerequisites
 
 - Node.js 18 or later
@@ -249,14 +252,15 @@ npm install --save-dev @cloudflare/workers-types@latest
 
 ## What's next
 
-You now have a working Worker that can manage investigations, serve
-manifest entries, and verify signatures. The next layers to build:
+You now have a working Worker with the full v1 HTTP API (see **`docs/API.md`**).
 
-- **Feature extractors** (`implementation/extractors/`): deterministic
-  modules that read artifacts from R2 and write feature rows to MySQL.
-- **Attribution reasoning** (`implementation/reasoner/`): LLM-assisted
-  module that reads features from MySQL and produces attribution outputs.
-- **HTTP API expansion**: routes for seed accounts, features, attribution
-  runs, evidence packets.
+Typical next steps:
 
-See the methodology paper for the specification of each layer.
+1. **Ingest data** — `POST /investigations/:id/ingest/apify-twitter` (with VPC
+   ingest container in production).
+2. **Run attribution** — set `AI_GATEWAY_URL` and `ANTHROPIC_API_KEY`, then
+   `POST /investigations/:id/attribute`.
+3. **Export an evidence packet** — `GET /investigations/:id/packet/:run_id`
+   (add `?format=pdf` when the PDF container is deployed).
+
+For deployment, VPC containers, and secrets, see `docs/DEPLOYMENT.md`.

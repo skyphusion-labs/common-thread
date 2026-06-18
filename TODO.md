@@ -17,17 +17,28 @@ The reasoner module has 77 tests verified end-to-end against `@cloudflare/vitest
 
 ### Worker HTTP API
 
-The current Worker exposes `/investigations` (POST, GET). The reasoner is library code not yet wired to a route. Routes to add:
+Implemented in `implementation/workers/index.ts`. Full reference:
+`docs/API.md`.
 
-- [ ] `POST /investigations/:id/seeds` and `GET` / soft-`DELETE` for seed account management
-- [ ] `GET /investigations/:id/features` filterable by account, pair, category
-- [ ] `POST /investigations/:id/attribute` to invoke `runAttribution`
-- [ ] `GET /investigations/:id/runs` for attribution history; `GET /investigations/:id/runs/:run_id` for one row
-- [ ] `GET /investigations/:id/packet/:run_id` for evidence packet export (blocked on paper §8)
+- [x] `POST` / `GET` / soft-`DELETE` `/investigations/:id/seeds`
+- [x] `GET /investigations/:id/features` (account, pair, category, scope filters)
+- [x] `POST /investigations/:id/attribute`
+- [x] `GET /investigations/:id/runs` and `GET /investigations/:id/runs/:run_id`
+- [x] `GET /investigations/:id/packet/:run_id` (JSON, `?format=markdown`, `?format=pdf`)
+- [x] Apify Twitter ingest + ingest job status
+- [x] Manifest, signatures, verify, debug endpoints
+
+Still queued:
+
+- [ ] `DELETE /investigations/:id` (investigation + artifact purge policy TBD)
+- [ ] Detached Ed25519 signing on evidence-packet export route (§8.1.3)
 
 ### Paper §8 evidence packet builder
 
-Blocked on methodology paper §8 details. When §8 is in scope, the builder consumes `attribution_runs.output_json` plus the underlying provenance and manifest entries to produce a court-grade evidence packet. Output format and signing conventions are paper deliverables, not implementation choices.
+- [x] v1 builder: `implementation/reporting/evidence-packet.ts` (JSON + Markdown)
+- [x] PDF/A-2b via self-hosted `containers/pdf-worker/` (wkhtmltopdf + Ghostscript)
+- [ ] veraPDF validation in CI or release checklist (optional hardening)
+- [ ] Court-specific PDF/A profile variants if practitioners require them
 
 ### Paper §4.4.3 / §4.4.4 engagement signals
 

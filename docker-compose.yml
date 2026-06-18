@@ -1,7 +1,7 @@
-# Common Thread — MySQL, ingest container, and Cloudflare Tunnel.
+# Common Thread — MySQL, ingest + PDF containers, and Cloudflare Tunnel.
 #
 # All services share common-thread-network. Workers VPC Hyperdrive reaches
-# MySQL at mysql:3306; VPC_INGEST reaches json-ingest:8080.
+# MySQL at mysql:3306; VPC_INGEST → json-ingest:8080; VPC_PDF → json-pdf:8081.
 #
 # Usage:
 #   cp docker-compose.env.example .env
@@ -14,7 +14,9 @@
 #
 # Worker (wrangler.toml):
 #   INGEST_WORKER_URL = "http://json-ingest:8080/trigger"
+#   PDF_WORKER_URL    = "http://json-pdf:8081/render"
 #   INGEST_SECRET     = same value as INGEST_SECRET in .env
+#   PDF_SECRET        = same value as PDF_SECRET in .env (wrangler secret put PDF_SECRET)
 
 services:
   mysql:
@@ -93,12 +95,40 @@ services:
     networks:
       - common-thread
 
+  json-pdf:
+    image: ghcr.io/skyphusion-labs/common-thread-pdf:0.1.0
+    container_name: common-thread-pdf
+    hostname: json-pdf
+    restart: unless-stopped
+    ports:
+      - "${PDF_PORT:-8081}:8081"
+    environment:
+      PORT: "8081"
+      CONTAINER_NAME: json-pdf
+      PDF_SECRET: ${PDF_SECRET:?set PDF_SECRET in .env}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8081/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - common-thread
+
   tunnel:
     image: cloudflare/cloudflared:latest
     container_name: cloudflared_tunnel
     restart: unless-stopped
     depends_on:
       json-ingest:
+        condition: service_healthy
+      json-pdf:
         condition: service_healthy
     volumes:
       - ./cloudflared:/etc/cloudflared
