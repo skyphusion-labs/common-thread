@@ -12,9 +12,11 @@
  *   GET  /signatures                    → List signatures
  *   GET  /verify                        → Verify signatures
  *   GET  /debug/ingest                  → Debug extractor visibility
+ *   GET  /debug/manifest                → Raw manifest inspection
+ *   DELETE /debug/manifest              → Delete manifest entries for an investigation (debug only)
  *
  *   POST /investigations/:id/ingest/apify-twitter
- *        → Ingest Apify Twitter/X data (supports multiple files)
+ *        → Ingest Apify Twitter/X data
  *        → Use ?runExtractors=true to also run extractors (only for small jobs)
  */
 
@@ -250,11 +252,66 @@ async function handle(request: Request, env: Env): Promise<Response> {
       investigationId,
       totalEntries: allEntries.length,
       entriesWithAccount: entriesWithAccount.length,
-      sampleEntry: entriesWithAccount[0],
+      entriesWithoutAccount: allEntries.length - entriesWithAccount.length,
+      sampleEntry: entriesWithAccount[0] || null,
       extractorVisibility: {
         account: accountVisibility,
         pair: pairVisibility,
       },
+    });
+  }
+
+  // === DEBUG: Raw manifest inspection ===
+  if (method === 'GET' && path.match(/^\/debug\/manifest$/)) {
+    const investigationId = url.searchParams.get('investigation');
+
+    if (!investigationId) {
+      return jsonResponse({ error: 'Missing ?investigation= parameter' }, 400);
+    }
+
+    const manifest = new ManifestStore({ bucket: env.ARCHIVE });
+    const allEntries = await manifest.list({ investigationId });
+
+    const withAccount = allEntries.filter((e) => e.account);
+    const withoutAccount = allEntries.filter((e) => !e.account);
+
+    return jsonResponse({
+      investigationId,
+      total: allEntries.length,
+      withAccount: withAccount.length,
+      withoutAccount: withoutAccount.length,
+      sampleWithAccount: withAccount.slice(0, 3),
+      sampleWithoutAccount: withoutAccount.slice(0, 3),
+      sampleRaw: allEntries[0],
+    });
+  }
+
+  // === DEBUG: Delete manifest entries for an investigation ===
+  if (method === 'DELETE' && path.match(/^\/debug\/manifest$/)) {
+    const investigationId = url.searchParams.get('investigation');
+
+    if (!investigationId) {
+      return jsonResponse({ error: 'Missing ?investigation= parameter' }, 400);
+    }
+
+    const manifest = new ManifestStore({ bucket: env.ARCHIVE });
+    const entries = await manifest.list({ investigationId });
+
+    let deleted = 0;
+
+    for (const entry of entries) {
+      try {
+        await env.ARCHIVE.delete(entry.hash);
+        deleted++;
+      } catch {
+        // ignore individual failures
+      }
+    }
+
+    return jsonResponse({
+      investigationId,
+      deleted,
+      message: `Deleted ${deleted} manifest entries from R2. D1 records (if any) were not touched.`,
     });
   }
 
@@ -324,7 +381,6 @@ async function handle(request: Request, env: Env): Promise<Response> {
       }
     }
 
-    // Check for runExtractors flag (default = false)
     const runExtractors = url.searchParams.get('runExtractors') === 'true';
 
     const result = await ingestApifyTwitter(
@@ -333,6 +389,25 @@ async function handle(request: Request, env: Env): Promise<Response> {
       allItems,
       runExtractors
     );
+
+    // Compute extractor visibility for the response
+    const manifest = new ManifestStore({ bucket: env.ARCHIVE });
+    const allEntries = await manifest.list({ investigationId });
+    const entriesWithAccount = allEntries.filter((e) => e.account);
+
+    const accountVisibility: Record<string, number> = {};
+    const pairVisibility: Record<string, number> = {};
+
+    for (const ex of TWITTER_ACCOUNT_EXTRACTORS) {
+      const count = entriesWithAccount.filter((e) => {
+        try { return ex.filterEntry?.(e) ?? false; } catch { return false; }
+      }).length;
+      accountVisibility[ex.name] = count;
+    }
+
+    for (const ex of TWITTER_PAIR_EXTRACTORS) {
+      pairVisibility[ex.name] = entriesWithAccount.length;
+    }
 
     const accountRuns = result.accountExtractorRuns ?? [];
     const pairRuns = result.pairExtractorRuns ?? [];
@@ -356,6 +431,10 @@ async function handle(request: Request, env: Env): Promise<Response> {
     return jsonResponse(
       {
         ...result,
+        extractorVisibility: {
+          account: accountVisibility,
+          pair: pairVisibility,
+        },
         summary: {
           tweetsProcessed: result.tweetsProcessed,
           uniqueAccounts: result.uniqueAccounts,
