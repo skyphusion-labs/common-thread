@@ -11,6 +11,8 @@ import {
 } from '../extractors';
 import type { AccountFeatureExtractor } from '../extractors/types';
 import type { PairFeatureExtractor } from '../extractors/pair-types';
+import type { Env } from '../workers/index';   // ← Import the full Env type
+import { execute } from '../db';               // ← Import from db.ts
 
 export interface ApifyIngestResult {
   investigationId: string;
@@ -19,11 +21,12 @@ export interface ApifyIngestResult {
   uniqueAccounts: number;
   artifactsCreated: number;
   seedsRegistered: number;
+  jobId?: string;
+  delegatedToContainer?: boolean;
   accountExtractorRuns?: any[];
   pairExtractorRuns?: any[];
   pairExtractorsSkipped?: boolean;
   pairExtractorsSkippedReason?: string;
-  enqueued?: boolean;
 }
 
 export const TWITTER_ACCOUNT_EXTRACTORS: AccountFeatureExtractor[] =
@@ -62,7 +65,7 @@ function hasNetworkData(payload: any): boolean {
 }
 
 export async function ingestApifyTwitter(
-  env: { DB: D1Database; ARCHIVE: R2Bucket; INGEST_QUEUE?: Queue<any> },
+  env: Env,                    // ← Use the full Env type
   investigationId: string,
   payload: any,
   runExtractors: boolean = false
@@ -72,7 +75,7 @@ export async function ingestApifyTwitter(
 
   const now = new Date().toISOString();
 
-  // 1. Archive the full raw payload
+  // 1. Archive raw payload
   const rawBytes = new TextEncoder().encode(JSON.stringify(payload, null, 2));
   const { hash: rawHash } = await archive.put(rawBytes, {
     mimeType: 'application/json',
@@ -95,7 +98,7 @@ export async function ingestApifyTwitter(
   let artifactsCreated = 0;
   const manifestHashes: string[] = [];
 
-  // 2. Create one manifest entry per tweet
+  // 2. Per-tweet manifest entries
   for (const pt of parsedTweets) {
     const tweetBytes = new TextEncoder().encode(JSON.stringify(pt.tweet));
     const { hash: tweetHash } = await archive.put(tweetBytes, {
@@ -126,19 +129,36 @@ export async function ingestApifyTwitter(
   let seedsRegistered = 0;
   for (const handle of handles) {
     try {
-      await env.DB
-        .prepare(
-          `INSERT OR IGNORE INTO seed_accounts 
-           (investigation_id, platform, account_identifier, basis_statement, added_at)
-           VALUES (?, 'twitter', ?, 'Uploaded via Apify Twitter ingest', ?)`
-        )
-        .bind(investigationId, handle, now)
-        .run();
+      await execute(
+        env,
+        `INSERT IGNORE INTO seed_accounts 
+         (investigation_id, platform, account_identifier, basis_statement, added_at)
+         VALUES (?, 'twitter', ?, 'Uploaded via Apify Twitter ingest', ?)`,
+        [investigationId, handle, now]
+      );
       seedsRegistered++;
     } catch {}
   }
 
-  // 4. Run extractors locally or enqueue
+  // 4. Create job record
+  const jobId = `job_${crypto.randomUUID()}`;
+
+  await execute(
+    env,
+    `INSERT INTO ingest_jobs 
+     (job_id, investigation_id, provider, status, item_count, manifest_hashes, raw_file_hashes, created_at)
+     VALUES (?, ?, 'twitter', 'queued', ?, ?, ?, ?)`,
+    [
+      jobId,
+      investigationId,
+      parsedTweets.length,
+      JSON.stringify(manifestHashes),
+      JSON.stringify([rawHash]),
+      now,
+    ]
+  );
+
+  // 5. Run extractors locally or delegate to container
   if (runExtractors) {
     const useNetwork = hasNetworkData(payload);
     const accountExtractors = TWITTER_ACCOUNT_EXTRACTORS.filter(e =>
@@ -166,6 +186,8 @@ export async function ingestApifyTwitter(
       pairExtractorsSkippedReason = `Pair extractors require at least 2 accounts; got ${handles.length}`;
     }
 
+    await execute(env, `UPDATE ingest_jobs SET status = 'completed' WHERE job_id = ?`, [jobId]);
+
     return {
       investigationId,
       rawPayloadHash: rawHash,
@@ -173,30 +195,34 @@ export async function ingestApifyTwitter(
       uniqueAccounts: handles.length,
       artifactsCreated,
       seedsRegistered,
+      jobId,
+      delegatedToContainer: false,
       accountExtractorRuns: accountRuns,
       pairExtractorRuns: pairRuns,
       pairExtractorsSkipped,
       pairExtractorsSkippedReason,
-      enqueued: false,
     };
   }
 
-  // Default: enqueue for async processing
-  let enqueued = false;
+  // Heavy path: delegate to container
+  const handoffPayload = {
+    jobId,
+    investigationId,
+    provider: 'twitter',
+    manifestHashes,
+    rawFileHashes: [rawHash],
+  };
 
-  if (env.INGEST_QUEUE) {
-    try {
-      await env.INGEST_QUEUE.send({
-        investigationId,
-        provider: 'twitter',
-        manifestHashes,
-        rawFileHashes: [rawHash],
-      });
-      enqueued = true;
-    } catch (err) {
-      console.error('Failed to enqueue ingest job:', err);
-      enqueued = false;
-    }
+  if (env.INGEST_CONTAINER) {
+    env.INGEST_CONTAINER
+      .fetch(
+        new Request('https://internal/trigger', {
+          method: 'POST',
+          body: JSON.stringify(handoffPayload),
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+      .catch((err) => console.error('Failed to trigger INGEST_CONTAINER:', err));
   }
 
   return {
@@ -206,9 +232,7 @@ export async function ingestApifyTwitter(
     uniqueAccounts: handles.length,
     artifactsCreated,
     seedsRegistered,
-    accountExtractorRuns: [],
-    pairExtractorRuns: [],
-    pairExtractorsSkipped: false,
-    enqueued,
+    jobId,
+    delegatedToContainer: true,
   };
 }
