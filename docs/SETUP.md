@@ -90,7 +90,22 @@ Verify tables exist:
 
 ```bash
 mysql -h HOST -u USER -p common_thread -e "SHOW TABLES;"
+mysql -h HOST -u USER -p common_thread -e "SELECT value FROM schema_metadata WHERE \`key\` = 'schema_version';"
 ```
+
+Current schema version is **0008** (investigation capability tokens:
+`investigations.access_token_hash`). Fresh installs via `mysql-schema.sql` or
+`npm run db:migrate` on an empty database include this column.
+
+**Upgrading an existing database:** apply incremental migrations in order:
+
+```bash
+mysql -h HOST -u USER -p common_thread < mysql-migrations/0008_investigation_access_token.sql
+```
+
+Investigations created before migration 0008 have no recoverable token and
+cannot be accessed via the API. For dev databases, dropping and recreating is
+often simpler (see [Common issues](#common-issues)).
 
 ## 5. Generate a signer keypair
 
@@ -175,17 +190,35 @@ Attribution credentials stay in your browser (BYOK); they are not stored on the 
 **bash / WSL:**
 
 ```bash
-curl -X POST http://localhost:8787/investigations \
+curl -s -X POST http://localhost:8787/investigations \
   -H "Content-Type: application/json" \
   -d '{"id": "test-001", "name": "Test investigation", "description": "Verifying setup"}'
 ```
 
+Save the `access_token` from the JSON response (shown only once). Then verify
+access with the token:
+
+```bash
+# Replace ct_… with the token from the create response
+export CT_TOKEN='ct_…'
+
+curl -s http://localhost:8787/investigations/test-001/summary \
+  -H "Authorization: Bearer $CT_TOKEN"
+```
+
+You should get seed and artifact counts. `GET /investigations` (listing) returns
+`404` — investigations are not enumerable.
+
 **PowerShell:**
 
 ```powershell
-Invoke-RestMethod -Method Post -Uri http://localhost:8787/investigations `
+$created = Invoke-RestMethod -Method Post -Uri http://localhost:8787/investigations `
   -ContentType "application/json" `
   -Body '{"id": "test-001", "name": "Test investigation", "description": "Verifying setup"}'
+$created.access_token
+
+Invoke-RestMethod -Uri http://localhost:8787/investigations/test-001/summary `
+  -Headers @{ Authorization = "Bearer $($created.access_token)" }
 ```
 
 **Windows cmd.exe:**
@@ -194,18 +227,18 @@ Invoke-RestMethod -Method Post -Uri http://localhost:8787/investigations `
 curl -X POST http://localhost:8787/investigations -H "Content-Type: application/json" -d "{\"id\": \"test-001\", \"name\": \"Test investigation\", \"description\": \"Verifying setup\"}"
 ```
 
-Then list (works the same in all three shells):
+Copy `access_token` from the response, then:
 
-```bash
-curl http://localhost:8787/investigations
+```cmd
+curl http://localhost:8787/investigations/test-001/summary -H "Authorization: Bearer ct_…"
 ```
 
-In PowerShell, use `curl.exe http://localhost:8787/investigations` to
-avoid the `Invoke-WebRequest` alias, or `Invoke-RestMethod
-http://localhost:8787/investigations` for the native cmdlet.
+If the summary request succeeds, the full stack (Worker + MySQL + schema) is
+working.
 
-If you get back the investigation you just created, the full stack
-(Worker + MySQL + schema) is working.
+**Web UI:** Creating an investigation shows the token once with copy/share-link
+buttons. The UI can save tokens in this browser's `localStorage`; see the
+honest security note on the Investigation tab.
 
 ## 10. Production deployment
 
@@ -234,7 +267,19 @@ echo "<your public key>" | npx wrangler secret put SIGNER_PUBLIC_KEY --env produ
 npm run deploy:prod
 ```
 
+For deployment, VPC containers, and secrets, see `docs/DEPLOYMENT.md`.
+
 ## Common issues
+
+### `401` / `missing_token` / `invalid_token` on investigation routes
+
+All `/investigations/:id` routes require the capability token returned at
+creation. Pass `Authorization: Bearer ct_…` or `X-Investigation-Token: ct_…`.
+
+If you upgraded an old database without migration **0008**, the
+`access_token_hash` column may be missing — re-apply schema or run
+`mysql-migrations/0008_investigation_access_token.sql`. Pre-migration
+investigations have no recoverable token.
 
 ### "Database not found" or connection errors
 
@@ -269,9 +314,12 @@ You now have a working Worker with the full v1 HTTP API (see **`docs/API.md`**).
 
 Typical next steps:
 
-1. **Web UI or API** — create an investigation and upload Apify Twitter JSON.
-2. **Ingest** — `POST /investigations/:id/ingest/apify-twitter` (VPC container in production).
+1. **Web UI or API** — create an investigation, **save the `access_token`**, upload Apify Twitter JSON.
+2. **Ingest** — `POST /investigations/:id/ingest/apify-twitter` (requires token; VPC container in production).
 3. **Attribution** — BYOK via web Setup tab, or set `AI_GATEWAY_URL` + `ANTHROPIC_API_KEY` secrets.
 4. **Evidence packet** — Results tab or `GET /investigations/:id/packet/:run_id` (`?format=pdf` with VPC PDF).
+5. **Seal** (optional) — `POST /investigations/:id/seal` when the investigation is complete (read-only thereafter).
+
+See **`docs/API.md`** for investigation access headers and error codes.
 
 For deployment, VPC containers, and secrets, see `docs/DEPLOYMENT.md`.

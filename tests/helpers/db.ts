@@ -4,6 +4,10 @@
 import type { ConfidenceBand, FeatureValue } from '../../implementation/schema/db-types';
 import { packFeatureValue } from '../../implementation/schema/db-types';
 import type { DatabaseClient } from '../../implementation/db';
+import {
+  generateAccessToken,
+  hashAccessToken,
+} from '../../implementation/investigations/access';
 
 // ---------------------------------------------------------------------------
 // Investigation
@@ -15,17 +19,27 @@ export interface CreateInvestigationOpts {
   description?: string;
   status?: 'active' | 'archived' | 'sealed';
   metadata?: Record<string, unknown>;
+  /** Plaintext capability token; generated when omitted. */
+  accessToken?: string;
+}
+
+export interface CreateInvestigationResult {
+  id: string;
+  accessToken: string;
 }
 
 export async function createInvestigation(
   db: DatabaseClient,
   opts: CreateInvestigationOpts
-): Promise<string> {
+): Promise<CreateInvestigationResult> {
   const now = new Date().toISOString();
+  const accessToken = opts.accessToken ?? generateAccessToken();
+  const accessTokenHash = await hashAccessToken(accessToken);
   await db
     .prepare(
-      `INSERT INTO investigations (id, name, description, status, created_at, updated_at, metadata_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO investigations (
+         id, name, description, status, created_at, updated_at, metadata_json, access_token_hash
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       opts.id,
@@ -34,10 +48,11 @@ export async function createInvestigation(
       opts.status ?? 'active',
       now,
       now,
-      opts.metadata ? JSON.stringify(opts.metadata) : null
+      opts.metadata ? JSON.stringify(opts.metadata) : null,
+      accessTokenHash
     )
     .run();
-  return opts.id;
+  return { id: opts.id, accessToken };
 }
 
 // ---------------------------------------------------------------------------

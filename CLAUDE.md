@@ -154,10 +154,13 @@ unit testing (`tests/reasoner/runner-internals.test.ts`).
 
 Full route reference: **`docs/API.md`**.
 
-The Worker exposes health, investigations, seeds (including soft-delete),
-features, Apify Twitter ingest (+ job status), attribution, attribution runs,
-evidence packets (JSON / Markdown / PDF), manifest/signature endpoints, and
-debug routes.
+The Worker exposes health, capability-gated investigations (no public listing),
+seeds (including soft-delete), features, Apify Twitter ingest (+ job status),
+attribution, attribution runs, evidence packets (JSON / Markdown / PDF), seal,
+manifest/signature endpoints, and debug routes.
+
+Creating an investigation returns a one-time `access_token`; all
+`/investigations/:id` routes require it (`Authorization: Bearer`, `X-Investigation-Token`, or `?access_token=` on GET). `sealed` investigations are read-only.
 
 When `VPC_INGEST` is configured, ingest archives raw JSON once and dispatches
 to `containers/ingest-worker/`; PDF export (`?format=pdf`) uses `VPC_PDF` to
@@ -167,7 +170,9 @@ full pipeline inline in the Worker (local dev on small exports).
 ## Data model (`implementation/schema/`)
 
 MySQL schema in `mysql-schema.sql` at the repo root (incremental changes in
-`mysql-migrations/`). Core tables: `investigations`, `seed_accounts` (with
+`mysql-migrations/`). Core tables: `investigations` (with `access_token_hash`
+for capability tokens; `status` includes `sealed` for read-only),
+`seed_accounts` (with
 `basis_statement`, `is_control`, soft-deleted via `removed_at`),
 `account_features` / `pair_features` / `event_features` (each stores a value in
 exactly one of `feature_value_text|numeric|json`, enforced by CHECK), parallel

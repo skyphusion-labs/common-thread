@@ -8,6 +8,12 @@ schema lives at the repository root:
 
 TypeScript row types: [`db-types.ts`](db-types.ts).
 
+## Investigations table
+
+`investigations.access_token_hash` stores a SHA-256 hex digest of the capability
+token issued at creation. The plaintext token is never persisted. Schema version
+`0008` added this column (`mysql-migrations/0008_investigation_access_token.sql`).
+
 ## Apply schema
 
 ```bash

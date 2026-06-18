@@ -55,9 +55,10 @@ npm run dev
 npm run dev:web
 ```
 
-Open the web UI, create an investigation, upload Apify Twitter JSON, run
-extractors via ingest, then run attribution with **your own** Anthropic / AI
-Gateway keys (BYOK). See `docs/SETUP.md` and the Setup tab in the web UI.
+Open the web UI, create an investigation (save the access token), upload Apify
+Twitter JSON, run extractors via ingest, then run attribution with **your own**
+Anthropic / AI Gateway keys (BYOK). See `docs/SETUP.md` and the Setup tab in
+the web UI.
 
 ## Documentation
 
@@ -73,14 +74,19 @@ Gateway keys (BYOK). See `docs/SETUP.md` and the Setup tab in the web UI.
 
 `web/worker.js` is a single-file Worker that provides the full workflow UI:
 
-- Create investigations and upload Apify data
+- Create investigations (one-time capability token) and reopen with token or share link
+- Upload Apify data; seal investigations when complete (read-only)
 - Poll ingest jobs and view features
 - Run attribution with **bring-your-own-key** (BYOK) credentials
 - Download evidence packets (JSON, Markdown, PDF when configured)
 
+Investigations are private: no global listing. Tokens are capability secrets —
+the UI explains what they do and do not protect.
+
 The web Worker proxies `/api/proxy/*` to the backend via a **service binding**
-(`BACKEND`) in production. Users supply Anthropic / AI Gateway keys in the
-browser; keys are not stored on the server.
+(`BACKEND`) in production. Users supply Anthropic / AI Gateway keys and
+investigation access tokens in the browser; API keys are not stored on the
+server. Investigation tokens may be saved in `localStorage` on the user's device.
 
 ## Bring-your-own-key (BYOK)
 

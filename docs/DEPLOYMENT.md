@@ -163,8 +163,10 @@ See `containers/ingest-worker/README.md` and `containers/pdf-worker/README.md`.
 
 - [ ] `GET /` on backend returns `"status": "ok"`
 - [ ] Web UI loads at https://common-thread.skyphusion.org
-- [ ] Create investigation → upload Apify JSON → ingest completes
+- [ ] Create investigation → save `access_token` → reopen with token or share link
+- [ ] Upload Apify JSON → ingest completes (requires token on API calls)
 - [ ] Attribution works with BYOK keys in web Setup tab
+- [ ] Seal investigation → ingest/attribute disabled; results still readable
 - [ ] Evidence packet: JSON and Markdown download from Results tab
 - [ ] PDF download works if `VPC_PDF` + `PDF_SECRET` are configured
 

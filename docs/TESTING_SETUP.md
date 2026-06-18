@@ -34,7 +34,7 @@ inside the Workers pool).
 | `tests/global-setup.ts` | Applies `mysql-schema.sql` to `TEST_MYSQL_URL` before the Workers pool starts |
 | `tests/helpers/mysql.ts` | MySQL connection + schema bootstrap for tests |
 | `tests/helpers/test-env.ts` | `testDb()`, `testRunnerEnv()`, `testReasonerEnv()` helpers |
-| `tests/helpers/db.ts` | Typed seeding helpers (investigations, seed accounts, features, extractor runs, provenance) |
+| `tests/helpers/db.ts` | Typed seeding helpers (investigations with capability tokens, seed accounts, features, extractor runs, provenance) |
 | `tests/helpers/llm.ts` | AI Gateway mocking via `fetchMock` from `cloudflare:test`: triage and reasoning shapers |
 | `tests/reasoner/ai-gateway.test.ts` | `extractJSONObject` pure-function coverage + `callLLM` HTTP smoke + error path |
 | `tests/reasoner/triage.test.ts` | Triage verdict success paths + §7.5.2 conservative escalation + methodology metadata |
@@ -42,6 +42,10 @@ inside the Workers pool).
 | `tests/reasoner/validator.test.ts` | §7.2.2 format layer + §7.3.3 cluster composition + §7.3.1 content aggregates + citation directionality |
 | `tests/reasoner/runner-internals.test.ts` | Pure-function unit tests for `derivePairBand` and `seededShuffle` exported from `runner.ts` |
 | `tests/reasoner/runner.test.ts` | End-to-end integration of `runAttribution` with seeded MySQL, including a multi-category `consistent` happy path |
+| `tests/investigation/access.test.ts` | Investigation capability tokens, listing disabled, seal read-only behavior |
+
+`createInvestigation()` in `tests/helpers/db.ts` inserts a random capability
+token by default and returns `{ id, accessToken }` for Worker route tests.
 
 ## package.json additions
 

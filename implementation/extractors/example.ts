@@ -20,6 +20,7 @@ import { ACCOUNT_METADATA_EXTRACTORS } from './account-metadata';
 import { runAccountExtractors } from './runner';
 import type { DatabaseClient } from '../db';
 import type { AccountFeatureRow } from '../schema/db-types';
+import { generateAccessToken, hashAccessToken } from '../investigations/access';
 
 export interface DemoEnv {
   DB: DatabaseClient;
@@ -61,14 +62,17 @@ export async function runDemo(env: DemoEnv): Promise<{
   features: AccountFeatureRow[];
 }> {
   const investigationId = `demo-${Date.now()}`;
+  const accessToken = generateAccessToken();
+  const accessTokenHash = await hashAccessToken(accessToken);
 
   // Step 1: create the investigation
   const now = new Date().toISOString();
   await env.DB.prepare(
-    `INSERT INTO investigations (id, name, description, status, created_at, updated_at)
-     VALUES (?, ?, ?, 'active', ?, ?)`
+    `INSERT INTO investigations (
+       id, name, description, status, created_at, updated_at, access_token_hash
+     ) VALUES (?, ?, ?, 'active', ?, ?, ?)`
   )
-    .bind(investigationId, 'Extractor demo', 'End-to-end test', now, now)
+    .bind(investigationId, 'Extractor demo', 'End-to-end test', now, now, accessTokenHash)
     .run();
 
   // Step 2: archive the profile artifact

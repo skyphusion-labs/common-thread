@@ -11,15 +11,20 @@ Base URL examples:
 ## Typical workflow
 
 ```text
-POST /investigations
-  → POST /investigations/:id/seeds          (optional; ingest also registers seeds)
+POST /investigations                         (save access_token from response)
+  → POST /investigations/:id/seeds           (optional; ingest also registers seeds)
   → POST /investigations/:id/ingest/apify-twitter
   → GET  /investigations/:id/ingest-jobs/:job_id   (poll until completed)
-  → GET  /investigations/:id/features       (verify extractors ran)
-  → POST /investigations/:id/attribute      (requires AI credentials; see BYOK)
+  → GET  /investigations/:id/features        (verify extractors ran)
+  → POST /investigations/:id/attribute       (requires AI credentials; see BYOK)
   → GET  /investigations/:id/runs
   → GET  /investigations/:id/packet/:run_id?format=pdf
+  → POST /investigations/:id/seal            (optional; read-only thereafter)
 ```
+
+All routes under `/investigations/:id` require the investigation **capability
+token** returned at creation (see [Investigation access](#investigation-access)).
+There is no public listing of investigations.
 
 With **Workers VPC** configured (`VPC_INGEST`), ingest and PDF rendering run on
 self-hosted containers (`containers/ingest-worker/`, `containers/pdf-worker/`).
@@ -49,13 +54,59 @@ Health check.
 
 ## Investigations
 
+Investigations are **private by default**. Each investigation receives an
+unguessable capability token at creation. The server stores only a SHA-256 hash
+of the token; the plaintext is returned **once** in the create response and
+cannot be recovered later.
+
+### Investigation access
+
+Pass the token on every request scoped to an investigation (`/investigations/:id/...`,
+and `GET /manifest?investigation=:id`).
+
+| Method | Header / query |
+|--------|----------------|
+| Preferred | `Authorization: Bearer ct_…` |
+| Alternate | `X-Investigation-Token: ct_…` |
+| GET only | `?access_token=ct_…` on the request URL |
+
+**Responses**
+
+| Code | `code` field | Meaning |
+|------|--------------|---------|
+| `401` | `missing_token` | No token provided |
+| `401` | `invalid_token` | Wrong token or unknown investigation |
+| `403` | `read_only` | Investigation is `sealed` (or `archived`); mutating routes rejected |
+| `404` | `not_found` | Investigation ID does not exist |
+
+**Status and writes**
+
+| `status` | Read (GET) | Write (POST, DELETE, ingest, attribute) |
+|----------|------------|----------------------------------------|
+| `active` | Allowed with token | Allowed with token |
+| `sealed` | Allowed with token | Rejected (`read_only`) |
+| `archived` | Allowed with token | Rejected (`read_only`) |
+
+Seal an active investigation with `POST /investigations/:id/seal`. Sealing is
+intended for “investigation complete” — review and export evidence packets, but
+no further ingest or attribution.
+
+**Security expectations (public hosting)**
+
+Capability tokens stop casual browsing and ID guessing. They are **not**
+passwords: anyone with the token can read the investigation (and modify it while
+`active`). Tokens in share links or browser storage can leak via history,
+referrers, or device compromise. For high-sensitivity work, self-host the
+backend or add stronger access controls (for example Cloudflare Access).
+
 ### `GET /investigations`
 
-List investigations (latest 100).
+**Disabled.** Returns `404` with `code: listing_disabled`. Investigations are
+not enumerable.
 
 ### `POST /investigations`
 
-Create an investigation.
+Create an investigation. Does not require a token.
 
 **Body**
 
@@ -67,15 +118,70 @@ Create an investigation.
 }
 ```
 
-**Response `201`** — investigation row.
+**Response `201`**
+
+```json
+{
+  "id": "my-investigation-1",
+  "name": "Investigation title",
+  "description": "Optional description",
+  "status": "active",
+  "created_at": "2026-06-18T12:00:00.000Z",
+  "access_token": "ct_…",
+  "access_notice": "Store access_token securely. It is shown only at creation and cannot be recovered."
+}
+```
+
+**Store `access_token` immediately.** The web UI can bookmark it in
+`localStorage` on the user's device; the server never returns it again.
+
+### `GET /investigations/:id`
+
+Fetch investigation metadata. Requires capability token.
+
+**Response `200`**
+
+```json
+{
+  "investigation": {
+    "id": "my-investigation-1",
+    "name": "Investigation title",
+    "description": "Optional description",
+    "status": "active",
+    "created_at": "2026-06-18T12:00:00.000Z",
+    "updated_at": "2026-06-18T12:00:00.000Z"
+  }
+}
+```
+
+### `POST /investigations/:id/seal`
+
+Mark an investigation read-only. Requires capability token. Idempotent when
+already sealed.
+
+**Response `200`**
+
+```json
+{
+  "investigation": {
+    "id": "my-investigation-1",
+    "status": "sealed",
+    "updated_at": "2026-06-18T14:00:00.000Z"
+  },
+  "message": "Investigation sealed. Data remains readable with the access token; ingest and attribution are disabled."
+}
+```
 
 ### `GET /investigations/:id/summary`
 
-Active seed count and manifest artifact count for the investigation.
+Active seed count and manifest artifact count. Requires capability token.
 
 ---
 
 ## Seed accounts
+
+All seed routes require the investigation capability token. `POST` and `DELETE`
+require `status: active` (not sealed).
 
 ### `GET /investigations/:id/seeds`
 
@@ -129,6 +235,8 @@ Soft-delete active seeds for a platform + account (sets `removed_at`,
 
 ### `GET /investigations/:id/features`
 
+Requires capability token.
+
 Query extracted features from MySQL.
 
 | Query | Description |
@@ -160,6 +268,8 @@ Query extracted features from MySQL.
 
 ### `POST /investigations/:id/ingest/apify-twitter`
 
+Requires capability token. Requires `status: active`.
+
 Upload an Apify Twitter export. Always archives raw JSON and runs the full
 extractor pipeline (container when `VPC_INGEST` is configured, inline otherwise).
 
@@ -175,6 +285,8 @@ Response includes `jobId` for status polling.
 
 ### `GET /investigations/:id/ingest-jobs/:job_id`
 
+Requires capability token.
+
 Poll ingest job status.
 
 **Response `200`** — `{ job: { status, item_count, manifest_hashes, error_message, ... } }`
@@ -186,6 +298,8 @@ Poll ingest job status.
 Requires `AI_GATEWAY_URL` and `ANTHROPIC_API_KEY` on the Worker.
 
 ### `POST /investigations/:id/attribute`
+
+Requires capability token. Requires `status: active`.
 
 Run attribution for all active seed pairs (or a filtered subset).
 
@@ -217,11 +331,15 @@ only for the attribution call and are not persisted.
 
 ### `GET /investigations/:id/runs`
 
+Requires capability token.
+
 List attribution runs (summary fields only).
 
 Alias: `GET /investigations/:id/attribution-runs`
 
 ### `GET /investigations/:id/runs/:run_id`
+
+Requires capability token.
 
 Single attribution run with parsed `output` object (claims, alternatives,
 declined pairs, triage, methodology metadata). Does not include raw
@@ -232,6 +350,8 @@ declined pairs, triage, methodology metadata). Does not include raw
 ## Evidence packet (§8.1)
 
 ### `GET /investigations/:id/packet/:run_id`
+
+Requires capability token.
 
 Build an evidence packet for one attribution run.
 
@@ -255,7 +375,7 @@ List manifest entries.
 
 | Query | Description |
 |-------|-------------|
-| `investigation` | Filter by investigation ID |
+| `investigation` | Filter by investigation ID (**requires capability token** when set) |
 
 ### `GET /signatures`
 
@@ -273,9 +393,13 @@ Development visibility endpoints; not part of the methodology deliverable.
 
 ### `GET /debug/ingest?investigation=:id`
 
+Requires capability token.
+
 Extractor visibility vs manifest entries for an investigation.
 
 ### `GET /debug/manifest?investigation=:id`
+
+Requires capability token.
 
 Raw manifest breakdown (with/without `account` field).
 
@@ -315,7 +439,7 @@ See `containers/ingest-worker/README.md` and `containers/pdf-worker/README.md`.
 | Route | Notes |
 |-------|-------|
 | `DELETE /investigations/:id` | No investigation or artifact purge API yet |
-| `GET /investigations/:id` | Single-investigation fetch not exposed (use list + summary) |
+| Token recovery / rotation | Lost tokens cannot be reset; create a new investigation |
 | Packet detached signing on export | Ed25519 signing exists for manifests; not wired to packet route |
 
 ---

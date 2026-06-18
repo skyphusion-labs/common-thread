@@ -9,6 +9,14 @@ import { ManifestSigner } from '../archive/signing';
 import { execute, query, queryOne, resolveDatabase } from '../db';
 import type { InvestigationRow } from '../schema/db-types';
 import {
+  accessErrorStatus,
+  authorizeInvestigation,
+  generateAccessToken,
+  hashAccessToken,
+  InvestigationAccessError,
+  publicInvestigationView,
+} from '../investigations/access';
+import {
   ingestApifyTwitter,
   TWITTER_ACCOUNT_EXTRACTORS,
   TWITTER_PAIR_EXTRACTORS,
@@ -73,16 +81,19 @@ async function handle(request: Request, env: Env): Promise<Response> {
     });
   }
 
-  // List investigations
+  // Investigations are capability-gated; there is no public listing.
   if (method === 'GET' && path === '/investigations') {
-    const rows = await query<InvestigationRow>(
-      env.DB,
-      'SELECT * FROM investigations ORDER BY created_at DESC LIMIT 100'
+    return jsonResponse(
+      {
+        error:
+          'Investigation listing is not available. Create an investigation (POST /investigations) and retain the access_token returned once.',
+        code: 'listing_disabled',
+      },
+      404
     );
-    return jsonResponse({ investigations: rows, count: rows.length });
   }
 
-  // Create investigation
+  // Create investigation (returns capability token once)
   if (method === 'POST' && path === '/investigations') {
     const body = (await request.json()) as {
       id?: string;
@@ -95,12 +106,15 @@ async function handle(request: Request, env: Env): Promise<Response> {
     }
 
     const now = new Date().toISOString();
+    const accessToken = generateAccessToken();
+    const accessTokenHash = await hashAccessToken(accessToken);
 
     await execute(
       env.DB,
-      `INSERT INTO investigations (id, name, description, status, created_at, updated_at)
-       VALUES (?, ?, ?, 'active', ?, ?)`,
-      [body.id, body.name, body.description ?? null, now, now]
+      `INSERT INTO investigations (
+         id, name, description, status, created_at, updated_at, access_token_hash
+       ) VALUES (?, ?, ?, 'active', ?, ?, ?)`,
+      [body.id, body.name, body.description ?? null, now, now, accessTokenHash]
     );
 
     return jsonResponse(
@@ -110,15 +124,61 @@ async function handle(request: Request, env: Env): Promise<Response> {
         description: body.description,
         status: 'active',
         created_at: now,
+        access_token: accessToken,
+        access_notice:
+          'Store access_token securely. It is shown only at creation and cannot be recovered.',
       },
       201
     );
+  }
+
+  // Get investigation metadata (requires capability token)
+  if (method === 'GET' && path.match(/^\/investigations\/[^/]+$/)) {
+    const match = path.match(/^\/investigations\/([^/]+)$/);
+    const investigationId = match ? match[1] : '';
+    const auth = await authorizeOrRespond(env, request, url, investigationId);
+    if (auth instanceof Response) return auth;
+    return jsonResponse({ investigation: publicInvestigationView(auth) });
+  }
+
+  // Seal investigation — read-only thereafter (requires capability token)
+  if (method === 'POST' && path.match(/^\/investigations\/[^/]+\/seal$/)) {
+    const match = path.match(/^\/investigations\/([^/]+)\/seal$/);
+    const investigationId = match ? match[1] : '';
+    const auth = await authorizeOrRespond(env, request, url, investigationId, true);
+    if (auth instanceof Response) return auth;
+
+    if (auth.status === 'sealed') {
+      return jsonResponse({
+        investigation: publicInvestigationView(auth),
+        message: 'Investigation is already sealed (read-only).',
+      });
+    }
+
+    const now = new Date().toISOString();
+    await execute(
+      env.DB,
+      `UPDATE investigations SET status = 'sealed', updated_at = ? WHERE id = ?`,
+      [now, investigationId]
+    );
+
+    return jsonResponse({
+      investigation: {
+        ...publicInvestigationView(auth),
+        status: 'sealed',
+        updated_at: now,
+      },
+      message:
+        'Investigation sealed. Data remains readable with the access token; ingest and attribution are disabled.',
+    });
   }
 
   // List seed accounts
   if (method === 'GET' && path.match(/^\/investigations\/[^/]+\/seeds$/)) {
     const match = path.match(/^\/investigations\/([^/]+)\/seeds$/);
     const investigationId = match ? match[1] : '';
+    const auth = await authorizeOrRespond(env, request, url, investigationId);
+    if (auth instanceof Response) return auth;
     const includeRemoved = url.searchParams.get('includeRemoved') === 'true';
 
     const rows = await query(
@@ -137,6 +197,8 @@ async function handle(request: Request, env: Env): Promise<Response> {
   if (method === 'GET' && path.match(/^\/investigations\/[^/]+\/summary$/)) {
     const match = path.match(/^\/investigations\/([^/]+)\/summary$/);
     const investigationId = match ? match[1] : '';
+    const auth = await authorizeOrRespond(env, request, url, investigationId);
+    if (auth instanceof Response) return auth;
 
     const seedResult = await queryOne<{ count: number }>(
       env.DB,
@@ -158,6 +220,10 @@ async function handle(request: Request, env: Env): Promise<Response> {
   // List manifest entries
   if (method === 'GET' && path === '/manifest') {
     const investigationId = url.searchParams.get('investigation');
+    if (investigationId) {
+      const auth = await authorizeOrRespond(env, request, url, investigationId);
+      if (auth instanceof Response) return auth;
+    }
     const entries = await new ManifestStore({ bucket: env.ARCHIVE }).list(
       investigationId ? { investigationId } : undefined
     );
@@ -186,6 +252,8 @@ async function handle(request: Request, env: Env): Promise<Response> {
   if (method === 'GET' && path.match(/^\/debug\/ingest$/)) {
     const investigationId = url.searchParams.get('investigation');
     if (!investigationId) return jsonResponse({ error: 'Missing ?investigation= parameter' }, 400);
+    const auth = await authorizeOrRespond(env, request, url, investigationId);
+    if (auth instanceof Response) return auth;
 
     const manifest = new ManifestStore({ bucket: env.ARCHIVE });
     const allEntries = await manifest.list({ investigationId });
@@ -219,6 +287,8 @@ async function handle(request: Request, env: Env): Promise<Response> {
   if (method === 'GET' && path.match(/^\/debug\/manifest$/)) {
     const investigationId = url.searchParams.get('investigation');
     if (!investigationId) return jsonResponse({ error: 'Missing ?investigation= parameter' }, 400);
+    const auth = await authorizeOrRespond(env, request, url, investigationId);
+    if (auth instanceof Response) return auth;
 
     const entries = await new ManifestStore({ bucket: env.ARCHIVE }).list({ investigationId });
     const withAccount = entries.filter((e) => e.account);
@@ -238,6 +308,8 @@ async function handle(request: Request, env: Env): Promise<Response> {
   if (method === 'POST' && path.match(/^\/investigations\/[^/]+\/seeds$/)) {
     const match = path.match(/^\/investigations\/([^/]+)\/seeds$/);
     const investigationId = match ? match[1] : '';
+    const auth = await authorizeOrRespond(env, request, url, investigationId, true);
+    if (auth instanceof Response) return auth;
 
     const body = (await request.json()) as {
       platform?: string;
@@ -250,13 +322,6 @@ async function handle(request: Request, env: Env): Promise<Response> {
 
     if (!body.account || !body.platform) {
       return jsonResponse({ error: 'platform and account are required' }, 400);
-    }
-
-    const inv = await queryOne(env.DB, 'SELECT id FROM investigations WHERE id = ?', [
-      investigationId,
-    ]);
-    if (!inv) {
-      return jsonResponse({ error: `Investigation not found: ${investigationId}` }, 404);
     }
 
     const now = new Date().toISOString();
@@ -296,6 +361,8 @@ async function handle(request: Request, env: Env): Promise<Response> {
   if (method === 'DELETE' && path.match(/^\/investigations\/[^/]+\/seeds$/)) {
     const match = path.match(/^\/investigations\/([^/]+)\/seeds$/);
     const investigationId = match ? match[1] : '';
+    const auth = await authorizeOrRespond(env, request, url, investigationId, true);
+    if (auth instanceof Response) return auth;
 
     const body = (await request.json()) as {
       platform?: string;
@@ -306,13 +373,6 @@ async function handle(request: Request, env: Env): Promise<Response> {
 
     if (!body.account || !body.platform) {
       return jsonResponse({ error: 'platform and account are required' }, 400);
-    }
-
-    const inv = await queryOne(env.DB, 'SELECT id FROM investigations WHERE id = ?', [
-      investigationId,
-    ]);
-    if (!inv) {
-      return jsonResponse({ error: `Investigation not found: ${investigationId}` }, 404);
     }
 
     const active = await queryOne<{ count: number }>(
@@ -364,13 +424,8 @@ async function handle(request: Request, env: Env): Promise<Response> {
   if (method === 'GET' && path.match(/^\/investigations\/[^/]+\/features$/)) {
     const match = path.match(/^\/investigations\/([^/]+)\/features$/);
     const investigationId = match ? match[1] : '';
-
-    const inv = await queryOne(env.DB, 'SELECT id FROM investigations WHERE id = ?', [
-      investigationId,
-    ]);
-    if (!inv) {
-      return jsonResponse({ error: `Investigation not found: ${investigationId}` }, 404);
-    }
+    const auth = await authorizeOrRespond(env, request, url, investigationId);
+    if (auth instanceof Response) return auth;
 
     const parsed = parseFeaturesQueryParams(investigationId, url.searchParams);
     if ('error' in parsed) {
@@ -385,13 +440,8 @@ async function handle(request: Request, env: Env): Promise<Response> {
   if (method === 'POST' && path.match(/^\/investigations\/[^/]+\/attribute$/)) {
     const match = path.match(/^\/investigations\/([^/]+)\/attribute$/);
     const investigationId = match ? match[1] : '';
-
-    const inv = await queryOne(env.DB, 'SELECT id FROM investigations WHERE id = ?', [
-      investigationId,
-    ]);
-    if (!inv) {
-      return jsonResponse({ error: `Investigation not found: ${investigationId}` }, 404);
-    }
+    const auth = await authorizeOrRespond(env, request, url, investigationId, true);
+    if (auth instanceof Response) return auth;
 
     let body: Record<string, unknown> = {};
     if (request.headers.get('content-type')?.includes('application/json')) {
@@ -469,13 +519,8 @@ async function handle(request: Request, env: Env): Promise<Response> {
       path.match(/^\/investigations\/([^/]+)\/runs$/) ??
       path.match(/^\/investigations\/([^/]+)\/attribution-runs$/);
     const investigationId = match ? match[1] : '';
-
-    const inv = await queryOne(env.DB, 'SELECT id FROM investigations WHERE id = ?', [
-      investigationId,
-    ]);
-    if (!inv) {
-      return jsonResponse({ error: `Investigation not found: ${investigationId}` }, 404);
-    }
+    const auth = await authorizeOrRespond(env, request, url, investigationId);
+    if (auth instanceof Response) return auth;
 
     const rows = await listAttributionRuns(env.DB, investigationId);
     return jsonResponse({ investigationId, runs: rows, count: rows.length });
@@ -490,6 +535,9 @@ async function handle(request: Request, env: Env): Promise<Response> {
     if (!Number.isInteger(runId) || runId < 1) {
       return jsonResponse({ error: 'run_id must be a positive integer' }, 400);
     }
+
+    const auth = await authorizeOrRespond(env, request, url, investigationId);
+    if (auth instanceof Response) return auth;
 
     const run = await getAttributionRun(env.DB, investigationId, runId);
     if (!run) {
@@ -508,6 +556,9 @@ async function handle(request: Request, env: Env): Promise<Response> {
     if (!Number.isInteger(runId) || runId < 1) {
       return jsonResponse({ error: 'run_id must be a positive integer' }, 400);
     }
+
+    const auth = await authorizeOrRespond(env, request, url, investigationId);
+    if (auth instanceof Response) return auth;
 
     const packet = await buildEvidencePacket(env.DB, env.ARCHIVE, investigationId, runId);
     if (!packet) {
@@ -575,13 +626,8 @@ async function handle(request: Request, env: Env): Promise<Response> {
 
     if (!investigationId) return jsonResponse({ error: 'Invalid investigation ID' }, 400);
 
-    const inv = await queryOne(env.DB, 'SELECT id FROM investigations WHERE id = ?', [investigationId]);
-    if (!inv) {
-      return jsonResponse({
-        error: `Investigation not found: ${investigationId}`,
-        hint: 'Create it first with POST /investigations',
-      }, 404);
-    }
+    const auth = await authorizeOrRespond(env, request, url, investigationId, true);
+    if (auth instanceof Response) return auth;
 
     const contentType = request.headers.get('content-type') || '';
     let allItems: any[] = [];
@@ -627,6 +673,9 @@ async function handle(request: Request, env: Env): Promise<Response> {
     const investigationId = match ? match[1] : '';
     const jobId = match ? match[2] : '';
 
+    const auth = await authorizeOrRespond(env, request, url, investigationId);
+    if (auth instanceof Response) return auth;
+
     const row = await queryOne(
       env.DB,
       `SELECT job_id, investigation_id, provider, status, item_count,
@@ -645,6 +694,25 @@ async function handle(request: Request, env: Env): Promise<Response> {
   }
 
   return jsonResponse({ error: `Not found: ${method} ${path}` }, 404);
+}
+
+async function authorizeOrRespond(
+  env: Env,
+  request: Request,
+  url: URL,
+  investigationId: string,
+  requireWrite = false
+): Promise<InvestigationRow | Response> {
+  try {
+    return await authorizeInvestigation(env.DB, request, url, investigationId, {
+      requireWrite,
+    });
+  } catch (err) {
+    if (err instanceof InvestigationAccessError) {
+      return jsonResponse({ error: err.message, code: err.code }, accessErrorStatus(err.code));
+    }
+    throw err;
+  }
 }
 
 function jsonResponse(body: unknown, status = 200): Response {

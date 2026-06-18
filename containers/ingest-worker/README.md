@@ -69,7 +69,8 @@ INGEST_WORKER_URL = "http://json-ingest:8080/trigger"
 wrangler secret put INGEST_SECRET
 ```
 
-Public API: `POST /investigations/:id/ingest/apify-twitter` — see `docs/API.md`.
+Public API: `POST /investigations/:id/ingest/apify-twitter` — requires the
+investigation capability token (see `docs/API.md`).
 
 ## Build and run
 
@@ -101,5 +102,6 @@ curl -X POST 'http://localhost:8787/investigations/INV/ingest/apify-twitter' \
   --data-binary @export.json
 ```
 
-Poll completion via `GET /investigations/INV/ingest-jobs/:job_id` when using
+Poll completion via `GET /investigations/INV/ingest-jobs/:job_id` (requires
+investigation capability token) when using
 VPC; inline ingest returns `200` when finished.

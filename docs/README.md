@@ -7,8 +7,8 @@ cover running and deploying the code.
 ## Getting started
 
 1. **[SETUP.md](SETUP.md)** — Install dependencies, MySQL + Hyperdrive + R2,
-   local secrets, first investigation.
-2. **[API.md](API.md)** — HTTP routes: ingest → features → attribute → packet.
+   local secrets, first investigation (capability token).
+2. **[API.md](API.md)** — HTTP routes: create → ingest → features → attribute → packet; investigation access tokens.
 3. **[DEPLOYMENT.md](DEPLOYMENT.md)** — Deploy backend and web Workers,
    service bindings, VPC containers, production secrets.
 
@@ -43,6 +43,10 @@ cp web/wrangler.toml.example web/wrangler.toml
 `VPC_INGEST`, `VPC_PDF` for production-scale ingest and PDF export.
 
 **Web bindings:** `BACKEND` (service binding → backend Worker name). Production UI: https://common-thread.skyphusion.org
+
+**Investigation access:** Each investigation has a capability token (`access_token`)
+returned once at creation. Required for all `/investigations/:id` routes. See
+[API.md](API.md#investigation-access).
 
 ## AI credentials
 

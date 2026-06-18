@@ -125,7 +125,12 @@ body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Ro
       <!-- Investigation -->
       <section id="tab-investigation" class="hidden">
         <h2 class="text-2xl font-semibold mb-1">Investigation</h2>
-        <p class="text-sm text-slate-600 mb-6">Create or select an investigation. All seeds, features, and attribution runs are scoped to it.</p>
+        <p class="text-sm text-slate-600 mb-4">Each investigation is private. You receive an unguessable access token at creation — store it to reopen or share read access.</p>
+
+        <div class="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900 space-y-1">
+          <p><strong>Honest security note:</strong> Access tokens are capability secrets, not passwords. They stop casual browsing and guessing, but anyone with the token can read the investigation (and modify it while active). Tokens stored in this browser use <code class="bg-amber-100 px-1 rounded">localStorage</code> on your device — not encrypted. For high-sensitivity work, self-host the backend or use dedicated access controls.</p>
+          <p>If you lose the token, the investigation cannot be recovered from the server.</p>
+        </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div class="bg-white rounded-2xl border p-5 space-y-3">
@@ -135,17 +140,37 @@ body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Ro
             <textarea id="inv-description" class="w-full border rounded-xl px-3 py-2 text-sm" rows="2" placeholder="Optional description"></textarea>
             <button onclick="createInvestigation()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-sm hover:bg-black">Create</button>
           </div>
-          <div class="bg-white rounded-2xl border p-5">
-            <div class="flex items-center justify-between mb-3">
-              <h3 class="font-semibold">Existing</h3>
-              <button onclick="loadInvestigations()" class="text-xs px-2 py-1 border rounded-lg hover:bg-slate-50">Refresh</button>
+          <div class="bg-white rounded-2xl border p-5 space-y-3">
+            <h3 class="font-semibold">Open with access token</h3>
+            <input id="open-inv-id" class="w-full border rounded-xl px-3 py-2 text-sm font-mono" placeholder="investigation-id">
+            <input id="open-inv-token" type="password" class="w-full border rounded-xl px-3 py-2 text-sm font-mono" placeholder="ct_…" autocomplete="off">
+            <button onclick="openInvestigation()" class="px-4 py-2 border rounded-xl text-sm hover:bg-slate-50">Open</button>
+            <div class="text-xs text-slate-500 border-t pt-3">
+              <div class="font-medium text-slate-700 mb-2">Saved on this browser</div>
+              <div id="saved-investigation-list" class="space-y-2 max-h-40 overflow-auto"></div>
             </div>
-            <div id="investigation-list" class="space-y-2 max-h-64 overflow-auto text-sm"></div>
+          </div>
+        </div>
+
+        <div id="token-reveal" class="hidden mt-6 bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-3">
+          <h3 class="font-semibold text-emerald-900">Save your access token</h3>
+          <p class="text-xs text-emerald-800">This token is shown once. Copy it now — the server cannot recover it.</p>
+          <div class="flex gap-2">
+            <input id="token-reveal-value" readonly class="flex-1 border rounded-xl px-3 py-2 text-xs font-mono bg-white">
+            <button onclick="copyRevealedToken()" class="px-3 py-2 border rounded-xl text-xs hover:bg-white">Copy token</button>
+            <button onclick="copyShareLink()" class="px-3 py-2 border rounded-xl text-xs hover:bg-white">Copy link</button>
           </div>
         </div>
 
         <div id="investigation-summary" class="hidden mt-6 bg-white rounded-2xl border p-5">
-          <h3 class="font-semibold mb-3">Summary</h3>
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <h3 class="font-semibold">Summary</h3>
+            <div class="flex items-center gap-2">
+              <span id="investigation-status-badge" class="text-xs px-2 py-1 rounded-lg bg-slate-100 text-slate-700">active</span>
+              <button id="seal-btn" onclick="sealInvestigation()" class="text-xs px-3 py-1.5 border rounded-lg hover:bg-slate-50">Seal (read-only)</button>
+            </div>
+          </div>
+          <p id="sealed-banner" class="hidden mb-3 text-xs text-violet-800 bg-violet-50 border border-violet-200 rounded-xl px-3 py-2">This investigation is sealed. You can review data and download evidence packets, but ingest and attribution are disabled.</p>
           <div id="summary-content" class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm"></div>
           <div class="mt-4">
             <div class="flex items-center justify-between mb-2">
@@ -246,6 +271,8 @@ body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Ro
 <script>
 var state = {
   investigationId: null,
+  accessToken: null,
+  investigationStatus: 'active',
   selectedFiles: [],
   ingestJobId: null,
   settings: {
@@ -257,6 +284,7 @@ var state = {
 };
 
 var STORAGE_KEY = 'common-thread-web-settings';
+var INVESTIGATIONS_KEY = 'common-thread-investigations';
 
 function loadSettingsFromStorage() {
   try {
@@ -318,9 +346,86 @@ function showAlert(message, kind) {
   setTimeout(function() { el.classList.add('hidden'); }, 6000);
 }
 
+function isInvestigationWritable() {
+  return state.investigationStatus === 'active';
+}
+
+function updateWritableUi() {
+  var writable = isInvestigationWritable();
+  var ingestBtn = document.getElementById('ingest-btn');
+  var attributeBtn = document.getElementById('attribute-btn');
+  if (ingestBtn) ingestBtn.disabled = !writable || state.selectedFiles.length === 0;
+  if (attributeBtn) attributeBtn.disabled = !writable;
+  var sealBtn = document.getElementById('seal-btn');
+  if (sealBtn) sealBtn.classList.toggle('hidden', !writable);
+  var sealedBanner = document.getElementById('sealed-banner');
+  if (sealedBanner) sealedBanner.classList.toggle('hidden', writable);
+  var statusBadge = document.getElementById('investigation-status-badge');
+  if (statusBadge) {
+    statusBadge.textContent = state.investigationStatus || 'active';
+    statusBadge.className = 'text-xs px-2 py-1 rounded-lg ' + (
+      writable ? 'bg-emerald-100 text-emerald-800' : 'bg-violet-100 text-violet-800'
+    );
+  }
+}
+
+function loadSavedInvestigations() {
+  try {
+    var raw = localStorage.getItem(INVESTIGATIONS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveInvestigationBookmark(entry) {
+  var list = loadSavedInvestigations().filter(function(item) { return item.id !== entry.id; });
+  list.unshift(entry);
+  localStorage.setItem(INVESTIGATIONS_KEY, JSON.stringify(list.slice(0, 20)));
+  renderSavedInvestigations();
+}
+
+function renderSavedInvestigations() {
+  var container = document.getElementById('saved-investigation-list');
+  if (!container) return;
+  var list = loadSavedInvestigations();
+  if (!list.length) {
+    container.innerHTML = '<div class="text-slate-400">None saved yet.</div>';
+    return;
+  }
+  container.innerHTML = '';
+  for (var i = 0; i < list.length; i++) {
+  (function(item) {
+    var btn = document.createElement('button');
+    btn.className = 'w-full text-left px-2 py-1.5 rounded-lg border hover:bg-slate-50 text-xs';
+    btn.innerHTML = '<div class="font-medium">' + escapeHtml(item.name || item.id) + '</div><div class="font-mono text-[10px] text-slate-500">' + escapeHtml(item.id) + '</div>';
+    btn.onclick = function() { openInvestigationWith(item.id, item.accessToken); };
+    container.appendChild(btn);
+  })(list[i]);
+  }
+}
+
+function investigationAuthHeaders(path) {
+  if (!state.accessToken || !state.investigationId) return {};
+  if (path.indexOf('/investigations/' + encodeURIComponent(state.investigationId)) !== 0 &&
+      path.indexOf('/investigations/' + state.investigationId) !== 0) {
+    return {};
+  }
+  return { 'X-Investigation-Token': state.accessToken };
+}
+
 function requireInvestigation() {
-  if (!state.investigationId) {
-    showAlert('Select or create an investigation first.', 'error');
+  if (!state.investigationId || !state.accessToken) {
+    showAlert('Open or create an investigation first (access token required).', 'error');
+    return false;
+  }
+  return true;
+}
+
+function requireWritableInvestigation() {
+  if (!requireInvestigation()) return false;
+  if (!isInvestigationWritable()) {
+    showAlert('This investigation is sealed (read-only).', 'error');
     return false;
   }
   return true;
@@ -338,7 +443,7 @@ function showTab(tab) {
   for (var j = 0; j < links.length; j++) {
     links[j].classList.toggle('nav-active', links[j].getAttribute('data-tab') === tab);
   }
-  if (tab === 'investigation') loadInvestigations();
+  if (tab === 'investigation') renderSavedInvestigations();
   if (tab === 'features') loadFeatures();
   if (tab === 'results') loadRuns();
 }
@@ -350,6 +455,12 @@ async function api(method, path, options) {
     url += (path.indexOf('?') >= 0 ? '&' : '?') + 'backend=' + encodeURIComponent(state.settings.backendUrl);
   }
   var headers = new Headers(options.headers || {});
+  var authHeaders = investigationAuthHeaders(path);
+  for (var authKey in authHeaders) {
+    if (Object.prototype.hasOwnProperty.call(authHeaders, authKey)) {
+      headers.set(authKey, authHeaders[authKey]);
+    }
+  }
   if (options.withCredentials) {
     if (state.settings.aiGatewayUrl) headers.set('X-AI-Gateway-Url', state.settings.aiGatewayUrl);
     if (state.settings.anthropicApiKey) headers.set('X-Anthropic-Api-Key', state.settings.anthropicApiKey);
@@ -403,10 +514,82 @@ async function createInvestigation() {
   var name = document.getElementById('inv-name').value.trim() || id;
   var description = document.getElementById('inv-description').value.trim() || undefined;
   try {
-    await api('POST', '/investigations', { json: { id: id, name: name, description: description } });
-    selectInvestigation(id);
-    showAlert('Investigation created.', 'success');
-    loadInvestigations();
+    var data = await api('POST', '/investigations', { json: { id: id, name: name, description: description } });
+    if (!data.access_token) throw new Error('Server did not return an access token.');
+    await openInvestigationWith(id, data.access_token, { name: name, status: data.status || 'active' });
+    document.getElementById('token-reveal').classList.remove('hidden');
+    document.getElementById('token-reveal-value').value = data.access_token;
+    showAlert('Investigation created. Copy and save the access token now.', 'success');
+  } catch (e) {
+    showAlert(e.message, 'error');
+  }
+}
+
+async function openInvestigation() {
+  var id = document.getElementById('open-inv-id').value.trim();
+  var token = document.getElementById('open-inv-token').value.trim();
+  if (!id || !token) {
+    showAlert('Investigation ID and access token are required.', 'error');
+    return;
+  }
+  try {
+    await openInvestigationWith(id, token);
+    document.getElementById('token-reveal').classList.add('hidden');
+    showAlert('Investigation opened.', 'success');
+  } catch (e) {
+    showAlert(e.message, 'error');
+  }
+}
+
+async function openInvestigationWith(id, token, meta) {
+  state.investigationId = id;
+  state.accessToken = token;
+  var data = await api('GET', '/investigations/' + encodeURIComponent(id));
+  var inv = data.investigation || {};
+  state.investigationStatus = inv.status || (meta && meta.status) || 'active';
+  saveInvestigationBookmark({
+    id: id,
+    accessToken: token,
+    name: inv.name || (meta && meta.name) || id,
+    status: state.investigationStatus,
+  });
+  document.getElementById('open-inv-id').value = id;
+  document.getElementById('open-inv-token').value = token;
+  selectInvestigation(id);
+}
+
+function copyRevealedToken() {
+  var value = document.getElementById('token-reveal-value').value;
+  if (!value) return;
+  navigator.clipboard.writeText(value).then(function() {
+    showAlert('Access token copied.', 'success');
+  });
+}
+
+function copyShareLink() {
+  if (!state.investigationId || !state.accessToken) return;
+  var link = window.location.origin + window.location.pathname +
+    '?investigation=' + encodeURIComponent(state.investigationId) +
+    '&token=' + encodeURIComponent(state.accessToken);
+  navigator.clipboard.writeText(link).then(function() {
+    showAlert('Share link copied. Anyone with this link can access the investigation.', 'success');
+  });
+}
+
+async function sealInvestigation() {
+  if (!requireInvestigation()) return;
+  if (!confirm('Seal this investigation? Ingest and attribution will be disabled permanently for this investigation.')) return;
+  try {
+    var data = await api('POST', '/investigations/' + encodeURIComponent(state.investigationId) + '/seal');
+    state.investigationStatus = (data.investigation && data.investigation.status) || 'sealed';
+    saveInvestigationBookmark({
+      id: state.investigationId,
+      accessToken: state.accessToken,
+      name: (data.investigation && data.investigation.name) || state.investigationId,
+      status: state.investigationStatus,
+    });
+    updateWritableUi();
+    showAlert(data.message || 'Investigation sealed.', 'success');
   } catch (e) {
     showAlert(e.message, 'error');
   }
@@ -415,37 +598,20 @@ async function createInvestigation() {
 function selectInvestigation(id) {
   state.investigationId = id;
   updateSidebarInvestigation();
+  updateWritableUi();
   document.getElementById('investigation-summary').classList.remove('hidden');
   loadSummary();
   loadSeeds();
 }
 
-async function loadInvestigations() {
-  var list = document.getElementById('investigation-list');
-  list.innerHTML = '<div class="text-slate-400 text-xs">Loading…</div>';
-  try {
-    var data = await api('GET', '/investigations');
-    if (!data.investigations || !data.investigations.length) {
-      list.innerHTML = '<div class="text-slate-400 text-xs">No investigations yet.</div>';
-      return;
-    }
-    list.innerHTML = '';
-    for (var i = 0; i < data.investigations.length; i++) {
-      var inv = data.investigations[i];
-      var btn = document.createElement('button');
-      btn.className = 'w-full text-left px-3 py-2 rounded-xl border hover:bg-slate-50 ' + (state.investigationId === inv.id ? 'border-slate-900 bg-slate-50' : '');
-      btn.innerHTML = '<div class="font-medium">' + escapeHtml(inv.name) + '</div><div class="font-mono text-[11px] text-slate-500">' + escapeHtml(inv.id) + '</div>';
-      btn.onclick = (function(investigationId) { return function() { selectInvestigation(investigationId); }; })(inv.id);
-      list.appendChild(btn);
-    }
-  } catch (e) {
-    list.innerHTML = '<div class="text-red-600 text-xs">' + escapeHtml(e.message) + '</div>';
-  }
-}
-
 async function loadSummary() {
   if (!state.investigationId) return;
   try {
+    var meta = await api('GET', '/investigations/' + encodeURIComponent(state.investigationId));
+    if (meta.investigation) {
+      state.investigationStatus = meta.investigation.status || 'active';
+      updateWritableUi();
+    }
     var data = await api('GET', '/investigations/' + encodeURIComponent(state.investigationId) + '/summary');
     var el = document.getElementById('summary-content');
     el.innerHTML =
@@ -508,15 +674,15 @@ function renderUploadFileList() {
     return;
   }
   el.innerHTML = state.selectedFiles.map(function(f) { return '<div>• ' + escapeHtml(f.name) + ' (' + Math.round(f.size / 1024) + ' KB)</div>'; }).join('');
-  btn.disabled = !requireInvestigationSilent();
+  btn.disabled = !requireInvestigationSilent() || !isInvestigationWritable();
 }
 
 function requireInvestigationSilent() {
-  return Boolean(state.investigationId);
+  return Boolean(state.investigationId && state.accessToken);
 }
 
 async function startIngest() {
-  if (!requireInvestigation()) return;
+  if (!requireWritableInvestigation()) return;
   if (!state.selectedFiles.length) {
     showAlert('Select at least one JSON file.', 'error');
     return;
@@ -551,6 +717,7 @@ async function startIngest() {
   } finally {
     btn.disabled = false;
     btn.textContent = 'Upload & ingest';
+    updateWritableUi();
   }
 }
 
@@ -597,7 +764,7 @@ async function loadFeatures() {
 }
 
 async function runAttribution() {
-  if (!requireInvestigation()) return;
+  if (!requireWritableInvestigation()) return;
   if (!state.settings.aiGatewayUrl || !state.settings.anthropicApiKey) {
     showAlert('Configure AI credentials in Setup first.', 'error');
     showTab('setup');
@@ -737,6 +904,23 @@ function init() {
   setupUpload();
   updateSidebarInvestigation();
   updateCredentialHint();
+  renderSavedInvestigations();
+  updateWritableUi();
+
+  var params = new URLSearchParams(window.location.search);
+  var linkId = params.get('investigation');
+  var linkToken = params.get('token');
+  if (linkId && linkToken) {
+    openInvestigationWith(linkId, linkToken).then(function() {
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+      showTab('investigation');
+      showAlert('Opened investigation from link.', 'success');
+    }).catch(function(e) {
+      showAlert(e.message, 'error');
+    });
+  }
 
   document.getElementById('nav').addEventListener('click', function(e) {
     var link = e.target.closest('[data-tab]');
@@ -762,6 +946,8 @@ const PROXY_FORWARD_HEADERS = [
   'content-type',
   'x-ai-gateway-url',
   'x-anthropic-api-key',
+  'x-investigation-token',
+  'authorization',
 ];
 
 function buildProxyHeaders(request) {
