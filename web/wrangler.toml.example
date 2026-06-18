@@ -9,6 +9,9 @@ name = "common-thread-web"
 main = "worker.js"
 compatibility_date = "2025-06-17"
 
+# Disable preview domains, enable them if you want them
+preview_urls = false
+
 # Fallback backend URL (used when no service binding is available)
 [vars]
 # DEFAULT_BACKEND_URL = "https://common-thread-web.your-subdomain.workers.dev"
