@@ -2,7 +2,6 @@
 
 import { ArchiveStore } from '../archive/store';
 import { ManifestStore } from '../archive/manifest';
-import type { ManifestEntry } from '../archive/types';
 import { parseApifyTwitterItems, extractAllHandlesFromApifyTwitter } from './apify-twitter-parser';
 import { runAccountExtractors } from '../extractors/runner';
 import { runPairExtractors } from '../extractors/pair-runner';
@@ -51,41 +50,28 @@ function hasNetworkData(payload: any): boolean {
                 Array.isArray(payload?.items) ? payload.items :
                 Array.isArray(payload?.data) ? payload.data : [payload];
 
-  for (const item of items) {
-    if (!item || typeof item !== 'object') continue;
-
-    // Direct follower/following lists
-    if (Array.isArray(item.followers) || Array.isArray(item.following) || Array.isArray(item.friends)) {
-      return true;
-    }
-
-    // Profile-level counts (often present when lists were scraped)
-    const author = item.author || item.user || item;
-    if (author.followers || author.following || 
-        author.followersCount || author.followingCount ||
-        author.fastFollowersCount) {
-      return true;
-    }
-
-    // Common Apify list scrape shapes
-    if (item.target || (item.username && (item.followers || item.following))) {
-      return true;
-    }
-  }
-  return false;
+  return items.some((item: any) =>
+    item &&
+    (Array.isArray(item.followers) ||
+     Array.isArray(item.following) ||
+     Array.isArray(item.friends) ||
+     item.followers || item.following ||
+     (item.author && (item.author.followers || item.author.following)))
+  );
 }
 
 export async function ingestApifyTwitter(
   env: { DB: D1Database; ARCHIVE: R2Bucket },
   investigationId: string,
-  payload: any
+  payload: any,
+  runExtractors: boolean = false   // ← NEW: default is false (light ingest)
 ): Promise<ApifyIngestResult> {
   const archive = new ArchiveStore({ bucket: env.ARCHIVE });
   const manifest = new ManifestStore({ bucket: env.ARCHIVE });
 
   const now = new Date().toISOString();
 
-  // 1. Archive the full raw payload
+  // 1. Archive raw payload
   const rawBytes = new TextEncoder().encode(JSON.stringify(payload, null, 2));
   const { hash: rawHash } = await archive.put(rawBytes, {
     mimeType: 'application/json',
@@ -107,7 +93,7 @@ export async function ingestApifyTwitter(
 
   let artifactsCreated = 0;
 
-  // 2. Create one manifest entry per tweet
+  // 2. Per-tweet manifest entries
   for (const pt of parsedTweets) {
     const tweetBytes = new TextEncoder().encode(JSON.stringify(pt.tweet));
     const { hash: tweetHash } = await archive.put(tweetBytes, {
@@ -149,42 +135,34 @@ export async function ingestApifyTwitter(
     } catch {}
   }
 
-  // 4. Build account extractors dynamically
-  const baseExtractors = TWITTER_ACCOUNT_EXTRACTORS.filter(
-    (e) => !/network/i.test(e.name)
-  );
-
-  const accountExtractors = [...baseExtractors];
-
-  if (hasNetworkData(payload)) {
-    const networkExtractor = ALL_ACCOUNT_EXTRACTORS.find(
-      (e) => e.name === 'network_twitter'
-    );
-    if (networkExtractor) {
-      accountExtractors.push(networkExtractor);
-    }
-  }
-
-  // 5. Run extractors
-  const accountRuns = await runAccountExtractors(env, {
-    investigationId,
-    extractors: accountExtractors,
-    accountFilter: handles.length > 0 ? handles : undefined,
-  });
-
+  let accountRuns: any[] = [];
   let pairRuns: any[] = [];
   let pairExtractorsSkipped = false;
   let pairExtractorsSkippedReason: string | undefined;
 
-  if (handles.length >= 2) {
-    pairRuns = await runPairExtractors(env, {
+  // 4. Only run extractors if explicitly requested (for now)
+  if (runExtractors) {
+    const useNetwork = hasNetworkData(payload);
+    const accountExtractors = TWITTER_ACCOUNT_EXTRACTORS.filter(e =>
+      !/network/i.test(e.name) || useNetwork
+    );
+
+    accountRuns = await runAccountExtractors(env, {
       investigationId,
-      extractors: TWITTER_PAIR_EXTRACTORS,
+      extractors: accountExtractors,
       accountFilter: handles.length > 0 ? handles : undefined,
     });
-  } else {
-    pairExtractorsSkipped = true;
-    pairExtractorsSkippedReason = `Pair extractors require at least 2 accounts; got ${handles.length}`;
+
+    if (handles.length >= 2) {
+      pairRuns = await runPairExtractors(env, {
+        investigationId,
+        extractors: TWITTER_PAIR_EXTRACTORS,
+        accountFilter: handles.length > 0 ? handles : undefined,
+      });
+    } else {
+      pairExtractorsSkipped = true;
+      pairExtractorsSkippedReason = `Pair extractors require at least 2 accounts; got ${handles.length}`;
+    }
   }
 
   return {

@@ -1,5 +1,21 @@
 /**
  * Common Thread Worker entry point.
+ *
+ * Routes:
+ *
+ *   GET  /                              → Health check
+ *   GET  /investigations                → List investigations
+ *   POST /investigations                → Create investigation
+ *   GET  /investigations/:id/seeds      → List seed accounts
+ *   GET  /investigations/:id/summary    → Summary stats
+ *   GET  /manifest                      → List manifest entries
+ *   GET  /signatures                    → List signatures
+ *   GET  /verify                        → Verify signatures
+ *   GET  /debug/ingest                  → Debug extractor visibility
+ *
+ *   POST /investigations/:id/ingest/apify-twitter
+ *        → Ingest Apify Twitter/X data (supports multiple files)
+ *        → Use ?runExtractors=true to also run extractors (only for small jobs)
  */
 
 import { ManifestStore } from '../archive/manifest';
@@ -117,7 +133,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     });
   }
 
-  // Summary
+  // Summary for an investigation
   if (method === 'GET' && path.match(/^\/investigations\/[^/]+\/summary$/)) {
     const match = path.match(/^\/investigations\/([^/]+)\/summary$/);
     const investigationId = match ? match[1] : '';
@@ -155,7 +171,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     });
   }
 
-  // List manifest
+  // List manifest entries
   if (method === 'GET' && path === '/manifest') {
     const manifest = new ManifestStore({ bucket: env.ARCHIVE });
     const investigationId = url.searchParams.get('investigation');
@@ -180,7 +196,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     });
   }
 
-  // Verify
+  // Verify signatures
   if (method === 'GET' && path === '/verify') {
     const signer = new ManifestSigner({ bucket: env.ARCHIVE });
     const results = await signer.verifyAll();
@@ -308,10 +324,14 @@ async function handle(request: Request, env: Env): Promise<Response> {
       }
     }
 
+    // Check for runExtractors flag (default = false)
+    const runExtractors = url.searchParams.get('runExtractors') === 'true';
+
     const result = await ingestApifyTwitter(
       { DB: env.DB, ARCHIVE: env.ARCHIVE },
       investigationId,
-      allItems
+      allItems,
+      runExtractors
     );
 
     const accountRuns = result.accountExtractorRuns ?? [];
