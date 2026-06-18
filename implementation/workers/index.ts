@@ -50,38 +50,56 @@ export default {
     }
   },
 
-  // Queue Consumer
-  async queue(batch: MessageBatch<any>, env: Env, ctx: ExecutionContext) {
-    for (const message of batch.messages) {
-      const { investigationId, provider = 'twitter' } = message.body;
+ // Queue Consumer for heavy extraction work
+ async queue(batch: MessageBatch<any>, env: Env, ctx: ExecutionContext) {
+   console.log(`[Queue] Received batch of ${batch.messages.length} message(s)`);
 
-      try {
-        if (provider === 'twitter') {
-          await runAccountExtractors(env, {
-            investigationId,
-            extractors: TWITTER_ACCOUNT_EXTRACTORS,
-          });
+   for (const message of batch.messages) {
+     const body = message.body;
+     const { investigationId, provider = 'twitter' } = body;
 
-          const seedCount = await env.DB
-            .prepare('SELECT COUNT(*) as count FROM seed_accounts WHERE investigation_id = ?')
-            .bind(investigationId)
-            .first<{ count: number }>();
+     const startTime = Date.now();
+     console.log(`[Queue] Starting processing for investigation=${investigationId}, provider=${provider}`);
 
-          if ((seedCount?.count ?? 0) >= 2) {
-            await runPairExtractors(env, {
-              investigationId,
-              extractors: TWITTER_PAIR_EXTRACTORS,
-            });
-          }
-        }
+     try {
+       if (provider === 'twitter') {
+         console.log(`[Queue] Running account extractors for ${investigationId}`);
+         await runAccountExtractors(env, {
+           investigationId,
+           extractors: TWITTER_ACCOUNT_EXTRACTORS,
+         });
+         console.log(`[Queue] Finished account extractors for ${investigationId}`);
 
-        message.ack();
-      } catch (err: any) {
-        console.error(`Queue processing failed for investigation ${investigationId}`, err);
-        message.retry();
-      }
-    }
-  },
+         const seedCount = await env.DB
+           .prepare('SELECT COUNT(*) as count FROM seed_accounts WHERE investigation_id = ?')
+           .bind(investigationId)
+           .first<{ count: number }>();
+
+         const accountCount = seedCount?.count ?? 0;
+         console.log(`[Queue] Found ${accountCount} accounts for ${investigationId}`);
+ 
+         if (accountCount >= 2) {
+           console.log(`[Queue] Running pair extractors for ${investigationId}`);
+           await runPairExtractors(env, {
+             investigationId,
+             extractors: TWITTER_PAIR_EXTRACTORS,
+           });
+           console.log(`[Queue] Finished pair extractors for ${investigationId}`);
+         } else {
+           console.log(`[Queue] Skipping pair extractors for ${investigationId} (only ${accountCount} account(s))`);
+         }
+       }
+
+       const duration = Date.now() - startTime;
+       console.log(`[Queue] Successfully processed ${investigationId} in ${duration}ms`);
+
+       message.ack();
+     } catch (err: any) {
+       console.error(`[Queue] Processing failed for investigation ${investigationId}`, err);
+       message.retry();
+     }
+   }
+ },
 };
 
 async function handle(request: Request, env: Env): Promise<Response> {
