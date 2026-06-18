@@ -23,6 +23,7 @@ export interface ApifyIngestResult {
   pairExtractorRuns?: any[];
   pairExtractorsSkipped?: boolean;
   pairExtractorsSkippedReason?: string;
+  enqueued?: boolean;
 }
 
 export const TWITTER_ACCOUNT_EXTRACTORS: AccountFeatureExtractor[] =
@@ -71,7 +72,7 @@ export async function ingestApifyTwitter(
 
   const now = new Date().toISOString();
 
-  // 1. Archive raw payload
+  // 1. Archive the full raw payload
   const rawBytes = new TextEncoder().encode(JSON.stringify(payload, null, 2));
   const { hash: rawHash } = await archive.put(rawBytes, {
     mimeType: 'application/json',
@@ -94,7 +95,7 @@ export async function ingestApifyTwitter(
   let artifactsCreated = 0;
   const manifestHashes: string[] = [];
 
-  // 2. Per-tweet manifest entries
+  // 2. Create one manifest entry per tweet
   for (const pt of parsedTweets) {
     const tweetBytes = new TextEncoder().encode(JSON.stringify(pt.tweet));
     const { hash: tweetHash } = await archive.put(tweetBytes, {
@@ -137,7 +138,7 @@ export async function ingestApifyTwitter(
     } catch {}
   }
 
-  // 4. Enqueue for heavy processing (or run in worker if requested)
+  // 4. Run extractors locally or enqueue
   if (runExtractors) {
     const useNetwork = hasNetworkData(payload);
     const accountExtractors = TWITTER_ACCOUNT_EXTRACTORS.filter(e =>
@@ -176,17 +177,26 @@ export async function ingestApifyTwitter(
       pairExtractorRuns: pairRuns,
       pairExtractorsSkipped,
       pairExtractorsSkippedReason,
+      enqueued: false,
     };
   }
 
-  // Default path: enqueue for async processing
+  // Default: enqueue for async processing
+  let enqueued = false;
+
   if (env.INGEST_QUEUE) {
-    await env.INGEST_QUEUE.send({
-      investigationId,
-      provider: 'twitter',
-      manifestHashes,
-      rawFileHashes: [rawHash],
-    });
+    try {
+      await env.INGEST_QUEUE.send({
+        investigationId,
+        provider: 'twitter',
+        manifestHashes,
+        rawFileHashes: [rawHash],
+      });
+      enqueued = true;
+    } catch (err) {
+      console.error('Failed to enqueue ingest job:', err);
+      enqueued = false;
+    }
   }
 
   return {
@@ -199,5 +209,6 @@ export async function ingestApifyTwitter(
     accountExtractorRuns: [],
     pairExtractorRuns: [],
     pairExtractorsSkipped: false,
+    enqueued,
   };
 }

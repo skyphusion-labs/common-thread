@@ -13,6 +13,7 @@
  *   GET  /verify                        → Verify signatures
  *   GET  /debug/ingest                  → Debug extractor visibility
  *   GET  /debug/manifest                → Raw manifest inspection
+ *   DELETE /debug/manifest              → Delete all manifest entries for an investigation (debug)
  *
  *   POST /investigations/:id/ingest/apify-twitter
  *        → Ingest Apify Twitter/X data
@@ -49,7 +50,7 @@ export default {
     }
   },
 
-  // Queue Consumer for heavy extraction work
+  // Queue Consumer
   async queue(batch: MessageBatch<any>, env: Env, ctx: ExecutionContext) {
     for (const message of batch.messages) {
       const { investigationId, provider = 'twitter' } = message.body;
@@ -61,14 +62,21 @@ export default {
             extractors: TWITTER_ACCOUNT_EXTRACTORS,
           });
 
-          await runPairExtractors(env, {
-            investigationId,
-            extractors: TWITTER_PAIR_EXTRACTORS,
-          });
+          const seedCount = await env.DB
+            .prepare('SELECT COUNT(*) as count FROM seed_accounts WHERE investigation_id = ?')
+            .bind(investigationId)
+            .first<{ count: number }>();
+
+          if ((seedCount?.count ?? 0) >= 2) {
+            await runPairExtractors(env, {
+              investigationId,
+              extractors: TWITTER_PAIR_EXTRACTORS,
+            });
+          }
         }
 
         message.ack();
-      } catch (err) {
+      } catch (err: any) {
         console.error(`Queue processing failed for investigation ${investigationId}`, err);
         message.retry();
       }
@@ -106,153 +114,71 @@ async function handle(request: Request, env: Env): Promise<Response> {
 
   // Create investigation
   if (method === 'POST' && path === '/investigations') {
-    const body = (await request.json()) as {
-      id?: string;
-      name?: string;
-      description?: string;
-    };
-
-    if (!body.id || !body.name) {
-      return jsonResponse({ error: 'id and name are required' }, 400);
-    }
+    const body = (await request.json()) as { id?: string; name?: string; description?: string };
+    if (!body.id || !body.name) return jsonResponse({ error: 'id and name are required' }, 400);
 
     const now = new Date().toISOString();
-
     await env.DB
-      .prepare(
-        `INSERT INTO investigations (id, name, description, status, created_at, updated_at)
-         VALUES (?, ?, ?, 'active', ?, ?)`
-      )
+      .prepare(`INSERT INTO investigations (id, name, description, status, created_at, updated_at)
+                VALUES (?, ?, ?, 'active', ?, ?)`)
       .bind(body.id, body.name, body.description ?? null, now, now)
       .run();
 
-    return jsonResponse(
-      {
-        id: body.id,
-        name: body.name,
-        description: body.description,
-        status: 'active',
-        created_at: now,
-      },
-      201
-    );
+    return jsonResponse({ id: body.id, name: body.name, status: 'active', created_at: now }, 201);
   }
 
   // List seed accounts
   if (method === 'GET' && path.match(/^\/investigations\/[^/]+\/seeds$/)) {
-    const match = path.match(/^\/investigations\/([^/]+)\/seeds$/);
-    const investigationId = match ? match[1] : '';
-
-    if (!investigationId) {
-      return jsonResponse({ error: 'Invalid investigation ID' }, 400);
-    }
-
+    const investigationId = path.match(/^\/investigations\/([^/]+)\/seeds$/)?.[1] || '';
     const result = await env.DB
-      .prepare(
-        `SELECT * FROM seed_accounts 
-         WHERE investigation_id = ? 
-         ORDER BY added_at DESC`
-      )
+      .prepare('SELECT * FROM seed_accounts WHERE investigation_id = ? ORDER BY added_at DESC')
       .bind(investigationId)
       .all();
-
-    return jsonResponse({
-      investigationId,
-      seeds: result.results ?? [],
-      count: result.results?.length ?? 0,
-    });
+    return jsonResponse({ investigationId, seeds: result.results ?? [], count: result.results?.length ?? 0 });
   }
 
-  // Summary for an investigation
+  // Summary
   if (method === 'GET' && path.match(/^\/investigations\/[^/]+\/summary$/)) {
-    const match = path.match(/^\/investigations\/([^/]+)\/summary$/);
-    const investigationId = match ? match[1] : '';
-
-    if (!investigationId) {
-      return jsonResponse({ error: 'Invalid investigation ID' }, 400);
-    }
-
+    const investigationId = path.match(/^\/investigations\/([^/]+)\/summary$/)?.[1] || '';
     const seedResult = await env.DB
       .prepare('SELECT COUNT(*) as count FROM seed_accounts WHERE investigation_id = ?')
       .bind(investigationId)
       .first<{ count: number }>();
-
     const manifest = new ManifestStore({ bucket: env.ARCHIVE });
     const artifacts = await manifest.list({ investigationId });
-
-    let extractorRunCount = 0;
-    try {
-      const acc = await env.DB
-        .prepare('SELECT COUNT(*) as count FROM account_extractor_runs WHERE investigation_id = ?')
-        .bind(investigationId)
-        .first<{ count: number }>();
-      const pair = await env.DB
-        .prepare('SELECT COUNT(*) as count FROM pair_extractor_runs WHERE investigation_id = ?')
-        .bind(investigationId)
-        .first<{ count: number }>();
-      extractorRunCount = (acc?.count || 0) + (pair?.count || 0);
-    } catch {}
-
-    return jsonResponse({
-      investigationId,
-      seeds: seedResult?.count ?? 0,
-      artifacts: artifacts.length,
-      extractorRuns: extractorRunCount,
-    });
+    return jsonResponse({ investigationId, seeds: seedResult?.count ?? 0, artifacts: artifacts.length });
   }
 
-  // List manifest entries
+  // List manifest
   if (method === 'GET' && path === '/manifest') {
-    const manifest = new ManifestStore({ bucket: env.ARCHIVE });
     const investigationId = url.searchParams.get('investigation');
-    const entries = await manifest.list(
+    const entries = await new ManifestStore({ bucket: env.ARCHIVE }).list(
       investigationId ? { investigationId } : undefined
     );
-
-    return jsonResponse({
-      entries,
-      count: entries.length,
-    });
+    return jsonResponse({ entries, count: entries.length });
   }
 
-  // List signatures
+  // Signatures
   if (method === 'GET' && path === '/signatures') {
-    const signer = new ManifestSigner({ bucket: env.ARCHIVE });
-    const signatures = await signer.listSignatures();
-
-    return jsonResponse({
-      signatures,
-      count: signatures.length,
-    });
+    const signatures = await new ManifestSigner({ bucket: env.ARCHIVE }).listSignatures();
+    return jsonResponse({ signatures, count: signatures.length });
   }
 
-  // Verify signatures
+  // Verify
   if (method === 'GET' && path === '/verify') {
-    const signer = new ManifestSigner({ bucket: env.ARCHIVE });
-    const results = await signer.verifyAll();
+    const results = await new ManifestSigner({ bucket: env.ARCHIVE }).verifyAll();
     const validCount = results.filter((r) => r.valid).length;
-
     return jsonResponse({
       totalSignatures: results.length,
       validSignatures: validCount,
       allValid: results.length > 0 && validCount === results.length,
-      results: results.map((r) => ({
-        publicKey: r.signature.publicKey,
-        signerId: r.signature.signerId,
-        signedAt: r.signature.signedAt,
-        valid: r.valid,
-        reason: r.reason,
-      })),
     });
   }
 
   // === DEBUG: Ingest / Extractor visibility ===
   if (method === 'GET' && path.match(/^\/debug\/ingest$/)) {
     const investigationId = url.searchParams.get('investigation');
-
-    if (!investigationId) {
-      return jsonResponse({ error: 'Missing ?investigation= parameter' }, 400);
-    }
+    if (!investigationId) return jsonResponse({ error: 'Missing ?investigation= parameter' }, 400);
 
     const manifest = new ManifestStore({ bucket: env.ARCHIVE });
     const allEntries = await manifest.list({ investigationId });
@@ -265,11 +191,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
       const matching = entriesWithAccount.filter((e) => {
         try { return ex.filterEntry?.(e) ?? false; } catch { return false; }
       });
-      accountVisibility[ex.name] = {
-        count: matching.length,
-        sampleCollectionMethod: matching[0]?.collectionMethod,
-        sampleSource: matching[0]?.source,
-      };
+      accountVisibility[ex.name] = { count: matching.length };
     }
 
     for (const ex of TWITTER_PAIR_EXTRACTORS) {
@@ -282,35 +204,49 @@ async function handle(request: Request, env: Env): Promise<Response> {
       entriesWithAccount: entriesWithAccount.length,
       entriesWithoutAccount: allEntries.length - entriesWithAccount.length,
       sampleEntry: entriesWithAccount[0] || null,
-      extractorVisibility: {
-        account: accountVisibility,
-        pair: pairVisibility,
-      },
+      extractorVisibility: { account: accountVisibility, pair: pairVisibility },
     });
   }
 
   // === DEBUG: Raw manifest inspection ===
   if (method === 'GET' && path.match(/^\/debug\/manifest$/)) {
     const investigationId = url.searchParams.get('investigation');
+    if (!investigationId) return jsonResponse({ error: 'Missing ?investigation= parameter' }, 400);
 
-    if (!investigationId) {
-      return jsonResponse({ error: 'Missing ?investigation= parameter' }, 400);
-    }
-
-    const manifest = new ManifestStore({ bucket: env.ARCHIVE });
-    const allEntries = await manifest.list({ investigationId });
-
-    const withAccount = allEntries.filter((e) => e.account);
-    const withoutAccount = allEntries.filter((e) => !e.account);
+    const entries = await new ManifestStore({ bucket: env.ARCHIVE }).list({ investigationId });
+    const withAccount = entries.filter((e) => e.account);
+    const withoutAccount = entries.filter((e) => !e.account);
 
     return jsonResponse({
       investigationId,
-      total: allEntries.length,
+      total: entries.length,
       withAccount: withAccount.length,
       withoutAccount: withoutAccount.length,
       sampleWithAccount: withAccount.slice(0, 3),
       sampleWithoutAccount: withoutAccount.slice(0, 3),
-      sampleRaw: allEntries[0],
+    });
+  }
+
+  // === DEBUG: Delete manifest entries ===
+  if (method === 'DELETE' && path.match(/^\/debug\/manifest$/)) {
+    const investigationId = url.searchParams.get('investigation');
+    if (!investigationId) return jsonResponse({ error: 'Missing ?investigation= parameter' }, 400);
+
+    const manifest = new ManifestStore({ bucket: env.ARCHIVE });
+    const entries = await manifest.list({ investigationId });
+
+    let deleted = 0;
+    for (const entry of entries) {
+      try {
+        await env.ARCHIVE.delete(entry.hash);
+        deleted++;
+      } catch {}
+    }
+
+    return jsonResponse({
+      investigationId,
+      deleted,
+      message: `Deleted ${deleted} objects from R2 for investigation ${investigationId}`,
     });
   }
 
@@ -319,21 +255,10 @@ async function handle(request: Request, env: Env): Promise<Response> {
     const match = path.match(/^\/investigations\/([^/]+)\/ingest\/apify-twitter$/);
     const investigationId = match ? match[1] : '';
 
-    if (!investigationId) {
-      return jsonResponse({ error: 'Invalid investigation ID in URL' }, 400);
-    }
+    if (!investigationId) return jsonResponse({ error: 'Invalid investigation ID' }, 400);
 
-    const inv = await env.DB
-      .prepare('SELECT id FROM investigations WHERE id = ?')
-      .bind(investigationId)
-      .first();
-
-    if (!inv) {
-      return jsonResponse({
-        error: `Investigation not found: ${investigationId}`,
-        hint: 'Create it first with POST /investigations',
-      }, 404);
-    }
+    const inv = await env.DB.prepare('SELECT id FROM investigations WHERE id = ?').bind(investigationId).first();
+    if (!inv) return jsonResponse({ error: `Investigation not found: ${investigationId}` }, 404);
 
     const contentType = request.headers.get('content-type') || '';
     let allItems: any[] = [];
@@ -347,37 +272,19 @@ async function handle(request: Request, env: Env): Promise<Response> {
           try {
             const text = await (entry as File).text();
             const parsed = JSON.parse(text);
-
-            if (Array.isArray(parsed)) {
-              allItems.push(...parsed);
-            } else if (Array.isArray(parsed?.items)) {
-              allItems.push(...parsed.items);
-            } else if (Array.isArray(parsed?.data)) {
-              allItems.push(...parsed.data);
-            } else {
-              allItems.push(parsed);
-            }
+            if (Array.isArray(parsed)) allItems.push(...parsed);
+            else if (Array.isArray(parsed?.items)) allItems.push(...parsed.items);
+            else if (Array.isArray(parsed?.data)) allItems.push(...parsed.data);
+            else allItems.push(parsed);
           } catch {
-            return jsonResponse({ error: 'Invalid JSON in one of the uploaded files' }, 400);
+            return jsonResponse({ error: 'Invalid JSON in uploaded file' }, 400);
           }
         }
       }
-
-      if (allItems.length === 0) {
-        return jsonResponse({ error: 'No valid files uploaded. Use field name "file"' }, 400);
-      }
+      if (allItems.length === 0) return jsonResponse({ error: 'No valid files uploaded' }, 400);
     } else {
       const body = await request.json() as any;
-
-      if (Array.isArray(body)) {
-        allItems = body;
-      } else if (Array.isArray(body?.items)) {
-        allItems = body.items;
-      } else if (Array.isArray(body?.data)) {
-        allItems = body.data;
-      } else {
-        allItems = [body];
-      }
+      allItems = Array.isArray(body) ? body : Array.isArray(body?.items) ? body.items : Array.isArray(body?.data) ? body.data : [body];
     }
 
     const runExtractors = url.searchParams.get('runExtractors') === 'true';
@@ -389,7 +296,6 @@ async function handle(request: Request, env: Env): Promise<Response> {
       runExtractors
     );
 
-    // Compute extractor visibility for the response
     const manifest = new ManifestStore({ bucket: env.ARCHIVE });
     const allEntries = await manifest.list({ investigationId });
     const entriesWithAccount = allEntries.filter((e) => e.account);
@@ -398,12 +304,10 @@ async function handle(request: Request, env: Env): Promise<Response> {
     const pairVisibility: Record<string, number> = {};
 
     for (const ex of TWITTER_ACCOUNT_EXTRACTORS) {
-      const count = entriesWithAccount.filter((e) => {
+      accountVisibility[ex.name] = entriesWithAccount.filter((e) => {
         try { return ex.filterEntry?.(e) ?? false; } catch { return false; }
       }).length;
-      accountVisibility[ex.name] = count;
     }
-
     for (const ex of TWITTER_PAIR_EXTRACTORS) {
       pairVisibility[ex.name] = entriesWithAccount.length;
     }
@@ -411,29 +315,10 @@ async function handle(request: Request, env: Env): Promise<Response> {
     const accountRuns = result.accountExtractorRuns ?? [];
     const pairRuns = result.pairExtractorRuns ?? [];
 
-    const accountProducing = accountRuns
-      .filter((r: any) => (r.outputFeatureCount || 0) > 0)
-      .map((r: any) => ({
-        name: r.extractorName,
-        version: r.extractorVersion,
-        features: r.outputFeatureCount,
-      }));
-
-    const pairProducing = pairRuns
-      .filter((r: any) => (r.outputFeatureCount || 0) > 0)
-      .map((r: any) => ({
-        name: r.extractorName,
-        version: r.extractorVersion,
-        features: r.outputFeatureCount,
-      }));
-
     return jsonResponse(
       {
         ...result,
-        extractorVisibility: {
-          account: accountVisibility,
-          pair: pairVisibility,
-        },
+        extractorVisibility: { account: accountVisibility, pair: pairVisibility },
         summary: {
           tweetsProcessed: result.tweetsProcessed,
           uniqueAccounts: result.uniqueAccounts,
@@ -446,10 +331,6 @@ async function handle(request: Request, env: Env): Promise<Response> {
           totalFeaturesProduced:
             accountRuns.reduce((s: number, r: any) => s + (r.outputFeatureCount || 0), 0) +
             pairRuns.reduce((s: number, r: any) => s + (r.outputFeatureCount || 0), 0),
-        },
-        extractorsWithFeatures: {
-          account: accountProducing,
-          pair: pairProducing,
         },
       },
       200
