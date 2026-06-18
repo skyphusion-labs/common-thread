@@ -18,10 +18,11 @@
 import { collectArtifact } from '../archive/example';
 import { ACCOUNT_METADATA_EXTRACTORS } from './account-metadata';
 import { runAccountExtractors } from './runner';
+import type { DatabaseClient } from '../db';
 import type { AccountFeatureRow } from '../schema/db-types';
 
 export interface DemoEnv {
-  DB: D1Database;
+  DB: DatabaseClient;
   ARCHIVE: R2Bucket;
 }
 

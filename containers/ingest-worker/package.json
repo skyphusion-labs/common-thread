@@ -1,0 +1,10 @@
+{
+  "name": "common-thread-ingest-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Self-hosted ingest worker for Common Thread (VPC HTTP target)",
+  "scripts": {
+    "start": "node server.mjs"
+  }
+}

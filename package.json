@@ -29,6 +29,8 @@
     "db:migrate:local": "wrangler d1 migrations apply common-thread --local",
     "db:migrate": "wrangler d1 migrations apply common-thread --remote",
     "db:migrate:prod": "wrangler d1 migrations apply common-thread-prod --remote --env production",
+    "db:migrate:mysql": "echo 'Apply mysql-schema.sql: mysql -h HOST -u USER -p common_thread < mysql-schema.sql'",
+    "db:hyperdrive:create": "wrangler hyperdrive create common-thread --connection-string",
     "r2:create": "wrangler r2 bucket create common-thread-archive --binding ARCHIVE --update-config",
     "r2:create:prod": "wrangler r2 bucket create common-thread-archive-prod --binding ARCHIVE --env production --update-config",
     "keygen": "node scripts/keygen.mjs"
@@ -43,5 +45,8 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "mysql2": "^3.22.5"
   }
 }

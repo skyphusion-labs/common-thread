@@ -31,12 +31,13 @@ import {
   readFeatureValue,
 } from '../schema/db-types';
 import { ManifestStore } from '../archive/manifest';
+import type { DatabaseClient } from '../db';
 import type { PairFeatureExtractor, AccountFeatureMap } from './pair-types';
 import type { ExtractedFeature } from './types';
 import type { FeatureValue } from '../schema/db-types';
 
 export interface PairRunnerEnv {
-  DB: D1Database;
+  DB: DatabaseClient;
   ARCHIVE: R2Bucket;
 }
 
@@ -289,7 +290,7 @@ export async function runPairExtractors(
  * migration 0002 does not yet change at the runner level).
  */
 async function loadSeedAccounts(
-  db: D1Database,
+  db: DatabaseClient,
   investigationId: string
 ): Promise<Array<{ account: string; platform: string }>> {
   const res = await db
@@ -323,7 +324,7 @@ async function loadSeedAccounts(
  * be written without a platform.
  */
 async function resolveAccountPlatforms(
-  db: D1Database,
+  db: DatabaseClient,
   investigationId: string,
   accounts: string[]
 ): Promise<Array<{ account: string; platform: string }>> {
@@ -383,7 +384,7 @@ async function resolveAccountPlatforms(
 }
 
 async function loadAccountFeatures(
-  db: D1Database,
+  db: DatabaseClient,
   investigationId: string,
   accounts: string[],
   featureNames: ReadonlyArray<string>
@@ -426,7 +427,7 @@ async function loadAccountFeatures(
 }
 
 async function tracProvenance(
-  db: D1Database,
+  db: DatabaseClient,
   accountFeatureIds: number[]
 ): Promise<Array<{ artifact_hash: string; manifest_entry_hash: string | null }>> {
   if (accountFeatureIds.length === 0) return [];
@@ -444,7 +445,7 @@ async function tracProvenance(
 }
 
 async function writePairFeature(
-  db: D1Database,
+  db: DatabaseClient,
   params: {
     investigationId: string;
     platformA: string;
@@ -504,7 +505,7 @@ async function writePairFeature(
 }
 
 async function markRunCompleted(
-  db: D1Database,
+  db: DatabaseClient,
   extractorRunId: number,
   inputCount: number,
   outputCount: number,

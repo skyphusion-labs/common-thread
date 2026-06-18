@@ -13,12 +13,13 @@
 
 import { ArchiveStore } from '../archive/store';
 import { ManifestStore } from '../archive/manifest';
+import type { DatabaseClient } from '../db';
 import { packFeatureValue } from '../schema/db-types';
 import type { ManifestEntry } from '../archive/types';
 import type { AccountFeatureExtractor, ExtractedFeature } from './types';
 
 export interface RunnerEnv {
-  DB: D1Database;
+  DB: DatabaseClient;
   ARCHIVE: R2Bucket;
 }
 
@@ -185,7 +186,7 @@ export async function runAccountExtractors(
 }
 
 async function writeAccountFeature(
-  db: D1Database,
+  db: DatabaseClient,
   params: {
     investigationId: string;
     account: string;

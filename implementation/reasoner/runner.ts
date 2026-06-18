@@ -36,6 +36,7 @@
  */
 
 import { ManifestStore } from '../archive/manifest';
+import type { DatabaseClient } from '../db';
 import {
   canonicalPlatformedPair,
   packFeatureValue,
@@ -64,7 +65,7 @@ import type {
 // ---------------------------------------------------------------------------
 
 export interface ReasonerRunnerEnv {
-  DB: D1Database;
+  DB: DatabaseClient;
   ARCHIVE: R2Bucket;
   /** Cloudflare AI Gateway base URL ending in '/anthropic'. */
   AI_GATEWAY_URL: string;
@@ -452,7 +453,7 @@ interface BuildSignalTableArgs {
 }
 
 async function buildSignalTable(
-  db: D1Database,
+  db: DatabaseClient,
   args: BuildSignalTableArgs
 ): Promise<SignalTable> {
   const pairSignals = await loadPairSignals(db, args.investigationId, args.pair);
@@ -490,7 +491,7 @@ interface PairSignalRow {
 }
 
 async function loadPairSignals(
-  db: D1Database,
+  db: DatabaseClient,
   investigationId: string,
   pair: { account_a: string; account_b: string }
 ): Promise<PresentedSignal[]> {
@@ -568,7 +569,7 @@ interface AccountSignalRow {
 }
 
 async function loadAccountSignals(
-  db: D1Database,
+  db: DatabaseClient,
   investigationId: string,
   accounts: string[]
 ): Promise<PresentedSignal[]> {
@@ -646,7 +647,7 @@ async function loadAccountSignals(
  * caller-supplied.
  */
 async function loadProvenanceFingerprints(
-  db: D1Database,
+  db: DatabaseClient,
   table: 'account_feature_provenance' | 'pair_feature_provenance' | 'event_feature_provenance',
   fkColumn: 'account_feature_id' | 'pair_feature_id' | 'event_feature_id',
   featureIds: number[]
@@ -676,7 +677,7 @@ async function loadProvenanceFingerprints(
 // ---------------------------------------------------------------------------
 
 async function loadBasisStatements(
-  db: D1Database,
+  db: DatabaseClient,
   investigationId: string,
   accounts: string[]
 ): Promise<Array<{ account: string; platform: string; statement: string }>> {
@@ -702,7 +703,7 @@ async function loadBasisStatements(
 }
 
 async function loadTimeBounds(
-  db: D1Database,
+  db: DatabaseClient,
   investigationId: string
 ): Promise<{ start: string; end: string } | undefined> {
   const res = await db
@@ -727,7 +728,7 @@ async function loadTimeBounds(
 // ---------------------------------------------------------------------------
 
 async function loadSeedAccounts(
-  db: D1Database,
+  db: DatabaseClient,
   investigationId: string
 ): Promise<Array<{ account: string; platform: string }>> {
   const res = await db
@@ -747,7 +748,7 @@ async function loadSeedAccounts(
 }
 
 async function resolveAccountPlatforms(
-  db: D1Database,
+  db: DatabaseClient,
   investigationId: string,
   accounts: string[]
 ): Promise<Array<{ account: string; platform: string }>> {
@@ -806,7 +807,7 @@ async function resolveAccountPlatforms(
 // ---------------------------------------------------------------------------
 
 async function writeAttributionRun(
-  db: D1Database,
+  db: DatabaseClient,
   row: NewAttributionRun
 ): Promise<number> {
   // Canonicalize accounts + platforms (mirrors NewPairFeature handling

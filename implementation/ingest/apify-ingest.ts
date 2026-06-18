@@ -1,7 +1,6 @@
 // implementation/ingest/apify-ingest.ts
 
 import { ArchiveStore } from '../archive/store';
-import { ManifestStore } from '../archive/manifest';
 import { parseApifyTwitterItems, extractAllHandlesFromApifyTwitter } from './apify-twitter-parser';
 import { runAccountExtractors } from '../extractors/runner';
 import { runPairExtractors } from '../extractors/pair-runner';
@@ -11,8 +10,9 @@ import {
 } from '../extractors';
 import type { AccountFeatureExtractor } from '../extractors/types';
 import type { PairFeatureExtractor } from '../extractors/pair-types';
-import type { Env } from '../workers/index';   // ← Import the full Env type
-import { execute } from '../db';               // ← Import from db.ts
+import type { Env } from '../workers/index';
+import { execute, resolveDatabase } from '../db';
+import { dispatchIngestJob } from './dispatch';
 
 export interface ApifyIngestResult {
   investigationId: string;
@@ -22,7 +22,7 @@ export interface ApifyIngestResult {
   artifactsCreated: number;
   seedsRegistered: number;
   jobId?: string;
-  delegatedToContainer?: boolean;
+  delegatedToVpc?: boolean;
   accountExtractorRuns?: any[];
   pairExtractorRuns?: any[];
   pairExtractorsSkipped?: boolean;
@@ -64,42 +64,134 @@ function hasNetworkData(payload: any): boolean {
   );
 }
 
+function vpcIngestEnabled(env: Env): boolean {
+  return Boolean(env.VPC_INGEST && env.INGEST_WORKER_URL);
+}
+
+/**
+ * Ingest an Apify Twitter export.
+ *
+ * Production path (VPC_INGEST configured): archive raw JSON once, enqueue job,
+ * dispatch to self-hosted Docker over Workers VPC. Per-tweet R2 writes and
+ * extraction run on the ingest worker with local disk.
+ *
+ * Fallback (no VPC): optional inline extraction when runExtractors=true for
+ * local development only.
+ */
 export async function ingestApifyTwitter(
-  env: Env,                    // ← Use the full Env type
+  env: Env,
   investigationId: string,
   payload: any,
   runExtractors: boolean = false
 ): Promise<ApifyIngestResult> {
-  const archive = new ArchiveStore({ bucket: env.ARCHIVE });
-  const manifest = new ManifestStore({ bucket: env.ARCHIVE });
-
+  const parsedTweets = parseApifyTwitterItems(payload);
+  const handles = extractAllHandlesFromApifyTwitter(payload);
   const now = new Date().toISOString();
+  const jobId = `job_${crypto.randomUUID()}`;
 
-  // 1. Archive raw payload
+  // Archive the raw export once. The ingest worker fetches this by hash.
+  const archive = new ArchiveStore({ bucket: env.ARCHIVE });
   const rawBytes = new TextEncoder().encode(JSON.stringify(payload, null, 2));
   const { hash: rawHash } = await archive.put(rawBytes, {
     mimeType: 'application/json',
     extension: 'json',
   });
 
-  await manifest.append({
-    hash: rawHash,
-    source: 'apify-twitter',
-    collectedAt: now,
+  await execute(
+    env.DB,
+    `INSERT INTO ingest_jobs 
+     (job_id, investigation_id, provider, status, item_count, manifest_hashes, raw_file_hashes, created_at)
+     VALUES (?, ?, 'twitter', 'queued', ?, ?, ?, ?)`,
+    [
+      jobId,
+      investigationId,
+      parsedTweets.length,
+      JSON.stringify([]),
+      JSON.stringify([rawHash]),
+      now,
+    ]
+  );
+
+  if (vpcIngestEnabled(env)) {
+    const dispatchResponse = await dispatchIngestJob(env, {
+      jobId,
+      investigationId,
+      provider: 'twitter',
+      rawFileHash: rawHash,
+      runExtractors,
+      itemCount: parsedTweets.length,
+      accounts: handles,
+    });
+
+    if (!dispatchResponse.ok) {
+      const detail = await dispatchResponse.text();
+      await execute(
+        env.DB,
+        `UPDATE ingest_jobs SET status = 'failed', error_message = ? WHERE job_id = ?`,
+        [`Ingest worker dispatch failed: ${dispatchResponse.status} ${detail}`, jobId]
+      );
+      throw new Error(`Ingest worker dispatch failed: ${dispatchResponse.status}`);
+    }
+
+    return {
+      investigationId,
+      rawPayloadHash: rawHash,
+      tweetsProcessed: parsedTweets.length,
+      uniqueAccounts: handles.length,
+      artifactsCreated: 0,
+      seedsRegistered: 0,
+      jobId,
+      delegatedToVpc: true,
+    };
+  }
+
+  if (!runExtractors) {
+    throw new Error(
+      'VPC_INGEST is not configured and runExtractors is false. ' +
+        'Configure [[vpc_services]] and INGEST_WORKER_URL, or pass ?runExtractors=true for local dev.'
+    );
+  }
+
+  // Local dev fallback: inline extraction (still archives per-tweet to R2).
+  return runInlineIngest(env, {
     investigationId,
+    payload,
+    rawHash,
+    jobId,
+    parsedTweets,
+    handles,
+    now,
+  });
+}
+
+async function runInlineIngest(
+  env: Env,
+  ctx: {
+    investigationId: string;
+    payload: any;
+    rawHash: string;
+    jobId: string;
+    parsedTweets: ReturnType<typeof parseApifyTwitterItems>;
+    handles: string[];
+    now: string;
+  }
+): Promise<ApifyIngestResult> {
+  const { ManifestStore } = await import('../archive/manifest');
+  const archive = new ArchiveStore({ bucket: env.ARCHIVE });
+  const manifest = new ManifestStore({ bucket: env.ARCHIVE });
+
+  await manifest.append({
+    hash: ctx.rawHash,
+    source: 'apify-twitter',
+    collectedAt: ctx.now,
+    investigationId: ctx.investigationId,
     collectionMethod: { tool: 'apify', version: '1' },
     mimeType: 'application/json',
     status: 'present',
   } as any);
 
-  const parsedTweets = parseApifyTwitterItems(payload);
-  const handles = extractAllHandlesFromApifyTwitter(payload);
-
-  let artifactsCreated = 0;
   const manifestHashes: string[] = [];
-
-  // 2. Per-tweet manifest entries
-  for (const pt of parsedTweets) {
+  for (const pt of ctx.parsedTweets) {
     const tweetBytes = new TextEncoder().encode(JSON.stringify(pt.tweet));
     const { hash: tweetHash } = await archive.put(tweetBytes, {
       mimeType: 'application/json',
@@ -110,8 +202,8 @@ export async function ingestApifyTwitter(
       hash: tweetHash,
       account: pt.account,
       source: 'apify-twitter',
-      collectedAt: pt.collectedAt || now,
-      investigationId,
+      collectedAt: pt.collectedAt || ctx.now,
+      investigationId: ctx.investigationId,
       collectionMethod: {
         tool: 'apify-twitter',
         version: '1',
@@ -122,117 +214,75 @@ export async function ingestApifyTwitter(
     } as any);
 
     manifestHashes.push(tweetHash);
-    artifactsCreated++;
   }
 
-  // 3. Register seeds
   let seedsRegistered = 0;
-  for (const handle of handles) {
+  for (const handle of ctx.handles) {
     try {
       await execute(
-        env,
+        env.DB,
         `INSERT IGNORE INTO seed_accounts 
          (investigation_id, platform, account_identifier, basis_statement, added_at)
          VALUES (?, 'twitter', ?, 'Uploaded via Apify Twitter ingest', ?)`,
-        [investigationId, handle, now]
+        [ctx.investigationId, handle, ctx.now]
       );
       seedsRegistered++;
     } catch {}
   }
 
-  // 4. Create job record
-  const jobId = `job_${crypto.randomUUID()}`;
-
   await execute(
-    env,
-    `INSERT INTO ingest_jobs 
-     (job_id, investigation_id, provider, status, item_count, manifest_hashes, raw_file_hashes, created_at)
-     VALUES (?, ?, 'twitter', 'queued', ?, ?, ?, ?)`,
-    [
-      jobId,
-      investigationId,
-      parsedTweets.length,
-      JSON.stringify(manifestHashes),
-      JSON.stringify([rawHash]),
-      now,
-    ]
+    env.DB,
+    `UPDATE ingest_jobs SET manifest_hashes = ? WHERE job_id = ?`,
+    [JSON.stringify(manifestHashes), ctx.jobId]
   );
 
-  // 5. Run extractors locally or delegate to container
-  if (runExtractors) {
-    const useNetwork = hasNetworkData(payload);
-    const accountExtractors = TWITTER_ACCOUNT_EXTRACTORS.filter(e =>
-      !/network/i.test(e.name) || useNetwork
-    );
+  const useNetwork = hasNetworkData(ctx.payload);
+  const accountExtractors = TWITTER_ACCOUNT_EXTRACTORS.filter(e =>
+    !/network/i.test(e.name) || useNetwork
+  );
 
-    const accountRuns = await runAccountExtractors(env, {
-      investigationId,
+  const db = resolveDatabase(env.DB);
+  const accountRuns = await runAccountExtractors(
+    { DB: db, ARCHIVE: env.ARCHIVE },
+    {
+      investigationId: ctx.investigationId,
       extractors: accountExtractors,
-      accountFilter: handles.length > 0 ? handles : undefined,
-    });
-
-    let pairRuns: any[] = [];
-    let pairExtractorsSkipped = false;
-    let pairExtractorsSkippedReason: string | undefined;
-
-    if (handles.length >= 2) {
-      pairRuns = await runPairExtractors(env, {
-        investigationId,
-        extractors: TWITTER_PAIR_EXTRACTORS,
-        accountFilter: handles.length > 0 ? handles : undefined,
-      });
-    } else {
-      pairExtractorsSkipped = true;
-      pairExtractorsSkippedReason = `Pair extractors require at least 2 accounts; got ${handles.length}`;
+      accountFilter: ctx.handles.length > 0 ? ctx.handles : undefined,
     }
+  );
 
-    await execute(env, `UPDATE ingest_jobs SET status = 'completed' WHERE job_id = ?`, [jobId]);
+  let pairRuns: any[] = [];
+  let pairExtractorsSkipped = false;
+  let pairExtractorsSkippedReason: string | undefined;
 
-    return {
-      investigationId,
-      rawPayloadHash: rawHash,
-      tweetsProcessed: parsedTweets.length,
-      uniqueAccounts: handles.length,
-      artifactsCreated,
-      seedsRegistered,
-      jobId,
-      delegatedToContainer: false,
-      accountExtractorRuns: accountRuns,
-      pairExtractorRuns: pairRuns,
-      pairExtractorsSkipped,
-      pairExtractorsSkippedReason,
-    };
+  if (ctx.handles.length >= 2) {
+    pairRuns = await runPairExtractors(
+      { DB: db, ARCHIVE: env.ARCHIVE },
+      {
+        investigationId: ctx.investigationId,
+        extractors: TWITTER_PAIR_EXTRACTORS,
+        accountFilter: ctx.handles.length > 0 ? ctx.handles : undefined,
+      }
+    );
+  } else {
+    pairExtractorsSkipped = true;
+    pairExtractorsSkippedReason = `Pair extractors require at least 2 accounts; got ${ctx.handles.length}`;
   }
 
-  // Heavy path: delegate to container
-  const handoffPayload = {
-    jobId,
-    investigationId,
-    provider: 'twitter',
-    manifestHashes,
-    rawFileHashes: [rawHash],
-  };
-
-  if (env.INGEST_CONTAINER) {
-    env.INGEST_CONTAINER
-      .fetch(
-        new Request('https://internal/trigger', {
-          method: 'POST',
-          body: JSON.stringify(handoffPayload),
-          headers: { 'Content-Type': 'application/json' },
-        })
-      )
-      .catch((err) => console.error('Failed to trigger INGEST_CONTAINER:', err));
-  }
+  await execute(env.DB, `UPDATE ingest_jobs SET status = 'completed' WHERE job_id = ?`, [ctx.jobId]);
 
   return {
-    investigationId,
-    rawPayloadHash: rawHash,
-    tweetsProcessed: parsedTweets.length,
-    uniqueAccounts: handles.length,
-    artifactsCreated,
+    investigationId: ctx.investigationId,
+    rawPayloadHash: ctx.rawHash,
+    tweetsProcessed: ctx.parsedTweets.length,
+    uniqueAccounts: ctx.handles.length,
+    artifactsCreated: manifestHashes.length,
     seedsRegistered,
-    jobId,
-    delegatedToContainer: true,
+    jobId: ctx.jobId,
+    delegatedToVpc: false,
+    accountExtractorRuns: accountRuns,
+    pairExtractorRuns: pairRuns,
+    pairExtractorsSkipped,
+    pairExtractorsSkippedReason,
   };
 }

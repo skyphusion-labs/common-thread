@@ -1,65 +1,36 @@
 /**
  * Common Thread Worker entry point.
  *
- * This version uses Hyperdrive (MySQL) instead of D1.
+ * Uses Hyperdrive (MySQL) for relational storage. See implementation/db.ts
+ * for the mysql2 connection layer and D1-compatible shim used by extractors.
  */
 
 import { ManifestStore } from '../archive/manifest';
 import { ManifestSigner } from '../archive/signing';
+import { execute, query, queryOne } from '../db';
 import type { InvestigationRow } from '../schema/db-types';
 import {
   ingestApifyTwitter,
   TWITTER_ACCOUNT_EXTRACTORS,
   TWITTER_PAIR_EXTRACTORS,
 } from '../ingest/apify-ingest';
-import { runAccountExtractors } from '../extractors/runner';
-import { runPairExtractors } from '../extractors/pair-runner';
 
 export interface Env {
-  DB: any; // Hyperdrive binding
+  DB: Hyperdrive;
   ARCHIVE: R2Bucket;
-  INGEST_CONTAINER?: Fetcher;
+  /** Workers VPC binding (Network or Service) to the compose fleet via cloudflared. */
+  VPC_INGEST?: Fetcher;
+  /**
+   * Full URL for VPC_INGEST.fetch(). Host sets the HTTP Host header (VPC Service
+   * routes by service_id). Example: http://json_ingest/trigger
+   */
+  INGEST_WORKER_URL?: string;
+  /** Bearer token shared with the ingest worker (wrangler secret). */
+  INGEST_SECRET?: string;
   ENVIRONMENT: string;
   SIGNER_PUBLIC_KEY?: string;
   INVESTIGATION_NAMESPACE?: string;
 }
-
-// ============================================
-// Database Helpers (Hyperdrive + MySQL)
-// ============================================
-
-async function getConnection(env: Env) {
-  return await env.DB.connect();
-}
-
-async function execute(env: Env, sql: string, params: any[] = []) {
-  const conn = await getConnection(env);
-  try {
-    const [result] = await conn.execute(sql, params);
-    return result;
-  } finally {
-    await conn.end();
-  }
-}
-
-async function query<T = any>(env: Env, sql: string, params: any[] = []): Promise<T[]> {
-  const conn = await getConnection(env);
-  try {
-    const [rows] = await conn.query(sql, params);
-    return rows as T[];
-  } finally {
-    await conn.end();
-  }
-}
-
-async function queryOne<T = any>(env: Env, sql: string, params: any[] = []): Promise<T | null> {
-  const rows = await query<T>(env, sql, params);
-  return rows.length > 0 ? rows[0] : null;
-}
-
-// ============================================
-// Worker
-// ============================================
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -90,7 +61,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
   // List investigations
   if (method === 'GET' && path === '/investigations') {
     const rows = await query<InvestigationRow>(
-      env,
+      env.DB,
       'SELECT * FROM investigations ORDER BY created_at DESC LIMIT 100'
     );
     return jsonResponse({ investigations: rows, count: rows.length });
@@ -111,7 +82,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     const now = new Date().toISOString();
 
     await execute(
-      env,
+      env.DB,
       `INSERT INTO investigations (id, name, description, status, created_at, updated_at)
        VALUES (?, ?, ?, 'active', ?, ?)`,
       [body.id, body.name, body.description ?? null, now, now]
@@ -135,7 +106,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     const investigationId = match ? match[1] : '';
 
     const rows = await query(
-      env,
+      env.DB,
       `SELECT * FROM seed_accounts 
        WHERE investigation_id = ? 
        ORDER BY added_at DESC`,
@@ -151,7 +122,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     const investigationId = match ? match[1] : '';
 
     const seedResult = await queryOne<{ count: number }>(
-      env,
+      env.DB,
       'SELECT COUNT(*) as count FROM seed_accounts WHERE investigation_id = ?',
       [investigationId]
     );
@@ -252,7 +223,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
 
     if (!investigationId) return jsonResponse({ error: 'Invalid investigation ID' }, 400);
 
-    const inv = await queryOne(env, 'SELECT id FROM investigations WHERE id = ?', [investigationId]);
+    const inv = await queryOne(env.DB, 'SELECT id FROM investigations WHERE id = ?', [investigationId]);
     if (!inv) {
       return jsonResponse({
         error: `Investigation not found: ${investigationId}`,
@@ -291,13 +262,14 @@ async function handle(request: Request, env: Env): Promise<Response> {
     const runExtractors = url.searchParams.get('runExtractors') === 'true';
 
     const result = await ingestApifyTwitter(
-      { DB: env.DB, ARCHIVE: env.ARCHIVE, INGEST_CONTAINER: env.INGEST_CONTAINER },
+      env,
       investigationId,
       allItems,
       runExtractors
     );
 
-    return jsonResponse(result, 200);
+    const status = result.delegatedToVpc ? 202 : 200;
+    return jsonResponse(result, status);
   }
 
   return jsonResponse({ error: `Not found: ${method} ${path}` }, 404);
