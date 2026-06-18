@@ -1,0 +1,115 @@
+# Common Thread — MySQL, ingest container, and Cloudflare Tunnel.
+#
+# All services share common-thread-network. Workers VPC Hyperdrive reaches
+# MySQL at mysql:3306; VPC_INGEST reaches json-ingest:8080.
+#
+# Usage:
+#   cp docker-compose.env.example .env
+#   cp cloudflared/config.yml.example cloudflared/config.yml
+#   # credentials.json in cloudflared/
+#   docker compose up -d
+#
+# Schema is applied on first MySQL boot (empty mysql_data volume). To re-apply:
+#   MYSQL_URL='mysql://commonthread:commonthreadpass@localhost:3306/common_thread' npm run db:migrate
+#
+# Worker (wrangler.toml):
+#   INGEST_WORKER_URL = "http://json-ingest:8080/trigger"
+#   INGEST_SECRET     = same value as INGEST_SECRET in .env
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: common-thread-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-common_thread}
+      MYSQL_USER: ${MYSQL_USER:-commonthread}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-commonthreadpass}
+      TZ: UTC
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    command: >
+      --default-authentication-plugin=caching_sha2_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --max_connections=500
+      --max_allowed_packet=256M
+      --innodb_buffer_pool_size=1G
+      --innodb_log_file_size=256M
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-u",
+          "root",
+          "-p${MYSQL_ROOT_PASSWORD:-rootpassword}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - common-thread
+
+  json-ingest:
+    image: ghcr.io/skyphusion-labs/common-thread-ingest:0.1.0
+    container_name: common-thread-ingest
+    hostname: json-ingest
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "${INGEST_PORT:-8080}:8080"
+    environment:
+      PORT: "8080"
+      CONTAINER_NAME: json-ingest
+      MYSQL_URL: mysql://${MYSQL_USER:-commonthread}:${MYSQL_PASSWORD:-commonthreadpass}@mysql:3306/${MYSQL_DATABASE:-common_thread}
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:?set R2_ACCOUNT_ID in .env}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:?set R2_ACCESS_KEY_ID in .env}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:?set R2_SECRET_ACCESS_KEY in .env}
+      R2_BUCKET_NAME: ${R2_BUCKET_NAME:-common-thread-archive}
+      INGEST_SECRET: ${INGEST_SECRET:?set INGEST_SECRET in .env}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - common-thread
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared_tunnel
+    restart: unless-stopped
+    depends_on:
+      json-ingest:
+        condition: service_healthy
+    volumes:
+      - ./cloudflared:/etc/cloudflared
+    command: tunnel --config /etc/cloudflared/config.yml run
+    networks:
+      - common-thread
+
+volumes:
+  mysql_data:
+
+networks:
+  common-thread:
+    name: common-thread-network
+    driver: bridge

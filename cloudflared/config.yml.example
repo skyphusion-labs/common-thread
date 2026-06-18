@@ -1,0 +1,13 @@
+# Copy to config.yml. Place credentials.json in this directory (from
+# `cloudflared tunnel create` or the Zero Trust dashboard).
+#
+# Worker wrangler.toml:
+#   INGEST_WORKER_URL = "http://json-ingest:8080/trigger"
+
+tunnel: YOUR_TUNNEL_ID
+credentials-file: /etc/cloudflared/credentials.json
+
+ingress:
+  - hostname: json-ingest
+    service: http://json-ingest:8080
+  - service: http_status:404

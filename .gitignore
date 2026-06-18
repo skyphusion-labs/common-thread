@@ -32,3 +32,8 @@ coverage/
 
 # Configuration
 wrangler.toml
+
+# Cloudflare Tunnel (local credentials)
+cloudflared/credentials.json
+cloudflared/cert.pem
+cloudflared/config.yml
