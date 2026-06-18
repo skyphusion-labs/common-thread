@@ -161,9 +161,12 @@ queue = "apify-ingest-prod"
 
 [[env.production.queues.consumers]]
 queue = "apify-ingest-prod"
-max_batch_size = 5
-max_batch_timeout = 30
-max_concurrency = 2
+max_batch_size = 2              # Small batches are better for long-running heavy jobs
+max_batch_timeout = 10
+max_concurrency = 30            # Significantly increased from 2
+max_retries = 3
+retry_delay = 10000             # 10 seconds between retries
+
 
 # =============================================================================
 # Reasoner Secrets
