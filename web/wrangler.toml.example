@@ -1,60 +1,59 @@
-# web/wrangler.toml.example
+# Common Thread web frontend Worker (EXAMPLE)
 #
-# Copy this to web/wrangler.toml and customize for your deployment.
-# The real web/wrangler.toml is in .gitignore — never commit it.
+# Copy to web/wrangler.toml:
+#   cp web/wrangler.toml.example web/wrangler.toml
 #
-# This configures the self-contained web frontend Worker.
+# The web worker serves the browser UI and proxies API calls to the backend.
+# Deploy the backend first, then set service bindings below.
 
 name = "common-thread-web"
 main = "worker.js"
-compatibility_date = "2025-06-17"
-
-# Disable preview domains, enable them if you want them
+compatibility_date = "2025-09-01"
 preview_urls = false
 
-# Fallback backend URL (used when no service binding is available)
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+invocation_logs = true
+
+# Fallback when no service binding (local dev or misconfigured binding)
 [vars]
-# DEFAULT_BACKEND_URL = "https://common-thread-web.your-subdomain.workers.dev"
+# DEFAULT_BACKEND_URL = "http://127.0.0.1:8787"
 
 # =============================================================================
-# Service Bindings
+# Service bindings → backend Worker
 # =============================================================================
-#
-# Service bindings are non-inheritable, so they must be declared separately
-# for each environment.
-#
-# The web frontend uses the binding name "BACKEND" to talk to the main backend.
+# Binding name in web/worker.js: env.BACKEND
+# Service name must match the deployed backend Worker name exactly.
 
-# --- Development (default / top level) ---
 [[services]]
 binding = "BACKEND"
 service = "common-thread"
 
-# --- Explicit dev environment ---
 [env.dev]
 name = "common-thread-web-dev"
 
 [env.dev.vars]
-# DEFAULT_BACKEND_URL = "https://common-thread-web-dev.your-subdomain.workers.dev"
+# DEFAULT_BACKEND_URL = "https://common-thread-dev.<your-subdomain>.workers.dev"
 
 [[env.dev.services]]
 binding = "BACKEND"
 service = "common-thread-dev"
 
-# --- Production ---
 [env.production]
 name = "common-thread-web-prod"
+workers_dev = false
 
 [env.production.vars]
-# DEFAULT_BACKEND_URL = "https://common-thread-web-prod.your-subdomain.workers.dev"
+PUBLIC_URL = "https://common-thread.skyphusion.org"
+# DEFAULT_BACKEND_URL only if BACKEND service binding is unavailable
+
+[[env.production.routes]]
+pattern = "common-thread.skyphusion.org"
+custom_domain = true
 
 [[env.production.services]]
 binding = "BACKEND"
 service = "common-thread-prod"
-
-# =============================================================================
-# Observability
-# =============================================================================
-[observability.logs]
-enabled = true
-invocation_logs = true

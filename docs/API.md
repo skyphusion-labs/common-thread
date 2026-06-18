@@ -16,7 +16,7 @@ POST /investigations
   → POST /investigations/:id/ingest/apify-twitter
   → GET  /investigations/:id/ingest-jobs/:job_id   (poll until completed)
   → GET  /investigations/:id/features       (verify extractors ran)
-  → POST /investigations/:id/attribute      (requires AI_GATEWAY_URL + ANTHROPIC_API_KEY)
+  → POST /investigations/:id/attribute      (requires AI credentials; see BYOK)
   → GET  /investigations/:id/runs
   → GET  /investigations/:id/packet/:run_id?format=pdf
 ```
@@ -189,6 +189,9 @@ Requires `AI_GATEWAY_URL` and `ANTHROPIC_API_KEY` on the Worker.
 
 Run attribution for all active seed pairs (or a filtered subset).
 
+Requires Anthropic credentials via **server secrets** or **request BYOK**
+(see below).
+
 | Query / body | Description |
 |--------------|-------------|
 | `skipTriage=true` | Skip triage model |
@@ -196,7 +199,21 @@ Run attribution for all active seed pairs (or a filtered subset).
 | `maxRetries` | Reasoning retry cap (default 3) |
 | `randomizationSeed` | Reproducible signal-table shuffle (§7.4.1) |
 
-**Response `200`** — `{ investigationId, pair_count, runs: [...] }` per-pair summaries.
+**Bring-your-own-key (BYOK)** — for public deployments where the host
+does not supply API keys:
+
+| Source | Fields |
+|--------|--------|
+| Headers | `X-AI-Gateway-Url`, `X-Anthropic-Api-Key` |
+| JSON body | `aiGatewayUrl` / `ai_gateway_url`, `anthropicApiKey` / `anthropic_api_key` |
+
+Use `https://api.anthropic.com` as the gateway URL for direct Anthropic API
+access, or a Cloudflare AI Gateway base URL ending in `/anthropic`.
+
+Request credentials override server secrets when provided. Keys are used
+only for the attribution call and are not persisted.
+
+**Response `200`** — `{ investigationId, pair_count, credential_source, runs: [...] }` per-pair summaries.
 
 ### `GET /investigations/:id/runs`
 
@@ -311,8 +328,8 @@ See `containers/ingest-worker/README.md` and `containers/pdf-worker/README.md`.
 | `ARCHIVE` | R2 archive bucket |
 | `VPC_INGEST` | Workers VPC → ingest container (`json-ingest`) |
 | `VPC_PDF` | Workers VPC → PDF container (`json-pdf`) |
-| `AI_GATEWAY_URL` | Attribution (secret) |
-| `ANTHROPIC_API_KEY` | Attribution (secret) |
+| `AI_GATEWAY_URL` | Attribution (secret; optional if users BYOK) |
+| `ANTHROPIC_API_KEY` | Attribution (secret; optional if users BYOK) |
 | `INGEST_SECRET` | Container auth (secret) |
 | `PDF_SECRET` | PDF container auth (secret; required for `?format=pdf`) |
 | `SIGNER_PUBLIC_KEY` | Manifest verification |

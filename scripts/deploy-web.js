@@ -28,6 +28,9 @@ if (!BACKEND_NAME) {
 
 console.log(`🚀 Deploying web frontend (${rawEnv})`);
 console.log(`   Backend worker to bind: ${BACKEND_NAME}`);
+if (isProd) {
+  console.log('   Public URL: https://common-thread.skyphusion.org');
+}
 
 const envLabel = isProd ? 'prod' : 'dev';
 console.log(`   → Using ${envLabel} backend: ${BACKEND_NAME}`);

@@ -3,8 +3,9 @@
 First-time setup for the Common Thread reference implementation. Skip
 ahead if you've already done a step.
 
-- **HTTP API** (all routes): `docs/API.md`
-- **Deployment** (production, VPC containers): `docs/DEPLOYMENT.md`
+- **HTTP API:** [API.md](API.md)
+- **Deployment:** [DEPLOYMENT.md](DEPLOYMENT.md)
+- **Web UI + BYOK:** [README.md](../README.md#web-frontend)
 
 ## Prerequisites
 
@@ -40,6 +41,8 @@ GET requests).
 git clone https://github.com/SkyPhusion/common-thread
 cd common-thread
 npm install
+cp wrangler.toml.example wrangler.toml
+cp web/wrangler.toml.example web/wrangler.toml
 ```
 
 This installs Wrangler, TypeScript, and the Workers type definitions
@@ -146,18 +149,28 @@ Expected response:
   "name": "common-thread",
   "version": "0.1.0",
   "environment": "development",
-  "status": "ok",
-  "bindings": {
-    "db": true,
-    "archive": true,
-    "signerPublicKey": true
-  }
+  "status": "ok"
 }
 ```
 
-If any binding shows as `false`, recheck the corresponding setup step.
+If the request fails, check Hyperdrive (`DB`), R2 (`ARCHIVE`), and MySQL connectivity.
 
-## 8. Create your first investigation
+## 8. Web frontend (optional)
+
+```bash
+cp web/wrangler.toml.example web/wrangler.toml
+npm run dev:web
+```
+
+Open the web Worker URL (Wrangler prints it). In **Setup**:
+
+1. Leave backend URL empty if the `BACKEND` service binding points at `npm run dev`.
+2. Or set backend URL to `http://127.0.0.1:8787` and uncomment `DEFAULT_BACKEND_URL` in `web/wrangler.toml`.
+3. Add **Anthropic API key** and **AI Gateway URL** (or `https://api.anthropic.com`) for attribution — see the "How to get API keys" section in the UI.
+
+Attribution credentials stay in your browser (BYOK); they are not stored on the server.
+
+## 9. Create your first investigation
 
 **bash / WSL:**
 
@@ -194,7 +207,7 @@ http://localhost:8787/investigations` for the native cmdlet.
 If you get back the investigation you just created, the full stack
 (Worker + MySQL + schema) is working.
 
-## 9. Production deployment
+## 10. Production deployment
 
 When you're ready to deploy:
 
@@ -256,11 +269,9 @@ You now have a working Worker with the full v1 HTTP API (see **`docs/API.md`**).
 
 Typical next steps:
 
-1. **Ingest data** — `POST /investigations/:id/ingest/apify-twitter` (with VPC
-   ingest container in production).
-2. **Run attribution** — set `AI_GATEWAY_URL` and `ANTHROPIC_API_KEY`, then
-   `POST /investigations/:id/attribute`.
-3. **Export an evidence packet** — `GET /investigations/:id/packet/:run_id`
-   (add `?format=pdf` when the PDF container is deployed).
+1. **Web UI or API** — create an investigation and upload Apify Twitter JSON.
+2. **Ingest** — `POST /investigations/:id/ingest/apify-twitter` (VPC container in production).
+3. **Attribution** — BYOK via web Setup tab, or set `AI_GATEWAY_URL` + `ANTHROPIC_API_KEY` secrets.
+4. **Evidence packet** — Results tab or `GET /investigations/:id/packet/:run_id` (`?format=pdf` with VPC PDF).
 
 For deployment, VPC containers, and secrets, see `docs/DEPLOYMENT.md`.

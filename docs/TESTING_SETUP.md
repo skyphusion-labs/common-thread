@@ -12,21 +12,26 @@ connect to:
 mysql://root@127.0.0.1:3306/common_thread_test
 ```
 
-Override with `TEST_MYSQL_URL` if your test database is elsewhere:
+Override with `TEST_MYSQL_URL` if your test database is elsewhere.
+Miniflare Hyperdrive emulation requires a password in the URL; if yours
+omits one, the test runner supplies `local` for the Hyperdrive binding
+only (`mysql://user:local@host/...`). Use an explicit password in
+`TEST_MYSQL_URL` when your MySQL credentials differ.
 
 ```bash
 TEST_MYSQL_URL='mysql://user:pass@host:3306/common_thread_test' npm test
 ```
 
-`tests/setup.ts` creates the database if needed and applies
-`mysql-schema.sql` once before tests run.
+`tests/global-setup.ts` creates the database if needed and applies
+`mysql-schema.sql` once before tests run (in the Node host process, not
+inside the Workers pool).
 
 ## Files in this slice
 
 | File | Purpose |
 |---|---|
-| `vitest.config.ts` | Workers-pool config: R2 bindings, AI Gateway test secrets, test discovery |
-| `tests/setup.ts` | Applies `mysql-schema.sql` to `TEST_MYSQL_URL` via `beforeAll` |
+| `vitest.config.mts` | Workers-pool config: R2 bindings, AI Gateway test secrets, test discovery |
+| `tests/global-setup.ts` | Applies `mysql-schema.sql` to `TEST_MYSQL_URL` before the Workers pool starts |
 | `tests/helpers/mysql.ts` | MySQL connection + schema bootstrap for tests |
 | `tests/helpers/test-env.ts` | `testDb()`, `testRunnerEnv()`, `testReasonerEnv()` helpers |
 | `tests/helpers/db.ts` | Typed seeding helpers (investigations, seed accounts, features, extractor runs, provenance) |
@@ -93,9 +98,9 @@ npx vitest run -t "triage filters"
 
 ## How the framework boots
 
-1. `vitest.config.ts` loads, sees `pool: workers`, spins up a Miniflare-backed Workers runtime per test worker.
-2. `wrangler.toml` is read for R2 and var bindings. The `bindings` block in `vitest.config.ts` adds the test-only `AI_GATEWAY_URL` and `ANTHROPIC_API_KEY` values that wrangler.toml documents as out-of-band secrets.
-3. `tests/setup.ts` runs `beforeAll`: connects to `TEST_MYSQL_URL`, creates the test database if needed, and applies `mysql-schema.sql` when tables are missing. Each test file shares the same schema; data accumulates within a single `vitest` run unless tests scope themselves to unique investigation IDs (the runner test does).
+1. `vitest.config.mts` loads, sees `pool: workers`, spins up a Miniflare-backed Workers runtime per test worker.
+2. `wrangler.toml` is read for R2 and var bindings. The `bindings` block in `vitest.config.mts` adds the test-only `AI_GATEWAY_URL` and `ANTHROPIC_API_KEY` values that wrangler.toml documents as out-of-band secrets.
+3. `tests/global-setup.ts` runs in Node before workers start: connects to `TEST_MYSQL_URL`, creates the test database if needed, and applies `mysql-schema.sql` when tables are missing. Each test file shares the same schema; data accumulates within a single `vitest` run unless tests scope themselves to unique investigation IDs (the runner test does).
 4. Integration tests use `testDb()` / `testReasonerEnv()` from `tests/helpers/test-env.ts` for MySQL + R2. R2 still comes from `cloudflare:test`.
 5. Tests import the source modules via relative paths (`../../implementation/reasoner/...`).
 
@@ -164,4 +169,4 @@ All previously deferred reasoner-layer test items are now covered. Remaining tes
 - **Schema state shared within a `vitest` run.** `tests/setup.ts` uses `beforeAll`, so the schema is applied once and the MySQL database is shared across test files in the same worker process. Each test file should use a unique `investigation_id` to avoid cross-test row leakage. If isolation per test becomes important, switch to `beforeEach` with an in-test schema reset.
 - **`fetchMock.assertNoPendingInterceptors()` in `afterEach`.** This is strict by design: it catches tests that queue more intercepts than they consume. If a test should NOT consume all queued intercepts, scope the assertion off for that test only.
 - **`vi.mock` path matching.** The mock specifier must match what the importing module uses. If `runner.ts` imports `'../archive/manifest'` and your test file is at `tests/reasoner/runner.test.ts`, the test mock specifier resolves the relative path independently. Vitest uses module-ID matching, not specifier-string matching, so as long as both paths resolve to the same absolute file on disk, the mock applies.
-- **`fetchMock` and the AI Gateway origin.** The intercept origin (`https://gateway.test`) must match the `AI_GATEWAY_URL` env binding in `vitest.config.ts`. If you change one, change the other.
+- **`fetchMock` and the AI Gateway origin.** The intercept origin (`https://gateway.test`) must match the `AI_GATEWAY_URL` env binding in `vitest.config.mts`. If you change one, change the other.

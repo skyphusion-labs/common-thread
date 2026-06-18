@@ -37,6 +37,15 @@ npm run r2:create          # create R2 bucket
 npm run keygen           # generate an Ed25519 signer keypair (scripts/keygen.mjs)
 ```
 
+Copy templates before first deploy:
+
+```bash
+cp wrangler.toml.example wrangler.toml
+cp web/wrangler.toml.example web/wrangler.toml
+```
+
+`wrangler.toml` and `web/wrangler.toml` are gitignored (local resource IDs).
+
 There is **no build step** and **no lint script**. `tsc` is not part of the test
 run, so type errors pass tests silently — run `npm run typecheck` before
 committing (an `investigationId`/`investigation_id` mismatch slipped past tests
@@ -46,14 +55,15 @@ once for exactly this reason; see `TODO.md`).
 
 Targets the **Cloudflare Workers runtime**, not Node. In `implementation/` use
 only Web/Workers APIs (Web Crypto, `fetch`, etc.); `node:*` imports appear only
-in `scripts/` and `vitest.config.ts`, which run on the host.
+in `scripts/` and `vitest.config.mts`, which run on the host.
 
-Bindings (`wrangler.toml`): `DB` (Hyperdrive → MySQL), `ARCHIVE` (R2). Vars: `ENVIRONMENT`,
+Bindings (`wrangler.toml`): `DB` (Hyperdrive → MySQL), `ARCHIVE` (R2). Optional:
+`VPC_INGEST`, `VPC_PDF` for VPC containers. Web Worker (`web/wrangler.toml`):
+`BACKEND` service binding → backend Worker. Vars: `ENVIRONMENT`,
 `TRIAGE_MODEL` (default `claude-haiku-4-5`), `REASONING_MODEL` (default
-`claude-opus-4-7`). Secrets (never committed; local via `.dev.vars`):
-`AI_GATEWAY_URL` (Cloudflare AI Gateway base ending in `/anthropic` — secret
-because it embeds the account ID) and `ANTHROPIC_API_KEY`. Note the LLM layer
-calls Anthropic **through the AI Gateway**, not Workers AI.
+`claude-opus-4-8`). Secrets (never committed; local via `.dev.vars`):
+`AI_GATEWAY_URL` and `ANTHROPIC_API_KEY` are **optional** when users BYOK via
+the web UI; otherwise required for server-side attribution.
 
 `wrangler.toml`'s `main` is `implementation/workers/index.ts`. Apply
 `mysql-schema.sql` to your MySQL instance and configure Hyperdrive `binding = "DB"`.

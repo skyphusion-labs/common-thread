@@ -13,6 +13,7 @@ import {
   TWITTER_ACCOUNT_EXTRACTORS,
   TWITTER_PAIR_EXTRACTORS,
 } from '../ingest/apify-ingest';
+import { resolveAttributionCredentials } from '../reasoner/credentials';
 import { runAttribution } from '../reasoner/runner';
 import { listAttributionRuns, getAttributionRun } from '../attribution/query';
 import {
@@ -392,15 +393,6 @@ async function handle(request: Request, env: Env): Promise<Response> {
       return jsonResponse({ error: `Investigation not found: ${investigationId}` }, 404);
     }
 
-    if (!env.AI_GATEWAY_URL || !env.ANTHROPIC_API_KEY) {
-      return jsonResponse(
-        {
-          error: 'Attribution requires AI_GATEWAY_URL and ANTHROPIC_API_KEY secrets',
-        },
-        503
-      );
-    }
-
     let body: Record<string, unknown> = {};
     if (request.headers.get('content-type')?.includes('application/json')) {
       try {
@@ -408,6 +400,16 @@ async function handle(request: Request, env: Env): Promise<Response> {
       } catch {
         body = {};
       }
+    }
+
+    const credentials = resolveAttributionCredentials({
+      envAiGatewayUrl: env.AI_GATEWAY_URL,
+      envAnthropicApiKey: env.ANTHROPIC_API_KEY,
+      requestHeaders: request.headers,
+      body,
+    });
+    if ('error' in credentials) {
+      return jsonResponse({ error: credentials.error }, 503);
     }
 
     const accountFilterParam = url.searchParams.get('accountFilter');
@@ -435,8 +437,8 @@ async function handle(request: Request, env: Env): Promise<Response> {
       {
         DB: db,
         ARCHIVE: env.ARCHIVE,
-        AI_GATEWAY_URL: env.AI_GATEWAY_URL,
-        ANTHROPIC_API_KEY: env.ANTHROPIC_API_KEY,
+        AI_GATEWAY_URL: credentials.aiGatewayUrl,
+        ANTHROPIC_API_KEY: credentials.anthropicApiKey,
         TRIAGE_MODEL: env.TRIAGE_MODEL ?? 'claude-haiku-4-5',
         REASONING_MODEL: env.REASONING_MODEL ?? 'claude-opus-4-8',
       },
@@ -452,6 +454,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     return jsonResponse({
       investigationId,
       pair_count: summaries.length,
+      credential_source: credentials.source,
       runs: summaries,
     });
   }

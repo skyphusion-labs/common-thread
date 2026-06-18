@@ -30,8 +30,9 @@ Thumbs.db
 coverage/
 *.tsbuildinfo
 
-# Configuration
+# Configuration (local resource IDs — do not commit)
 wrangler.toml
+web/wrangler.toml
 
 # Cloudflare Tunnel (local credentials)
 cloudflared/credentials.json

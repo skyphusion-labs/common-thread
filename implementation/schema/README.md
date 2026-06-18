@@ -28,4 +28,4 @@ Create Hyperdrive pointing at your MySQL instance and set `[[hyperdrive]]`
 
 Integration tests use a real MySQL database via `TEST_MYSQL_URL` (default
 `mysql://root@127.0.0.1:3306/common_thread_test`). Schema is applied once in
-`tests/setup.ts`.
+`tests/global-setup.ts`.
