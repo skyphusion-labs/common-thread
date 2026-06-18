@@ -61,10 +61,10 @@ function hasNetworkData(payload: any): boolean {
 }
 
 export async function ingestApifyTwitter(
-  env: { DB: D1Database; ARCHIVE: R2Bucket },
+  env: { DB: D1Database; ARCHIVE: R2Bucket; INGEST_QUEUE?: Queue<any> },
   investigationId: string,
   payload: any,
-  runExtractors: boolean = false   // ← NEW: default is false (light ingest)
+  runExtractors: boolean = false
 ): Promise<ApifyIngestResult> {
   const archive = new ArchiveStore({ bucket: env.ARCHIVE });
   const manifest = new ManifestStore({ bucket: env.ARCHIVE });
@@ -92,6 +92,7 @@ export async function ingestApifyTwitter(
   const handles = extractAllHandlesFromApifyTwitter(payload);
 
   let artifactsCreated = 0;
+  const manifestHashes: string[] = [];
 
   // 2. Per-tweet manifest entries
   for (const pt of parsedTweets) {
@@ -116,6 +117,7 @@ export async function ingestApifyTwitter(
       status: 'present',
     } as any);
 
+    manifestHashes.push(tweetHash);
     artifactsCreated++;
   }
 
@@ -135,23 +137,22 @@ export async function ingestApifyTwitter(
     } catch {}
   }
 
-  let accountRuns: any[] = [];
-  let pairRuns: any[] = [];
-  let pairExtractorsSkipped = false;
-  let pairExtractorsSkippedReason: string | undefined;
-
-  // 4. Only run extractors if explicitly requested (for now)
+  // 4. Enqueue for heavy processing (or run in worker if requested)
   if (runExtractors) {
     const useNetwork = hasNetworkData(payload);
     const accountExtractors = TWITTER_ACCOUNT_EXTRACTORS.filter(e =>
       !/network/i.test(e.name) || useNetwork
     );
 
-    accountRuns = await runAccountExtractors(env, {
+    const accountRuns = await runAccountExtractors(env, {
       investigationId,
       extractors: accountExtractors,
       accountFilter: handles.length > 0 ? handles : undefined,
     });
+
+    let pairRuns: any[] = [];
+    let pairExtractorsSkipped = false;
+    let pairExtractorsSkippedReason: string | undefined;
 
     if (handles.length >= 2) {
       pairRuns = await runPairExtractors(env, {
@@ -163,6 +164,29 @@ export async function ingestApifyTwitter(
       pairExtractorsSkipped = true;
       pairExtractorsSkippedReason = `Pair extractors require at least 2 accounts; got ${handles.length}`;
     }
+
+    return {
+      investigationId,
+      rawPayloadHash: rawHash,
+      tweetsProcessed: parsedTweets.length,
+      uniqueAccounts: handles.length,
+      artifactsCreated,
+      seedsRegistered,
+      accountExtractorRuns: accountRuns,
+      pairExtractorRuns: pairRuns,
+      pairExtractorsSkipped,
+      pairExtractorsSkippedReason,
+    };
+  }
+
+  // Default path: enqueue for async processing
+  if (env.INGEST_QUEUE) {
+    await env.INGEST_QUEUE.send({
+      investigationId,
+      provider: 'twitter',
+      manifestHashes,
+      rawFileHashes: [rawHash],
+    });
   }
 
   return {
@@ -172,9 +196,8 @@ export async function ingestApifyTwitter(
     uniqueAccounts: handles.length,
     artifactsCreated,
     seedsRegistered,
-    accountExtractorRuns: accountRuns,
-    pairExtractorRuns: pairRuns,
-    pairExtractorsSkipped,
-    pairExtractorsSkippedReason,
+    accountExtractorRuns: [],
+    pairExtractorRuns: [],
+    pairExtractorsSkipped: false,
   };
 }

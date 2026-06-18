@@ -13,7 +13,6 @@
  *   GET  /verify                        → Verify signatures
  *   GET  /debug/ingest                  → Debug extractor visibility
  *   GET  /debug/manifest                → Raw manifest inspection
- *   DELETE /debug/manifest              → Delete manifest entries for an investigation (debug only)
  *
  *   POST /investigations/:id/ingest/apify-twitter
  *        → Ingest Apify Twitter/X data
@@ -28,10 +27,13 @@ import {
   TWITTER_ACCOUNT_EXTRACTORS,
   TWITTER_PAIR_EXTRACTORS,
 } from '../ingest/apify-ingest';
+import { runAccountExtractors } from '../extractors/runner';
+import { runPairExtractors } from '../extractors/pair-runner';
 
 export interface Env {
   DB: D1Database;
   ARCHIVE: R2Bucket;
+  INGEST_QUEUE?: Queue<any>;
   ENVIRONMENT: string;
   SIGNER_PUBLIC_KEY?: string;
   INVESTIGATION_NAMESPACE?: string;
@@ -44,6 +46,32 @@ export default {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       return jsonResponse({ error: message }, 500);
+    }
+  },
+
+  // Queue Consumer for heavy extraction work
+  async queue(batch: MessageBatch<any>, env: Env, ctx: ExecutionContext) {
+    for (const message of batch.messages) {
+      const { investigationId, provider = 'twitter' } = message.body;
+
+      try {
+        if (provider === 'twitter') {
+          await runAccountExtractors(env, {
+            investigationId,
+            extractors: TWITTER_ACCOUNT_EXTRACTORS,
+          });
+
+          await runPairExtractors(env, {
+            investigationId,
+            extractors: TWITTER_PAIR_EXTRACTORS,
+          });
+        }
+
+        message.ack();
+      } catch (err) {
+        console.error(`Queue processing failed for investigation ${investigationId}`, err);
+        message.retry();
+      }
     }
   },
 };
@@ -286,35 +314,6 @@ async function handle(request: Request, env: Env): Promise<Response> {
     });
   }
 
-  // === DEBUG: Delete manifest entries for an investigation ===
-  if (method === 'DELETE' && path.match(/^\/debug\/manifest$/)) {
-    const investigationId = url.searchParams.get('investigation');
-
-    if (!investigationId) {
-      return jsonResponse({ error: 'Missing ?investigation= parameter' }, 400);
-    }
-
-    const manifest = new ManifestStore({ bucket: env.ARCHIVE });
-    const entries = await manifest.list({ investigationId });
-
-    let deleted = 0;
-
-    for (const entry of entries) {
-      try {
-        await env.ARCHIVE.delete(entry.hash);
-        deleted++;
-      } catch {
-        // ignore individual failures
-      }
-    }
-
-    return jsonResponse({
-      investigationId,
-      deleted,
-      message: `Deleted ${deleted} manifest entries from R2. D1 records (if any) were not touched.`,
-    });
-  }
-
   // === Apify Twitter ingest ===
   if (method === 'POST' && path.match(/^\/investigations\/[^/]+\/ingest\/apify-twitter$/)) {
     const match = path.match(/^\/investigations\/([^/]+)\/ingest\/apify-twitter$/);
@@ -384,7 +383,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     const runExtractors = url.searchParams.get('runExtractors') === 'true';
 
     const result = await ingestApifyTwitter(
-      { DB: env.DB, ARCHIVE: env.ARCHIVE },
+      { DB: env.DB, ARCHIVE: env.ARCHIVE, INGEST_QUEUE: env.INGEST_QUEUE },
       investigationId,
       allItems,
       runExtractors
