@@ -44,7 +44,9 @@ service = "common-thread-dev"
 
 [env.production]
 name = "common-thread-web-prod"
-workers_dev = false
+
+# Optional when using a custom domain and you want to disable *.workers.dev:
+# workers_dev = false
 
 [env.production.vars]
 PUBLIC_URL = "https://common-thread.skyphusion.org"

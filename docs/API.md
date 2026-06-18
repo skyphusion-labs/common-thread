@@ -6,7 +6,47 @@ JSON responses use `Content-Type: application/json` unless noted.
 Base URL examples:
 
 - Local: `http://localhost:8787`
-- Deployed: `https://<your-worker>.workers.dev`
+- Production (hosted): `https://common-thread-backend.skyphusion.org`
+- Other deployments: `https://<your-worker>.workers.dev`
+
+## Using the hosted API
+
+The production API at **https://common-thread-backend.skyphusion.org** is
+operated by the project author for the public web UI and approved integrations.
+It is **not** a general-purpose open API for third-party projects.
+
+If you want to call the **hosted** API from your own application — whether from
+a browser, a backend service, or a script that runs as part of your product —
+**contact the operator first** before building against it:
+
+- Email: **common-thread@skyphusion.org**
+- Or open a GitHub issue (see [contact.md](contact.md))
+
+Include a short description of your project, expected traffic, and (for browser
+apps) the origin URL(s) you need allowlisted.
+
+You do **not** need permission to **self-host** the reference implementation
+(AGPL-3.0). Deploy your own backend Worker and point your client at that
+instance instead. See [SETUP.md](SETUP.md) and [DEPLOYMENT.md](DEPLOYMENT.md).
+
+## Browser access (CORS)
+
+The API is intended for **server-side clients** (`curl`, scripts, backend
+integrations) on **your own deployment**, or on the hosted API **after the
+operator has approved your use** (see [Using the hosted API](#using-the-hosted-api)).
+Browser JavaScript on another website can only call the API if the page origin
+is listed in the Worker's `CORS_ALLOWED_ORIGINS` var
+(comma-separated exact origins, e.g. `https://app.example.com`).
+
+| Client | CORS applies? |
+|--------|----------------|
+| `curl`, Python, Node (no `Origin` header) | No — but hosted use still requires prior contact |
+| Web UI via service binding | No — Worker-to-Worker, not browser CORS |
+| Browser app on another domain | Yes — origin must be allowlisted |
+
+Unknown browser origins receive `403` with `code: cors_forbidden`. Approved
+origins are added to `CORS_ALLOWED_ORIGINS` in production `wrangler.toml` after
+you have been in touch (see [contact.md](contact.md)).
 
 ## Typical workflow
 
@@ -45,10 +85,16 @@ Health check.
 {
   "name": "common-thread",
   "version": "0.1.0",
-  "environment": "development",
-  "status": "ok"
+  "environment": "production",
+  "status": "ok",
+  "hosted_api_notice": "The hosted API is not open for unsolicited third-party use. Contact common-thread@skyphusion.org before integrating it into your project.",
+  "contact": "common-thread@skyphusion.org"
 }
 ```
+
+In non-production environments the response omits `hosted_api_notice` and
+`contact`. Self-hosted deployments do not include these fields unless
+`ENVIRONMENT` is set to `production`.
 
 ---
 
@@ -458,4 +504,5 @@ See `containers/ingest-worker/README.md` and `containers/pdf-worker/README.md`.
 | `PDF_SECRET` | PDF container auth (secret; required for `?format=pdf`) |
 | `SIGNER_PUBLIC_KEY` | Manifest verification |
 
-Vars: `INGEST_WORKER_URL`, `PDF_WORKER_URL`, `TRIAGE_MODEL`, `REASONING_MODEL`.
+Vars: `INGEST_WORKER_URL`, `PDF_WORKER_URL`, `TRIAGE_MODEL`, `REASONING_MODEL`,
+`CORS_ALLOWED_ORIGINS`.

@@ -33,6 +33,31 @@ describe('investigation access helpers', () => {
 });
 
 describe('investigation access API', () => {
+  it('GET / includes hosted API notice in production', async () => {
+    const res = await worker.fetch(new Request('http://localhost/'), {
+      ...env,
+      ENVIRONMENT: 'production',
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      contact?: string;
+      hosted_api_notice?: string;
+    };
+    expect(body.contact).toBe('common-thread@skyphusion.org');
+    expect(body.hosted_api_notice).toContain('common-thread@skyphusion.org');
+  });
+
+  it('GET / omits hosted API notice outside production', async () => {
+    const res = await worker.fetch(new Request('http://localhost/'), env);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      contact?: string;
+      hosted_api_notice?: string;
+    };
+    expect(body.contact).toBeUndefined();
+    expect(body.hosted_api_notice).toBeUndefined();
+  });
+
   it('POST /investigations returns a one-time access_token', async () => {
     const id = `api-create-${Date.now()}`;
     const res = await worker.fetch(

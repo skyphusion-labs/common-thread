@@ -113,4 +113,9 @@ frontend, and optional VPC ingest/PDF containers are implemented.
 
 **Public UI:** https://common-thread.skyphusion.org
 
+**Public API:** https://common-thread-backend.skyphusion.org (see [docs/API.md](docs/API.md)).
+Using the hosted API in your own project requires prior contact with the
+operator — email **common-thread@skyphusion.org** or see [docs/contact.md](docs/contact.md).
+To run your own instance without asking, self-host per `docs/SETUP.md`.
+
 **Repository:** https://github.com/skyphusion-labs/common-thread

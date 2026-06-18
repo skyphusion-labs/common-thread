@@ -31,6 +31,15 @@ import {
 import { buildEvidencePacket } from '../reporting/evidence-packet';
 import { packetDocumentTitle, packetMarkdownToHtml } from '../reporting/packet-html';
 import { dispatchPdfRender, vpcPdfEnabled } from '../reporting/pdf-dispatch';
+import {
+  assertBrowserOriginAllowed,
+  corsPreflightResponse,
+  withCors,
+} from './cors';
+import {
+  HOSTED_API_CONTACT_EMAIL,
+  HOSTED_API_CONTACT_NOTICE,
+} from './contact';
 
 export interface Env {
   DB: Hyperdrive;
@@ -42,6 +51,8 @@ export interface Env {
   ANTHROPIC_API_KEY?: string;
   SIGNER_PUBLIC_KEY?: string;
   INVESTIGATION_NAMESPACE?: string;
+  /** Comma-separated browser origins permitted to call the API (empty = browser blocked). */
+  CORS_ALLOWED_ORIGINS?: string;
   /** Workers VPC binding to the self-hosted extraction container. */
   VPC_INGEST?: Fetcher;
   /** Full URL for VPC_INGEST.fetch(), e.g. http://common-thread-ingest.internal/trigger */
@@ -58,10 +69,17 @@ export interface Env {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     try {
-      return await handle(request, env);
+      const preflight = corsPreflightResponse(request, env);
+      if (preflight) return preflight;
+
+      const corsDenied = assertBrowserOriginAllowed(request, env);
+      if (corsDenied) return corsDenied;
+
+      const response = await handle(request, env);
+      return withCors(response, request, env);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      return jsonResponse({ error: message }, 500);
+      return withCors(jsonResponse({ error: message }, 500), request, env);
     }
   },
 };
@@ -73,12 +91,17 @@ async function handle(request: Request, env: Env): Promise<Response> {
 
   // Health check
   if (method === 'GET' && path === '/') {
-    return jsonResponse({
+    const body: Record<string, unknown> = {
       name: 'common-thread',
       version: '0.1.0',
       environment: env.ENVIRONMENT,
       status: 'ok',
-    });
+    };
+    if (env.ENVIRONMENT === 'production') {
+      body.hosted_api_notice = HOSTED_API_CONTACT_NOTICE;
+      body.contact = HOSTED_API_CONTACT_EMAIL;
+    }
+    return jsonResponse(body);
   }
 
   // Investigations are capability-gated; there is no public listing.

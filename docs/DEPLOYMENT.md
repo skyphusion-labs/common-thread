@@ -63,7 +63,9 @@ npm run r2:create:prod
 Without VPC, local/small ingest runs inline in the Worker.
 
 **Vars:** `ENVIRONMENT`, `TRIAGE_MODEL`, `REASONING_MODEL`,
-`INGEST_WORKER_URL`, `PDF_WORKER_URL` (when VPC is enabled).
+`INGEST_WORKER_URL`, `PDF_WORKER_URL` (when VPC is enabled),
+`CORS_ALLOWED_ORIGINS` (comma-separated browser origins; empty blocks direct
+browser API use).
 
 **Secrets (backend):**
 
@@ -94,11 +96,11 @@ wrangler secret put ANTHROPIC_API_KEY --env production
 
 Service `name` must match the deployed backend Worker:
 
-| Environment | Backend Worker | Web Worker | `BACKEND` service | Public URL |
-|-------------|----------------|------------|-------------------|------------|
+| Environment | Backend Worker | Web Worker | `BACKEND` service | Public URLs |
+|-------------|----------------|------------|-------------------|-------------|
 | Default / local | `common-thread` | `common-thread-web` | `common-thread` | `workers.dev` or local |
 | Dev | `common-thread-dev` | `common-thread-web-dev` | `common-thread-dev` | `workers.dev` |
-| Production | `common-thread-prod` | `common-thread-web-prod` | `common-thread-prod` | https://common-thread.skyphusion.org |
+| Production | `common-thread-prod` | `common-thread-web-prod` | `common-thread-prod` | API: https://common-thread-backend.skyphusion.org · UI: https://common-thread.skyphusion.org |
 
 ## 4. Deploy
 
@@ -126,27 +128,54 @@ npm run deploy:all:prod
 `scripts/deploy-web.js` patches the `BACKEND` service name from root
 `wrangler.toml` when using `deploy:web:*`.
 
-## 5. Custom domain (production web UI)
+## 5. Custom domains (production)
 
-Production web deploys to **https://common-thread.skyphusion.org** (not
-`workers.dev`). Configured in `web/wrangler.toml` under `[env.production]`:
+Production uses two custom domains on the `skyphusion.org` zone (same
+Cloudflare account as the Workers):
+
+| Hostname | Worker | Purpose |
+|----------|--------|---------|
+| `common-thread-backend.skyphusion.org` | Backend (`common-thread-prod`) | Hosted HTTP API (contact **common-thread@skyphusion.org** before third-party use; see [API.md](API.md#using-the-hosted-api)) |
+| `common-thread.skyphusion.org` | Web (`common-thread-web-prod`) | Browser UI |
+
+**Backend API** — configured in root `wrangler.toml` under `[env.production]`:
 
 ```toml
-workers_dev = false
+[[env.production.routes]]
+pattern = "common-thread-backend.skyphusion.org"
+custom_domain = true
 
+# Optional: disable the *.workers.dev URL when using a custom domain
+# workers_dev = false
+```
+
+Deploy with `npm run deploy:backend:prod`. The first deploy creates the custom
+domain and SSL certificate.
+
+**Web UI** — configured in `web/wrangler.toml` under `[env.production]`:
+
+```toml
 [[env.production.routes]]
 pattern = "common-thread.skyphusion.org"
 custom_domain = true
+
+# Optional: disable the *.workers.dev URL when using a custom domain
+# workers_dev = false
 ```
 
-Requirements:
+Deploy with `npm run deploy:web:prod`.
 
-- `skyphusion.org` zone on the same Cloudflare account as the Worker
-- First `npm run deploy:web:prod` creates the custom domain and SSL certificate
-- `workers_dev = false` disables the `*.workers.dev` URL for production
+The web UI still routes API calls through the **`BACKEND` service binding**
+(not the public API hostname). That keeps browser traffic on the internal
+Worker-to-Worker path and does not depend on the backend custom domain. API clients approved by the operator should use
+`https://common-thread-backend.skyphusion.org` (see
+[API.md](API.md#using-the-hosted-api)). The `GET /` health response includes
+`hosted_api_notice` and `contact` (`common-thread@skyphusion.org`) in production.
 
-The backend API stays on the `BACKEND` service binding (not public). Users
-only need the custom domain for the browser UI.
+The example `wrangler.toml.example` files leave `workers.dev` enabled so a
+first deploy works without a custom domain. For production on custom domains,
+set `workers_dev = false` under `[env.production]` in your local (gitignored)
+`wrangler.toml` and `web/wrangler.toml` to disable the `*.workers.dev` URLs.
 
 ## 6. Workers VPC (optional)
 
@@ -161,8 +190,9 @@ See `containers/ingest-worker/README.md` and `containers/pdf-worker/README.md`.
 
 ## 7. Post-deploy checklist
 
-- [ ] `GET /` on backend returns `"status": "ok"`
+- [ ] `GET /` on backend returns `"status": "ok"` at https://common-thread-backend.skyphusion.org (production also returns `contact`: `common-thread@skyphusion.org`)
 - [ ] Web UI loads at https://common-thread.skyphusion.org
+- [ ] (Optional) Neither production Worker is reachable at `*.workers.dev` if you set `workers_dev = false`
 - [ ] Create investigation → save `access_token` → reopen with token or share link
 - [ ] Upload Apify JSON → ingest completes (requires token on API calls)
 - [ ] Attribution works with BYOK keys in web Setup tab
@@ -192,8 +222,8 @@ DEFAULT_BACKEND_URL = "http://127.0.0.1:8787"
 **Custom domain not resolving**
 
 - Confirm `skyphusion.org` is on the same Cloudflare account as the Worker.
-- Redeploy: `npm run deploy:web:prod`.
-- In the dashboard: Workers → `common-thread-web-prod` → Settings → Domains & Routes.
+- Redeploy backend: `npm run deploy:backend:prod`; web: `npm run deploy:web:prod`.
+- In the dashboard: Workers → `common-thread-prod` or `common-thread-web-prod` → Settings → Domains & Routes.
 
 **Service binding not working**
 

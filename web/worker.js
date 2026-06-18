@@ -65,7 +65,7 @@ body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Ro
             <h3 class="font-semibold">Backend</h3>
             <label class="block text-xs text-slate-500">API base URL (optional if service binding is configured)</label>
             <input id="backend-url" class="w-full border rounded-xl px-3 py-2 text-sm font-mono" placeholder="Leave empty when service binding is configured">
-            <p class="text-xs text-slate-500">Production UI: <a class="text-blue-700 underline" href="https://common-thread.skyphusion.org">common-thread.skyphusion.org</a>. API calls use the <code class="bg-slate-100 px-1 rounded">BACKEND</code> service binding when deployed.</p>
+            <p class="text-xs text-slate-500">Production UI: <a class="text-blue-700 underline" href="https://common-thread.skyphusion.org">common-thread.skyphusion.org</a>. Direct API: <a class="text-blue-700 underline" href="https://common-thread-backend.skyphusion.org">common-thread-backend.skyphusion.org</a> (contact <a class="text-blue-700 underline" href="mailto:common-thread@skyphusion.org">common-thread@skyphusion.org</a> before using the hosted API in your own project). This UI uses the <code class="bg-slate-100 px-1 rounded">BACKEND</code> service binding when deployed (leave the field above empty).</p>
             <button onclick="checkHealth()" class="px-4 py-2 border rounded-xl text-sm hover:bg-slate-50">Test connection</button>
           </div>
 

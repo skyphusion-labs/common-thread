@@ -42,7 +42,12 @@ cp web/wrangler.toml.example web/wrangler.toml
 **Backend bindings:** `DB` (Hyperdrive), `ARCHIVE` (R2). Optional:
 `VPC_INGEST`, `VPC_PDF` for production-scale ingest and PDF export.
 
-**Web bindings:** `BACKEND` (service binding → backend Worker name). Production UI: https://common-thread.skyphusion.org
+**Web bindings:** `BACKEND` (service binding → backend Worker name). Production:
+UI https://common-thread.skyphusion.org · API https://common-thread-backend.skyphusion.org
+
+**Hosted API use:** The production API is not open for unsolicited third-party
+integration. Contact **common-thread@skyphusion.org** before building against
+the hosted endpoint, or self-host your own backend (see [API.md](API.md#using-the-hosted-api)).
 
 **Investigation access:** Each investigation has a capability token (`access_token`)
 returned once at creation. Required for all `/investigations/:id` routes. See
