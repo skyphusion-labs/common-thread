@@ -32,12 +32,12 @@
     "keygen": "node scripts/keygen.mjs"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.888.0",
+    "@aws-sdk/client-s3": "^3.1072.0",
     "marked": "^15.0.12",
     "mysql2": "^3.22.5"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.16.16",
+    "@cloudflare/vitest-pool-workers": "^0.16.17",
     "@cloudflare/workers-types": "^4.20260616.1",
     "@vitest/coverage-istanbul": "^4.1.9",
     "tsx": "^4.20.3",
