@@ -1,15 +1,22 @@
 name: Bug report
-description: Something in the control plane (playground, planner, or Worker) misbehaves
+description: Something in the methodology paper or reference implementation misbehaves
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: >
-        Thanks for the report. This repo is the always-on control plane (the
-        Cloudflare Worker: chat playground, storyboard planner, cast prep, and
-        the Vivijure render API). The GPU render backend is a separate repo
-        (vivijure-serverless). Please do not paste secrets (API tokens,
-        Cloudflare Access JWTs, .dev.vars).
+        Thanks for the report. Common Thread is a **methodology paper** plus a
+        **Cloudflare Workers reference implementation** for sockpuppet attribution
+        from public behavioral signals. The paper (`paper/`) is the spec; the
+        implementation (`implementation/`, `web/`) realizes it.
+
+        **Do not paste secrets** in public issues: Anthropic API keys, AI Gateway
+        URLs (they embed account IDs), Ed25519 signer private keys, Apify tokens,
+        or full `.dev.vars` / `wrangler.toml` contents.
+
+        **Do not include real investigation subjects** (account handles, platform
+        IDs, scraped content). Describe behavior with redacted or synthetic
+        examples.
   - type: textarea
     id: what-happened
     attributes:
@@ -21,53 +28,64 @@ body:
     id: repro
     attributes:
       label: Steps to reproduce
-      description: How to trigger it. Include the model or feature in use if relevant.
+      description: >
+        How to trigger it. Include API routes, npm scripts, or UI flows.
+        Redact account identifiers and artifact content.
       placeholder: |
-        1. Open the playground and ...
-        2. ...
-        3. See the error
+        1. `npm run dev` with MySQL + Hyperdrive configured per docs/SETUP.md
+        2. POST /investigations/.../attribute with seeds A and B (redacted)
+        3. Attribution run returns `declined_pairs` despite sufficient signals
     validations:
       required: true
   - type: dropdown
     id: surface
     attributes:
-      label: Where
+      label: Area
+      description: Which layer or component is affected?
       options:
-        - Chat playground (model chat)
-        - Storyboard planner / Vivijure render API
-        - Cast / character references
-        - Voice / conversational STT
-        - Image / video / music generation
-        - Auth (Cloudflare Access)
-        - Cloudflare Containers (audio-beat-sync / image-prep / video-finish)
-        - D1 / migrations
-        - Deploy / wrangler / self-host setup
+        - Archive / manifest / signatures (R2)
+        - Feature extractors (deterministic)
+        - Attribution reasoner (triage / LLM / validator)
+        - HTTP API (backend Worker routes)
+        - Web frontend (`web/`)
+        - Ingest / Apify pipeline
+        - MySQL / Hyperdrive / schema
+        - Deploy / wrangler / local setup
+        - Methodology paper (`paper/`)
+        - Tests / CI
         - Not sure
     validations:
       required: true
   - type: input
     id: version
     attributes:
-      label: Version
-      description: The app version (footer / package.json) or commit SHA.
-      placeholder: "v0.139.0"
+      label: Version or commit
+      description: `package.json` version (currently 0.1.x) or git commit SHA.
+      placeholder: "0.1.0 or abc1234"
     validations:
       required: false
   - type: dropdown
     id: deployment
     attributes:
-      label: Deployment
+      label: Where you saw it
       options:
-        - skyphusion.org (hosted)
-        - My own self-hosted Worker
-        - Local (wrangler dev)
+        - Local (`wrangler dev`)
+        - My deployed backend Worker (dev env)
+        - My deployed backend Worker (production env)
+        - Web frontend only
+        - Tests (`npm test` / vitest)
+        - Paper or docs only (no runtime)
+        - Not sure
     validations:
       required: true
   - type: textarea
     id: details
     attributes:
-      label: Logs / console / context
-      description: Browser console, `wrangler tail` output, model id. Redact tokens.
+      label: Logs / errors / context
+      description: >
+        `wrangler tail` output, test failure, validator retry messages, HTTP
+        status + response body (redacted). For reasoning bugs, note
+        `triage_model` / `reasoning_model` if relevant.
       render: shell
     validations:
       required: false

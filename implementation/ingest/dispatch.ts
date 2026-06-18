@@ -7,10 +7,10 @@ export interface IngestDispatchEnv {
 }
 
 /**
- * POST an ingest job to the self-hosted Docker worker over Workers VPC.
+ * POST an ingest job to the self-hosted extraction container over Workers VPC.
  *
- * Use a VPC Service binding. INGEST_WORKER_URL host must match the service
- * hostname (e.g. http://json_ingest/trigger); routing is by service_id.
+ * INGEST_WORKER_URL host must match the VPC service hostname
+ * (e.g. http://common-thread-ingest.internal/trigger).
  */
 export async function dispatchIngestJob(
   env: IngestDispatchEnv,

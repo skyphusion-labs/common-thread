@@ -85,7 +85,10 @@ export class PostedImageOverlapExtractor implements PairFeatureExtractor {
   readonly name = NAME;
   readonly version = VERSION;
   readonly category = 'visual' as const;
-  readonly requiredAccountFeatures = ['posted_image_dhash_set'] as const;
+  readonly requiredAccountFeatures = [
+    'posted_image_dhash_set',
+    'posted_image_url_set',
+  ] as const;
 
   extract(
     _accountA: string,
@@ -96,25 +99,44 @@ export class PostedImageOverlapExtractor implements PairFeatureExtractor {
   ): ExtractedFeature[] {
     const setA = parseHashSet(featuresA);
     const setB = parseHashSet(featuresB);
-    if (!setA || !setB) return [];
+    const urlsA = parseUrlSet(featuresA);
+    const urlsB = parseUrlSet(featuresB);
+    if ((!setA && !urlsA) || (!setB && !urlsB)) return [];
 
-    const exactMatchCount = exactOverlap(setA.hexes, setB.hexes);
-    const fuzzyMatchCount = greedyFuzzyOverlap(setA.bigints, setB.bigints, MATCH_THRESHOLD);
+    const hashA = setA ?? { hexes: new Set(), bigints: [] };
+    const hashB = setB ?? { hexes: new Set(), bigints: [] };
+    const urlSetA = urlsA ?? new Set<string>();
+    const urlSetB = urlsB ?? new Set<string>();
 
-    const unionSize = setA.bigints.length + setB.bigints.length - fuzzyMatchCount;
-    const dicePartner = setA.bigints.length + setB.bigints.length;
+    const exactMatchCount = exactOverlap(hashA.hexes, hashB.hexes);
+    const fuzzyMatchCount =
+      hashA.bigints.length > 0 && hashB.bigints.length > 0
+        ? greedyFuzzyOverlap(hashA.bigints, hashB.bigints, MATCH_THRESHOLD)
+        : 0;
+
+    const unionSize = hashA.bigints.length + hashB.bigints.length - fuzzyMatchCount;
+    const dicePartner = hashA.bigints.length + hashB.bigints.length;
+
+    const urlOverlap = exactOverlap(urlSetA, urlSetB);
+    const urlUnion = urlSetA.size + urlSetB.size - urlOverlap;
 
     const cat = 'visual' as const;
     return [
       {
         category: cat,
         name: 'posted_image_count_a',
-        value: { kind: 'numeric', value: setA.bigints.length },
+        value: {
+          kind: 'numeric',
+          value: Math.max(hashA.bigints.length, urlSetA.size),
+        },
       },
       {
         category: cat,
         name: 'posted_image_count_b',
-        value: { kind: 'numeric', value: setB.bigints.length },
+        value: {
+          kind: 'numeric',
+          value: Math.max(hashB.bigints.length, urlSetB.size),
+        },
       },
       {
         category: cat,
@@ -146,6 +168,19 @@ export class PostedImageOverlapExtractor implements PairFeatureExtractor {
         category: cat,
         name: 'posted_image_threshold_used',
         value: { kind: 'numeric', value: MATCH_THRESHOLD },
+      },
+      {
+        category: cat,
+        name: 'posted_image_url_overlap_count',
+        value: { kind: 'numeric', value: urlOverlap },
+      },
+      {
+        category: cat,
+        name: 'posted_image_url_jaccard',
+        value: {
+          kind: 'numeric',
+          value: urlUnion > 0 ? urlOverlap / urlUnion : 0,
+        },
       },
     ];
   }
@@ -180,6 +215,17 @@ function parseHashSet(features: AccountFeatureMap): HashSet | null {
     }
   }
   return { hexes, bigints };
+}
+
+function parseUrlSet(features: AccountFeatureMap): Set<string> | null {
+  const v = features.get('posted_image_url_set');
+  if (!v || v.kind !== 'json') return null;
+  if (!Array.isArray(v.value)) return null;
+  const out = new Set<string>();
+  for (const item of v.value) {
+    if (typeof item === 'string' && item.length > 0) out.add(item);
+  }
+  return out;
 }
 
 function exactOverlap(setA: Set<string>, setB: Set<string>): number {

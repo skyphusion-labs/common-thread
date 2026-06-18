@@ -3,7 +3,7 @@
  *
  * Reads manifest entries for an investigation, runs one or more
  * extractors against each entry's archived artifact, and writes the
- * resulting features (with provenance) to D1.
+ * resulting features (with provenance) to MySQL.
  *
  * Also writes an extractor_runs row recording the manifest hash at
  * run time, supporting the methodology's reproducibility commitment
@@ -17,6 +17,7 @@ import type { DatabaseClient } from '../db';
 import { packFeatureValue } from '../schema/db-types';
 import type { ManifestEntry } from '../archive/types';
 import type { AccountFeatureExtractor, ExtractedFeature } from './types';
+import { deriveStoredConfidence } from './confidence';
 
 export interface RunnerEnv {
   DB: DatabaseClient;
@@ -127,6 +128,7 @@ export async function runAccountExtractors(
         // Extract features
         const features = extractor.extract({
           bytes: artifact.bytes,
+          entry,
           mimeType: entry.mimeType,
         });
 
@@ -201,6 +203,9 @@ async function writeAccountFeature(
 ): Promise<void> {
   const packed = packFeatureValue(params.feature.value);
   const extractedAt = new Date().toISOString();
+  const confidenceFlag =
+    params.feature.confidence ??
+    deriveStoredConfidence(params.feature.category, params.feature.name, params.feature.value);
 
   const result = await db
     .prepare(
@@ -208,8 +213,9 @@ async function writeAccountFeature(
          investigation_id, platform, account_identifier,
          feature_category, feature_name,
          feature_value_text, feature_value_numeric, feature_value_json,
-         extracted_at, extractor_name, extractor_version, extractor_run_id
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+         extracted_at, extractor_name, extractor_version, extractor_run_id,
+         confidence_flag
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       params.investigationId,
@@ -223,7 +229,8 @@ async function writeAccountFeature(
       extractedAt,
       params.extractorName,
       params.extractorVersion,
-      params.extractorRunId
+      params.extractorRunId,
+      confidenceFlag
     )
     .run();
 

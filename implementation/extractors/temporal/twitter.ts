@@ -106,6 +106,7 @@ import {
   utcDayKey,
   parseTimestamp,
 } from './helpers';
+import { isApifyTweetLike } from '../../ingest/apify-tweet-fields';
 
 const NAME = 'temporal_twitter';
 const VERSION = '1.3.0';
@@ -122,6 +123,7 @@ interface TwitterPost {
   in_reply_to_status_id_str?: string | null;
   replyToTweetId?: string | null;
   inReplyToId?: string | null;
+  isReply?: boolean;
 }
 
 export class TwitterTemporalExtractor implements AccountFeatureExtractor {
@@ -184,6 +186,7 @@ export class TwitterTemporalExtractor implements AccountFeatureExtractor {
       hourDowBuckets[dow * 24 + hour]++;
 
       if (
+        post.isReply === true ||
         post.in_reply_to_status_id ||
         post.in_reply_to_status_id_str ||
         post.replyToTweetId ||
@@ -421,6 +424,7 @@ function tryParseTimeline(bytes: Uint8Array): TwitterPost[] | null {
           return candidate.filter(isPostLike);
         }
       }
+      if (isPostLike(parsed)) return [parsed];
     }
     return null;
   } catch {
@@ -429,11 +433,7 @@ function tryParseTimeline(bytes: Uint8Array): TwitterPost[] | null {
 }
 
 function isPostLike(value: unknown): value is TwitterPost {
-  if (!value || typeof value !== 'object') return false;
-  const obj = value as Record<string, unknown>;
-  return (
-    'createdAt' in obj || 'created_at' in obj || 'text' in obj || 'full_text' in obj
-  );
+  return isApifyTweetLike(value);
 }
 
 function cleanClientApp(source: string): string {

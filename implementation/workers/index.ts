@@ -1,35 +1,35 @@
 /**
  * Common Thread Worker entry point.
  *
- * Uses Hyperdrive (MySQL) for relational storage. See implementation/db.ts
- * for the mysql2 connection layer and D1-compatible shim used by extractors.
+ * Uses Hyperdrive (MySQL) for relational storage. See implementation/db.ts.
  */
 
 import { ManifestStore } from '../archive/manifest';
 import { ManifestSigner } from '../archive/signing';
-import { execute, query, queryOne } from '../db';
+import { execute, query, queryOne, resolveDatabase } from '../db';
 import type { InvestigationRow } from '../schema/db-types';
 import {
   ingestApifyTwitter,
   TWITTER_ACCOUNT_EXTRACTORS,
   TWITTER_PAIR_EXTRACTORS,
 } from '../ingest/apify-ingest';
+import { runAttribution } from '../reasoner/runner';
 
 export interface Env {
   DB: Hyperdrive;
   ARCHIVE: R2Bucket;
-  /** Workers VPC binding (Network or Service) to the compose fleet via cloudflared. */
-  VPC_INGEST?: Fetcher;
-  /**
-   * Full URL for VPC_INGEST.fetch(). Host sets the HTTP Host header (VPC Service
-   * routes by service_id). Example: http://json_ingest/trigger
-   */
-  INGEST_WORKER_URL?: string;
-  /** Bearer token shared with the ingest worker (wrangler secret). */
-  INGEST_SECRET?: string;
   ENVIRONMENT: string;
+  TRIAGE_MODEL?: string;
+  REASONING_MODEL?: string;
+  AI_GATEWAY_URL?: string;
+  ANTHROPIC_API_KEY?: string;
   SIGNER_PUBLIC_KEY?: string;
   INVESTIGATION_NAMESPACE?: string;
+  /** Workers VPC binding to the self-hosted extraction container. */
+  VPC_INGEST?: Fetcher;
+  /** Full URL for VPC_INGEST.fetch(), e.g. http://common-thread-ingest.internal/trigger */
+  INGEST_WORKER_URL?: string;
+  INGEST_SECRET?: string;
 }
 
 export default {
@@ -216,6 +216,158 @@ async function handle(request: Request, env: Env): Promise<Response> {
     });
   }
 
+  // Add seed account
+  if (method === 'POST' && path.match(/^\/investigations\/[^/]+\/seeds$/)) {
+    const match = path.match(/^\/investigations\/([^/]+)\/seeds$/);
+    const investigationId = match ? match[1] : '';
+
+    const body = (await request.json()) as {
+      platform?: string;
+      account?: string;
+      basis_statement?: string;
+      basisStatement?: string;
+      is_control?: boolean;
+      added_by?: string;
+    };
+
+    if (!body.account || !body.platform) {
+      return jsonResponse({ error: 'platform and account are required' }, 400);
+    }
+
+    const inv = await queryOne(env.DB, 'SELECT id FROM investigations WHERE id = ?', [
+      investigationId,
+    ]);
+    if (!inv) {
+      return jsonResponse({ error: `Investigation not found: ${investigationId}` }, 404);
+    }
+
+    const now = new Date().toISOString();
+    const basis = body.basis_statement ?? body.basisStatement ?? 'Added via API';
+    const isControl = body.is_control ? 1 : 0;
+
+    await execute(
+      env.DB,
+      `INSERT INTO seed_accounts (
+         investigation_id, platform, account_identifier, basis_statement,
+         added_at, added_by, is_control
+       ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        investigationId,
+        body.platform,
+        body.account,
+        basis,
+        now,
+        body.added_by ?? 'api',
+        isControl,
+      ]
+    );
+
+    return jsonResponse(
+      {
+        investigationId,
+        platform: body.platform,
+        account: body.account,
+        is_control: Boolean(isControl),
+        added_at: now,
+      },
+      201
+    );
+  }
+
+  // Run attribution
+  if (method === 'POST' && path.match(/^\/investigations\/[^/]+\/attribute$/)) {
+    const match = path.match(/^\/investigations\/([^/]+)\/attribute$/);
+    const investigationId = match ? match[1] : '';
+
+    const inv = await queryOne(env.DB, 'SELECT id FROM investigations WHERE id = ?', [
+      investigationId,
+    ]);
+    if (!inv) {
+      return jsonResponse({ error: `Investigation not found: ${investigationId}` }, 404);
+    }
+
+    if (!env.AI_GATEWAY_URL || !env.ANTHROPIC_API_KEY) {
+      return jsonResponse(
+        {
+          error: 'Attribution requires AI_GATEWAY_URL and ANTHROPIC_API_KEY secrets',
+        },
+        503
+      );
+    }
+
+    let body: Record<string, unknown> = {};
+    if (request.headers.get('content-type')?.includes('application/json')) {
+      try {
+        body = (await request.json()) as Record<string, unknown>;
+      } catch {
+        body = {};
+      }
+    }
+
+    const accountFilterParam = url.searchParams.get('accountFilter');
+    const accountFilter =
+      (Array.isArray(body.account_filter) ? (body.account_filter as string[]) : undefined) ??
+      (Array.isArray(body.accountFilter) ? (body.accountFilter as string[]) : undefined) ??
+      (accountFilterParam ? accountFilterParam.split(',').map(s => s.trim()).filter(Boolean) : undefined);
+
+    const skipTriage =
+      url.searchParams.get('skipTriage') === 'true' || body.skipTriage === true;
+
+    const maxRetriesRaw = body.maxRetries ?? body.max_retries;
+    const maxRetries =
+      typeof maxRetriesRaw === 'number' ? maxRetriesRaw : undefined;
+
+    const randomizationSeed =
+      typeof body.randomizationSeed === 'string'
+        ? body.randomizationSeed
+        : typeof body.randomization_seed === 'string'
+          ? body.randomization_seed
+          : undefined;
+
+    const db = resolveDatabase(env.DB);
+    const summaries = await runAttribution(
+      {
+        DB: db,
+        ARCHIVE: env.ARCHIVE,
+        AI_GATEWAY_URL: env.AI_GATEWAY_URL,
+        ANTHROPIC_API_KEY: env.ANTHROPIC_API_KEY,
+        TRIAGE_MODEL: env.TRIAGE_MODEL ?? 'claude-haiku-4-5',
+        REASONING_MODEL: env.REASONING_MODEL ?? 'claude-opus-4-8',
+      },
+      {
+        investigationId,
+        accountFilter,
+        skipTriage,
+        maxRetries,
+        randomizationSeed,
+      }
+    );
+
+    return jsonResponse({
+      investigationId,
+      pair_count: summaries.length,
+      runs: summaries,
+    });
+  }
+
+  // List attribution runs
+  if (method === 'GET' && path.match(/^\/investigations\/[^/]+\/attribution-runs$/)) {
+    const match = path.match(/^\/investigations\/([^/]+)\/attribution-runs$/);
+    const investigationId = match ? match[1] : '';
+
+    const rows = await query(
+      env.DB,
+      `SELECT id, account_a, account_b, platform_a, platform_b,
+              confidence_band, output_summary, started_at, completed_at
+       FROM attribution_runs
+       WHERE investigation_id = ?
+       ORDER BY id ASC`,
+      [investigationId]
+    );
+
+    return jsonResponse({ investigationId, runs: rows, count: rows.length });
+  }
+
   // === Apify Twitter ingest ===
   if (method === 'POST' && path.match(/^\/investigations\/[^/]+\/ingest\/apify-twitter$/)) {
     const match = path.match(/^\/investigations\/([^/]+)\/ingest\/apify-twitter$/);
@@ -268,8 +420,31 @@ async function handle(request: Request, env: Env): Promise<Response> {
       runExtractors
     );
 
-    const status = result.delegatedToVpc ? 202 : 200;
+    const status = result.delegatedToContainer ? 202 : 200;
     return jsonResponse(result, status);
+  }
+
+  // Ingest job status
+  if (method === 'GET' && path.match(/^\/investigations\/[^/]+\/ingest-jobs\/[^/]+$/)) {
+    const match = path.match(/^\/investigations\/([^/]+)\/ingest-jobs\/([^/]+)$/);
+    const investigationId = match ? match[1] : '';
+    const jobId = match ? match[2] : '';
+
+    const row = await queryOne(
+      env.DB,
+      `SELECT job_id, investigation_id, provider, status, item_count,
+              manifest_hashes, raw_file_hashes, container_name,
+              started_at, completed_at, error_message, created_at
+       FROM ingest_jobs
+       WHERE job_id = ? AND investigation_id = ?`,
+      [jobId, investigationId]
+    );
+
+    if (!row) {
+      return jsonResponse({ error: `Ingest job not found: ${jobId}` }, 404);
+    }
+
+    return jsonResponse({ job: row });
   }
 
   return jsonResponse({ error: `Not found: ${method} ${path}` }, 404);

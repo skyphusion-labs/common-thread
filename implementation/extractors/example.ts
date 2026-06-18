@@ -3,12 +3,12 @@
  *
  * This demonstrates the full pipeline working through the architecture:
  *
- *   1. An investigation is created in D1.
+ *   1. An investigation is created in MySQL.
  *   2. A Twitter profile artifact is archived (content-addressed write
  *      to R2 + manifest entry).
  *   3. The Twitter account-metadata extractor runs against the manifest,
  *      reading the artifact from the archive and writing feature rows
- *      to D1 with provenance back to the artifact hash.
+ *      to MySQL with provenance back to the artifact hash.
  *   4. Features are queried back and printed.
  *
  * Run this from a Worker handler, or adapt the bindings for a local

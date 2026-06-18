@@ -84,10 +84,6 @@ interface CorpusBody {
   histogram?: unknown;
 }
 
-interface ExtractorInputWithEntry extends ExtractorInput {
-  entry: ManifestEntry;
-}
-
 export class ColorPaletteCorpusExtractor implements AccountFeatureExtractor {
   readonly name = NAME;
   readonly version = VERSION;
@@ -98,10 +94,7 @@ export class ColorPaletteCorpusExtractor implements AccountFeatureExtractor {
   }
 
   extract(input: ExtractorInput): ExtractedFeature[] {
-    const inputWithEntry = input as ExtractorInputWithEntry;
-    const entry = inputWithEntry.entry;
-
-    const imageType = detectImageType(entry);
+    const imageType = detectImageType(input.entry);
 
     let parsed: CorpusBody;
     try {

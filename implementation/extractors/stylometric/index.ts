@@ -20,12 +20,15 @@ import { TwitterStylometricExtractor } from './twitter';
 import { RedditStylometricExtractor } from './reddit';
 import { BurrowsDeltaExtractor } from './burrows-delta';
 import { JsdCharacterBigramsExtractor } from './jsd-bigrams';
+import { TwitterTopicPhraseExtractor } from './topic-phrase';
+import { TopicPhraseOverlapExtractor } from './topic-phrase-overlap';
 import type { AccountFeatureExtractor } from '../types';
 import type { PairFeatureExtractor } from '../pair-types';
 
 export const STYLOMETRIC_EXTRACTORS: AccountFeatureExtractor[] = [
   new TwitterStylometricExtractor(),
   new RedditStylometricExtractor(),
+  new TwitterTopicPhraseExtractor(),
   // Future:
   // new BlueskyStylometricExtractor(),
   // new MastodonStylometricExtractor(),
@@ -34,6 +37,7 @@ export const STYLOMETRIC_EXTRACTORS: AccountFeatureExtractor[] = [
 export const STYLOMETRIC_PAIR_EXTRACTORS: PairFeatureExtractor[] = [
   new BurrowsDeltaExtractor(),
   new JsdCharacterBigramsExtractor(),
+  new TopicPhraseOverlapExtractor(),
 ];
 
 export { TwitterStylometricExtractor } from './twitter';

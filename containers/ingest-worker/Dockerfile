@@ -1,15 +1,18 @@
 FROM node:22-slim
 
 WORKDIR /app
-COPY package.json ./
-COPY server.mjs ./
+
+# Install dependencies (shared implementation + container runtime).
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY tsconfig.json ./
+COPY implementation ./implementation
+COPY containers/ingest-worker ./containers/ingest-worker
 
 ENV PORT=8080
-ENV INGEST_DATA_DIR=/data/ingest
-
-RUN mkdir -p /data/ingest
-VOLUME /data/ingest
+ENV CONTAINER_NAME=common-thread-ingest
 
 EXPOSE 8080
 
-CMD ["node", "server.mjs"]
+CMD ["npx", "tsx", "containers/ingest-worker/server.ts"]

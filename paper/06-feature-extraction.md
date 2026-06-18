@@ -128,7 +128,7 @@ For link shortener fingerprints (§4.7.4) and share-card metadata (§4.7.5), the
 
 The signal table is the structured output that all feature extractors write to. The schema is designed to be queryable (typical questions a practitioner asks should be answerable in SQL or equivalent), versioned (extractor versions are recorded per row), and append-only (rows are not mutated after writing).
 
-The schema has three primary tables. The reference implementation uses Cloudflare D1; other implementations can use any relational store.
+The schema has three primary tables. The reference implementation uses MySQL via Cloudflare Hyperdrive; other implementations can use any relational store.
 
 ### 6.3.1 Per-account features
 

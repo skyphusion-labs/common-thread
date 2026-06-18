@@ -5,7 +5,7 @@
  *   - seededShuffle: deterministic shuffle used to order candidate
  *     pairs and signals
  *
- * These tests have no D1, fetch, or env dependency. They construct
+ * These tests have no database, fetch, or env dependency. They construct
  * minimal ReasoningOutput and array inputs in JS and assert on the
  * direct return values.
  */

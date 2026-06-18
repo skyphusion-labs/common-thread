@@ -1,6 +1,8 @@
-# Common Thread — ingest worker
+# Common Thread — self-hosted extraction container
 
-HTTP target for `VPC_INGEST.fetch(INGEST_WORKER_URL)` from the Cloudflare Worker.
+Always-on Docker service that runs the **archive + extraction pipeline** off the
+Cloudflare Worker. The Worker archives the raw Apify export once, inserts an
+`ingest_jobs` row, and POSTs to this container over **Workers VPC HTTP**.
 
 ## Endpoints
 
@@ -13,42 +15,84 @@ HTTP target for `VPC_INGEST.fetch(INGEST_WORKER_URL)` from the Cloudflare Worker
 
 Body: `implementation/ingest/handoff.ts` (`IngestJobHandoff`).
 
+```json
+{
+  "jobId": "job_…",
+  "investigationId": "inv-…",
+  "provider": "twitter",
+  "rawFileHash": "sha256…",
+  "runExtractors": true,
+  "itemCount": 1200,
+  "accounts": ["handle1", "handle2"]
+}
+```
+
 Header: `Authorization: Bearer $INGEST_SECRET` (must match Worker `INGEST_SECRET`).
+
+## What the container does
+
+1. Claims the `ingest_jobs` row (`status=running`)
+2. Fetches the raw export from R2 by content hash
+3. Archives per-account timelines, profiles, image corpora, network lists
+4. Registers seed accounts in MySQL
+5. When `runExtractors=true`, runs the full extractor pipeline
+6. Marks the job `completed` or `failed`
 
 ## Environment
 
-| Variable | Purpose |
-|----------|---------|
-| `PORT` | Listen port (default `8080`) |
-| `INGEST_SECRET` | Bearer token |
-| `INGEST_DATA_DIR` | Local staging root (default `/data/ingest`) |
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `MYSQL_URL` | yes | `mysql://user:pass@host:3306/common_thread` |
+| `R2_ACCOUNT_ID` | yes | Cloudflare account ID |
+| `R2_ACCESS_KEY_ID` | yes | R2 API token access key |
+| `R2_SECRET_ACCESS_KEY` | yes | R2 API token secret |
+| `R2_BUCKET_NAME` | yes | Archive bucket (e.g. `common-thread-archive`) |
+| `INGEST_SECRET` | recommended | Bearer token shared with Worker |
+| `PORT` | no | Listen port (default `8080`) |
+| `CONTAINER_NAME` | no | Recorded on `ingest_jobs.container_name` |
 
-## Worker side (wrangler.toml)
-
-Use your existing VPC binding and private hostname from IaC:
+## Worker side (`wrangler.toml`)
 
 ```toml
 [[vpc_services]]
 binding = "VPC_INGEST"
-service_id = "<json_ingest-service-id>"
+service_id = "<your-vpc-service-id>"
 remote = true
 
 [vars]
-INGEST_WORKER_URL = "http://json_ingest/trigger"
+INGEST_WORKER_URL = "http://<private-hostname>/trigger"
 ```
 
 ```bash
 wrangler secret put INGEST_SECRET
 ```
 
-## Run
+## Build and run
 
 ```bash
-docker build -t common-thread-ingest .
+# From repository root
+docker build -f containers/ingest-worker/Dockerfile -t common-thread-ingest .
+
 docker run -d --restart=always \
+  -e MYSQL_URL='mysql://user:pass@mysql:3306/common_thread' \
+  -e R2_ACCOUNT_ID=... \
+  -e R2_ACCESS_KEY_ID=... \
+  -e R2_SECRET_ACCESS_KEY=... \
+  -e R2_BUCKET_NAME=common-thread-archive \
   -e INGEST_SECRET=... \
-  -v ingest-data:/data/ingest \
+  -p 8080:8080 \
   common-thread-ingest
 ```
 
-`processJob()` in `server.mjs` is still a stub — implement R2 fetch, local staging, bulk upload, MySQL, extractors.
+Route the container through **cloudflared** on your private network so the
+Worker's `VPC_INGEST` binding can reach it.
+
+## Local dev without VPC
+
+Use the Worker inline path instead:
+
+```bash
+curl -X POST 'http://localhost:8787/investigations/INV/ingest/apify-twitter?runExtractors=true' \
+  -H 'Content-Type: application/json' \
+  --data-binary @export.json
+```

@@ -79,10 +79,6 @@ const RGBA_MIME = 'application/x-rgba8';
 
 type ImageType = 'profile' | 'banner';
 
-interface ExtractorInputWithEntry extends ExtractorInput {
-  entry: ManifestEntry;
-}
-
 export class ImageHashExtractor implements AccountFeatureExtractor {
   readonly name = NAME;
   readonly version = VERSION;
@@ -110,8 +106,7 @@ export class ImageHashExtractor implements AccountFeatureExtractor {
   }
 
   extract(input: ExtractorInput): ExtractedFeature[] {
-    const inputWithEntry = input as ExtractorInputWithEntry;
-    const entry = inputWithEntry.entry;
+    const entry = input.entry;
 
     const imageType = detectImageType(entry);
     if (!imageType) return [];

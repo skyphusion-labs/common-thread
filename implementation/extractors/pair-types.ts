@@ -4,7 +4,7 @@
  * A pair extractor computes features over a pair of accounts in an
  * investigation. Unlike account extractors (which read artifact bytes
  * and produce account_features rows), pair extractors read pre-computed
- * account features from D1 and produce pair_features rows.
+ * account features from MySQL and produce pair_features rows.
  *
  * Pair extractors are deterministic: given the same inputs (same account
  * feature values and same context), they produce the same outputs. This
@@ -21,7 +21,7 @@ import type { ExtractedFeature } from './types';
 
 /**
  * A map of feature_name → value for a single account.
- * Produced by the runner from D1 query results, passed to the
+ * Produced by the runner from MySQL query results, passed to the
  * pair extractor's extract() method.
  */
 export type AccountFeatureMap = Map<string, FeatureValue>;
@@ -41,7 +41,7 @@ export type PairContext = unknown;
  * A pair feature extractor.
  *
  * The runner is responsible for:
- *   - Loading the required account features from D1 for all seed accounts
+ *   - Loading the required account features from MySQL for all seed accounts
  *   - Calling buildContext() once (if defined)
  *   - Calling extract() for each canonical-ordered pair
  *   - Writing pair_features rows with provenance traced from the input
@@ -63,7 +63,7 @@ export interface PairFeatureExtractor {
   readonly category: FeatureCategory;
 
   /**
-   * Names of account features this extractor reads from D1, for both
+   * Names of account features this extractor reads from MySQL, for both
    * accounts in each pair. The runner fetches exactly these features
    * and passes them as the featuresA and featuresB maps.
    */
@@ -81,7 +81,11 @@ export interface PairFeatureExtractor {
    * runner before this method is called.
    */
   buildContext?(
-    seedAccounts: ReadonlyArray<{ account: string; features: AccountFeatureMap }>
+    seedAccounts: ReadonlyArray<{
+      account: string;
+      features: AccountFeatureMap;
+      isControl?: boolean;
+    }>
   ): PairContext;
 
   /**

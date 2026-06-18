@@ -1,18 +1,8 @@
--- ============================================
--- Common Thread - MySQL Schema (Hyperdrive)
--- ============================================
+-- Common Thread MySQL schema (Hyperdrive).
 --
--- Full MySQL equivalent of D1 migrations:
---   0001_initial.sql
---   0002_split_pair_platform_columns.sql
---   0006_create_ingest_jobs.sql
---
--- Drop and recreate:
---   mysql -h HOST -u USER -p -e "DROP DATABASE IF EXISTS common_thread; CREATE DATABASE common_thread CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+-- Apply:
+--   MYSQL_URL='mysql://user:pass@host:3306/common_thread' npm run db:migrate
 --   mysql -h HOST -u USER -p common_thread < mysql-schema.sql
---
--- Timestamps are stored as ISO 8601 UTC strings (VARCHAR), matching D1/application
--- conventions. JSON-encoded values are stored as TEXT, matching D1.
 
 CREATE DATABASE IF NOT EXISTS common_thread
   CHARACTER SET utf8mb4
@@ -51,6 +41,7 @@ CREATE TABLE seed_accounts (
   added_by            VARCHAR(255),
   removed_at          VARCHAR(64),
   removed_reason      TEXT,
+  is_control          TINYINT(1) NOT NULL DEFAULT 0,
   UNIQUE KEY uniq_seed (investigation_id, platform, account_identifier, added_at),
   INDEX idx_seed_accounts_lookup (investigation_id, platform, account_identifier),
   CONSTRAINT fk_seed_accounts_investigation
@@ -102,6 +93,7 @@ CREATE TABLE account_features (
   extractor_name        VARCHAR(128) NOT NULL,
   extractor_version     VARCHAR(64) NOT NULL,
   extractor_run_id      INT,
+  confidence_flag       VARCHAR(32),
   INDEX idx_account_features_lookup
     (investigation_id, platform, account_identifier, feature_category),
   INDEX idx_account_features_by_extractor
@@ -141,6 +133,7 @@ CREATE TABLE pair_features (
   extractor_name        VARCHAR(128) NOT NULL,
   extractor_version     VARCHAR(64) NOT NULL,
   extractor_run_id      INT,
+  confidence_flag       VARCHAR(32),
   INDEX idx_pair_features_lookup
     (investigation_id, platform_a, platform_b, account_a, account_b, feature_category),
   INDEX idx_pair_features_by_account_a (investigation_id, account_a),
@@ -176,6 +169,7 @@ CREATE TABLE event_features (
   extractor_name      VARCHAR(128) NOT NULL,
   extractor_version   VARCHAR(64) NOT NULL,
   extractor_run_id    INT,
+  confidence_flag     VARCHAR(32),
   INDEX idx_event_features_by_account_time
     (investigation_id, account_identifier, event_timestamp),
   INDEX idx_event_features_by_type_time
@@ -293,10 +287,10 @@ CREATE TABLE schema_metadata (
 ) ENGINE=InnoDB;
 
 INSERT INTO schema_metadata (`key`, value, updated_at) VALUES
-  ('schema_version', '0002', '1970-01-01T00:00:00.000Z'),
+  ('schema_version', '0007', '1970-01-01T00:00:00.000Z'),
   ('schema_initialized_at', '1970-01-01T00:00:00.000Z', '1970-01-01T00:00:00.000Z'),
   (
     'pair_features_same_identifier_cross_platform_limitation',
-    'The CHECK (account_a < account_b) constraint on pair_features and attribution_runs orders by account identifier only, not by (account, platform) tuple. Same-identifier-cross-platform pairs (e.g., ''bob'' on two platforms) cannot be inserted. See implementation/schema/migrations/0002_split_pair_platform_columns.sql for the full rationale. A future 0003 migration can rebuild with a tuple CHECK if this edge case becomes operationally important.',
+    'The CHECK (account_a < account_b) constraint on pair_features and attribution_runs orders by account identifier only, not by (account, platform) tuple. Same-identifier-cross-platform pairs (e.g., ''bob'' on two platforms) cannot be inserted. See mysql-migrations/ for incremental schema history. A future migration can rebuild with a tuple CHECK if this edge case becomes operationally important.',
     '1970-01-01T00:00:00.000Z'
   );

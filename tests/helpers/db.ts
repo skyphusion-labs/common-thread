@@ -1,19 +1,9 @@
 /**
- * D1 seeding helpers for tests.
- *
- * Each helper returns the inserted row's primary key for use in
- * provenance chains and assertions. All ID parameters are strings
- * (text PK on investigations) or numbers (autoincrement PK elsewhere)
- * matching the schema.
- *
- * These helpers are intentionally low-level: one helper per table.
- * Composing them into scenario builders is the test's job, not the
- * helper's. Scenarios that get reused across many tests can graduate
- * to higher-level fixtures later.
+ * MySQL seeding helpers for tests.
  */
-
 import type { ConfidenceBand, FeatureValue } from '../../implementation/schema/db-types';
 import { packFeatureValue } from '../../implementation/schema/db-types';
+import type { DatabaseClient } from '../../implementation/db';
 
 // ---------------------------------------------------------------------------
 // Investigation
@@ -28,7 +18,7 @@ export interface CreateInvestigationOpts {
 }
 
 export async function createInvestigation(
-  db: D1Database,
+  db: DatabaseClient,
   opts: CreateInvestigationOpts
 ): Promise<string> {
   const now = new Date().toISOString();
@@ -63,7 +53,7 @@ export interface AddSeedAccountOpts {
 }
 
 export async function addSeedAccount(
-  db: D1Database,
+  db: DatabaseClient,
   opts: AddSeedAccountOpts
 ): Promise<number> {
   const res = await db
@@ -99,7 +89,7 @@ export interface StartExtractorRunOpts {
 }
 
 export async function startExtractorRun(
-  db: D1Database,
+  db: DatabaseClient,
   opts: StartExtractorRunOpts
 ): Promise<number> {
   const now = new Date().toISOString();
@@ -146,7 +136,7 @@ export interface InsertAccountFeatureOpts {
 }
 
 export async function insertAccountFeature(
-  db: D1Database,
+  db: DatabaseClient,
   opts: InsertAccountFeatureOpts
 ): Promise<number> {
   const packed = packFeatureValue(opts.value);
@@ -203,7 +193,7 @@ export interface InsertPairFeatureOpts {
 }
 
 export async function insertPairFeature(
-  db: D1Database,
+  db: DatabaseClient,
   opts: InsertPairFeatureOpts
 ): Promise<number> {
   // The schema CHECK constraint requires account_a < account_b
@@ -278,7 +268,7 @@ export interface AttributionRunSnapshot {
 }
 
 export async function readAttributionRuns(
-  db: D1Database,
+  db: DatabaseClient,
   investigationId: string
 ): Promise<AttributionRunSnapshot[]> {
   const res = await db

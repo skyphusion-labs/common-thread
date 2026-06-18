@@ -1,18 +1,8 @@
 /**
- * TypeScript types matching the Common Thread D1 schema.
+ * TypeScript types matching the Common Thread MySQL schema.
  *
- * These types describe the shape of rows returned by D1 queries.
- * SQLite/D1 stores everything as TEXT, INTEGER, REAL, BLOB, or NULL,
- * so:
- *
- *   - Timestamps are TEXT (ISO 8601 UTC). Parse to Date if needed.
- *   - JSON columns are TEXT. Parse with JSON.parse() to access structure.
- *   - Booleans are INTEGER (0 or 1). The schema doesn't currently use
- *     any boolean columns.
- *
- * These types do not impose runtime validation; they describe the
- * expected shape. Application code is responsible for parsing JSON
- * columns and validating values where needed.
+ * Timestamps are ISO 8601 UTC strings. JSON feature values are stored as TEXT.
+ * These types do not impose runtime validation; they describe the expected shape.
  */
 
 // ---------------------------------------------------------------------------
@@ -321,7 +311,7 @@ export function canonicalPair(a: string, b: string): [string, string] {
  * CHECK (account_a < account_b) constraint orders by account identifier
  * alone, not by (account, platform) tuple, so a same-identifier pair
  * cannot be inserted regardless of platform. See
- * schema/migrations/0002_split_pair_platform_columns.sql for the
+ * mysql-schema.sql (platform_a / platform_b columns) for the
  * documented limitation.
  */
 export function canonicalPlatformedPair(
@@ -332,7 +322,7 @@ export function canonicalPlatformedPair(
     throw new Error(
       `Pair features require two distinct account identifiers; got '${left.account}' on both sides. ` +
         `Same-identifier-cross-platform pairs are a documented limitation of migration 0002 ` +
-        `(see schema/migrations/0002_split_pair_platform_columns.sql).`
+        `(see mysql-schema.sql pair_features / attribution_runs platform columns).`
     );
   }
   return left.account < right.account ? [left, right] : [right, left];

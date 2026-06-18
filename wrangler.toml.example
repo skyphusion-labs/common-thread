@@ -3,8 +3,8 @@
 # Copy this file to wrangler.toml and fill in the resource IDs.
 #
 # IMPORTANT BINDINGS (do not change these names):
-#   - D1 database → binding = "DB"
-#   - R2 bucket   → binding = "ARCHIVE"
+#   - Hyperdrive (MySQL) → binding = "DB"
+#   - R2 bucket          → binding = "ARCHIVE"
 
 name = "common-thread"
 main = "implementation/workers/index.ts"
@@ -15,20 +15,21 @@ compatibility_flags = ["nodejs_compat"]
 # Before first use
 # -----------------------------------------------------------------------------
 # 1. Copy this file: cp wrangler.toml.example wrangler.toml
-# 2. Run: npm run db:create
-# 3. Run: npm run r2:create
-# 4. Run: npm run db:migrate:local
+# 2. Create MySQL database and apply schema:
+#      MYSQL_URL='mysql://USER:PASS@HOST:3306/common_thread' npm run db:migrate
+# 3. Create Hyperdrive and paste the id below:
+#      npm run db:hyperdrive:create -- 'mysql://USER:PASS@HOST:3306/common_thread'
+# 4. Run: npm run r2:create
 # -----------------------------------------------------------------------------
 
 # =============================================================================
 # Default / Local Development
 # =============================================================================
 
-[[d1_databases]]
+[[hyperdrive]]
 binding = "DB"
-database_name = "common-thread"
-database_id = "YOUR_D1_ID_HERE"
-migrations_dir = "implementation/schema/migrations"
+id = "YOUR_HYPERDRIVE_ID_HERE"
+# localConnectionString = "mysql://user:password@localhost:3306/common_thread"
 
 [[r2_buckets]]
 binding = "ARCHIVE"
@@ -59,11 +60,9 @@ ENVIRONMENT = "development"
 TRIAGE_MODEL = "claude-haiku-4-5"
 REASONING_MODEL = "claude-opus-4-8"
 
-[[env.dev.d1_databases]]
+[[env.dev.hyperdrive]]
 binding = "DB"
-database_name = "common-thread-dev"
-database_id = "YOUR_DEV_D1_ID_HERE"
-migrations_dir = "implementation/schema/migrations"
+id = "YOUR_DEV_HYPERDRIVE_ID_HERE"
 
 [[env.dev.r2_buckets]]
 binding = "ARCHIVE"
@@ -85,11 +84,9 @@ ENVIRONMENT = "production"
 TRIAGE_MODEL = "claude-haiku-4-5"
 REASONING_MODEL = "claude-opus-4-8"
 
-[[env.production.d1_databases]]
+[[env.production.hyperdrive]]
 binding = "DB"
-database_name = "common-thread-prod"
-database_id = "YOUR_PROD_D1_ID_HERE"
-migrations_dir = "implementation/schema/migrations"
+id = "YOUR_PROD_HYPERDRIVE_ID_HERE"
 
 [[env.production.r2_buckets]]
 binding = "ARCHIVE"
@@ -107,44 +104,13 @@ invocation_logs = true
 binding = "WEB"
 service = "common-thread-web"
 
-# INGEST_CONTAINER is commented out until the container exists
-# Self-hosted ingest uses Workers VPC instead — see [[vpc_services]] below.
-# [[services]]
-# binding = "INGEST_CONTAINER"
-# service = "apify-ingest-router"
-
 [[env.dev.services]]
 binding = "WEB"
 service = "common-thread-web-dev"
 
-# [[env.dev.services]]
-# binding = "INGEST_CONTAINER"
-# service = "apify-ingest-router-dev"
-
 [[env.production.services]]
 binding = "WEB"
 service = "common-thread-web-prod"
-
-# [[env.production.services]]
-# binding = "INGEST_CONTAINER"
-# service = "apify-ingest-router-prod"
-
-# =============================================================================
-# Workers VPC — json_ingest (vpc_services, hostname from IaC)
-# =============================================================================
-# [[vpc_services]]
-# binding = "VPC_INGEST"
-# service_id = "<json_ingest-service-id>"
-# remote = true
-#
-# [vars]
-# INGEST_WORKER_URL = "http://json_ingest/trigger"
-#
-# wrangler secret put INGEST_SECRET
-#
-# IaC / CLI (if creating the service):
-#   npx wrangler vpc service create json-ingest \
-#     --type http --tunnel-id <uuid> --hostname json_ingest --http-port 8080
 
 # =============================================================================
 # Queues
@@ -179,12 +145,24 @@ queue = "apify-ingest-prod"
 
 [[env.production.queues.consumers]]
 queue = "apify-ingest-prod"
-max_batch_size = 2              # Small batches are better for long-running heavy jobs
+max_batch_size = 2
 max_batch_timeout = 10
-max_concurrency = 30            # Significantly increased from 2
+max_concurrency = 30
 max_retries = 3
-retry_delay = 10000             # 10 seconds between retries
+retry_delay = 10000
 
+# =============================================================================
+# Workers VPC — self-hosted extraction container
+# =============================================================================
+# [[vpc_services]]
+# binding = "VPC_INGEST"
+# service_id = "YOUR_VPC_SERVICE_ID"
+# remote = true
+#
+# [vars]
+# INGEST_WORKER_URL = "http://common-thread-ingest.internal/trigger"
+#
+# wrangler secret put INGEST_SECRET
 
 # =============================================================================
 # Reasoner Secrets
@@ -196,4 +174,5 @@ retry_delay = 10000             # 10 seconds between retries
 # Required secrets:
 #   AI_GATEWAY_URL
 #   ANTHROPIC_API_KEY
+#   INGEST_SECRET (when using VPC extraction container)
 # -----------------------------------------------------------------------------

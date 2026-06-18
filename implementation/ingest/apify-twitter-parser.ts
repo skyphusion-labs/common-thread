@@ -1,5 +1,13 @@
 // implementation/ingest/apify-twitter-parser.ts
 
+import {
+  authorFromStatusUrl,
+  authorHandleFromTweet,
+  isApifyNoResultsItem,
+  isApifyTweetLike,
+  normalizeTwitterHandle,
+} from './apify-tweet-fields';
+
 export interface ParsedTweet {
   account: string;
   tweet: any;
@@ -7,11 +15,9 @@ export interface ParsedTweet {
   tweetId?: string;
 }
 
+/** @deprecated Prefer normalizeTwitterHandle from apify-tweet-fields. */
 export function normalizeHandle(raw: unknown): string | null {
-  if (typeof raw !== 'string') return null;
-  let h = raw.trim().toLowerCase().replace(/^@/, '');
-  h = h.replace(/[^a-z0-9_]/g, '');
-  return h.length >= 1 ? h : null;
+  return normalizeTwitterHandle(typeof raw === 'string' ? raw : null);
 }
 
 export function parseApifyTwitterItems(payload: any): ParsedTweet[] {
@@ -25,17 +31,17 @@ export function parseApifyTwitterItems(payload: any): ParsedTweet[] {
 
   for (const item of items) {
     if (!item || typeof item !== 'object') continue;
+    if (isApifyNoResultsItem(item)) continue;
+    if (!isApifyTweetLike(item)) continue;
 
-    const author = item?.author || item?.user || {};
-    const authorHandle = normalizeHandle(
-      author.userName || author.username || author.handle ||
-      item?.userName || item?.username || item?.handle
-    );
-
+    const authorHandle =
+      authorHandleFromTweet(item) ?? authorFromStatusUrl(item.url ?? item.twitterUrl);
     if (!authorHandle) continue;
 
-    const collectedAt = item?.createdAt || item?.created_at || item?.timestamp || undefined;
-    const tweetId = item?.id || item?.tweetId || undefined;
+    const collectedAt =
+      item?.createdAt || item?.created_at || item?.timestamp || undefined;
+    const tweetId =
+      item?.id != null ? String(item.id) : item?.tweetId != null ? String(item.tweetId) : undefined;
 
     out.push({
       account: authorHandle,

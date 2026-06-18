@@ -6,7 +6,7 @@ Planned and queued work for Common Thread. Items grouped by area; within each ar
 
 ### Test coverage, extractor layer
 
-The reasoner module has 77 tests verified end-to-end against `@cloudflare/vitest-pool-workers` (slices 2 through 5 of `tests/reasoner/`). No extractor has direct tests yet. Pattern parallels `tests/reasoner/runner.test.ts`: seed D1 with raw artifacts, invoke the extractor, assert `pair_features` and `account_features` rows.
+The reasoner module has 77 tests verified end-to-end against `@cloudflare/vitest-pool-workers` (slices 2 through 5 of `tests/reasoner/`). No extractor has direct tests yet. Pattern parallels `tests/reasoner/runner.test.ts`: seed MySQL with raw artifacts, invoke the extractor, assert `pair_features` and `account_features` rows.
 
 - [ ] Stylometric pair extractor (highest complexity, highest signal; start here)
 - [ ] Temporal extractors: burst, cadence-jsd, active-hour-jsd, quiet-period

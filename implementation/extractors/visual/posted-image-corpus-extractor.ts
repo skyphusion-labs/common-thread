@@ -87,10 +87,6 @@ interface CorpusBody {
   hashes?: CorpusEntry[];
 }
 
-interface ExtractorInputWithEntry extends ExtractorInput {
-  entry: ManifestEntry;
-}
-
 export class PostedImageCorpusExtractor implements AccountFeatureExtractor {
   readonly name = NAME;
   readonly version = VERSION;
@@ -101,10 +97,7 @@ export class PostedImageCorpusExtractor implements AccountFeatureExtractor {
   }
 
   extract(input: ExtractorInput): ExtractedFeature[] {
-    const inputWithEntry = input as ExtractorInputWithEntry;
-    const entry = inputWithEntry.entry;
-
-    const imageType = detectImageType(entry);
+    const imageType = detectImageType(input.entry);
 
     let parsed: unknown;
     try {
@@ -122,21 +115,31 @@ export class PostedImageCorpusExtractor implements AccountFeatureExtractor {
     const rawHashes = Array.isArray(body.hashes) ? body.hashes : [];
 
     const allHashes: string[] = [];
+    const allUrls: string[] = [];
     for (const entry of rawHashes) {
       if (!entry || typeof entry !== 'object') continue;
       const raw = entry.dhash;
-      if (typeof raw !== 'string') continue;
-      const normalized = raw.toLowerCase();
-      if (!/^[0-9a-f]{16}$/.test(normalized)) continue;
-      allHashes.push(normalized);
+      if (typeof raw === 'string') {
+        const normalized = raw.toLowerCase();
+        if (/^[0-9a-f]{16}$/.test(normalized)) {
+          allHashes.push(normalized);
+        }
+      }
+      const rawUrl = entry.url;
+      if (typeof rawUrl === 'string' && rawUrl.length > 0) {
+        allUrls.push(rawUrl);
+      }
     }
 
     const uniqueSet = new Set(allHashes);
     const uniqueSorted = [...uniqueSet].sort();
+    const uniqueUrls = [...new Set(allUrls)].sort();
 
     const setName = `${imageType}_image_dhash_set`;
     const countName = `${imageType}_image_count`;
     const uniqueName = `${imageType}_image_unique_dhash_count`;
+    const urlSetName = `${imageType}_image_url_set`;
+    const urlCountName = `${imageType}_image_url_count`;
 
     return [
       {
@@ -147,12 +150,22 @@ export class PostedImageCorpusExtractor implements AccountFeatureExtractor {
       {
         category: 'visual',
         name: countName,
-        value: { kind: 'numeric', value: allHashes.length },
+        value: { kind: 'numeric', value: Math.max(allHashes.length, allUrls.length) },
       },
       {
         category: 'visual',
         name: uniqueName,
         value: { kind: 'numeric', value: uniqueSet.size },
+      },
+      {
+        category: 'visual',
+        name: urlSetName,
+        value: { kind: 'json', value: uniqueUrls },
+      },
+      {
+        category: 'visual',
+        name: urlCountName,
+        value: { kind: 'numeric', value: uniqueUrls.length },
       },
     ];
   }

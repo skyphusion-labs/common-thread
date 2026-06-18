@@ -11,7 +11,7 @@ This is an AGPL-3.0-only project.
 
 - [ ] `npm run typecheck` passes (`tsc --noEmit`)
 - [ ] `npm test` passes (vitest)
-- [ ] If schema/migrations changed: a migration was added and `MIGRATIONS.md` updated
+- [ ] If schema changed: update `mysql-schema.sql` and/or `mysql-migrations/`
 - [ ] If a new binding/secret is needed: `wrangler.example.toml` and the README setup were updated
 
 ## Checklist

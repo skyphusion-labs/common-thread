@@ -9,21 +9,9 @@
  * indicators of common operatorship when the value is significantly
  * above the community baseline.
  *
- * Community baseline: the methodology requires reporting Jaccard
- * relative to a baseline computed from non-suspect accounts. The
- * current schema (seed_accounts) has no is_control flag, so this
- * implementation uses a LEAVE-IT-IN baseline: the mean and standard
- * deviation of Jaccards across ALL seed pairs (including the pair
- * being scored). When the seed set is heavy on suspected co-operated
- * accounts, the baseline absorbs that mass and the resulting z-scores
- * are biased toward zero (the pair "looks normal" because every pair
- * does). The bias direction is conservative: it understates rather
- * than overstates similarity. The attribution reasoner should
- * interpret the z-score in light of how the seed set was assembled.
- *
- * A cleaner future implementation requires per-account control vs
- * target flags in the seed_accounts schema, at which point this
- * extractor can compute baselines using only control pairs.
+ * Community baseline: when seed_accounts includes is_control=1 rows,
+ * the baseline uses only control-account pairs (§5.1.4). Otherwise
+ * falls back to leave-it-in across all seeds (conservative bias).
  *
  * Algorithm:
  *
@@ -92,11 +80,16 @@ export class FollowerOverlapExtractor implements PairFeatureExtractor {
   readonly requiredAccountFeatures = ['follower_set'] as const;
 
   buildContext(
-    seedAccounts: readonly { account: string; features: AccountFeatureMap }[]
+    seedAccounts: readonly { account: string; features: AccountFeatureMap; isControl?: boolean }[]
   ): FollowerOverlapContext {
+    const hasControls = seedAccounts.some(a => a.isControl);
+    const baselineAccounts = hasControls
+      ? seedAccounts.filter(a => a.isControl)
+      : seedAccounts;
+
     // Only include accounts that actually have a follower_set feature.
     const accountSets: Set<string>[] = [];
-    for (const acct of seedAccounts) {
+    for (const acct of baselineAccounts) {
       const set = parseFollowerSet(acct.features);
       if (set !== null) {
         accountSets.push(set);

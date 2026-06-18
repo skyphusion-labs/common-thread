@@ -59,6 +59,7 @@ import {
   median,
   extractAndNormalizeUrls,
 } from './text-helpers';
+import { isApifyTweetLike, tweetText } from '../../ingest/apify-tweet-fields';
 
 const NAME = 'stylometric_twitter';
 const VERSION = '1.0.0';
@@ -105,7 +106,7 @@ export class TwitterStylometricExtractor implements AccountFeatureExtractor {
 
     // Extract post texts (handle RT prefix removal)
     const rawTexts = posts
-      .map(p => p.full_text ?? p.text ?? '')
+      .map(p => tweetText(p))
       .filter(t => t.length > 0)
       .map(stripRetweetPrefix);
 
@@ -364,6 +365,7 @@ function tryParseTimeline(bytes: Uint8Array): TwitterPost[] | null {
           return candidate.filter(isPostLike);
         }
       }
+      if (isPostLike(parsed)) return [parsed];
     }
     return null;
   } catch {
@@ -372,9 +374,7 @@ function tryParseTimeline(bytes: Uint8Array): TwitterPost[] | null {
 }
 
 function isPostLike(value: unknown): value is TwitterPost {
-  if (!value || typeof value !== 'object') return false;
-  const obj = value as Record<string, unknown>;
-  return 'text' in obj || 'full_text' in obj;
+  return isApifyTweetLike(value);
 }
 
 function stripRetweetPrefix(text: string): string {

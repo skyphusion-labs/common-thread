@@ -1,8 +1,9 @@
 /**
- * Database access for Hyperdrive (MySQL) with a D1-compatible prepare/bind API
- * so extractors and the reasoner can run unchanged.
+ * Database access for Hyperdrive (MySQL).
  *
- * Tests continue to use native D1 via vitest; production uses Hyperdrive.
+ * Exposes a small prepare/bind API used by extractors, the reasoner,
+ * and tests. Production connects via Hyperdrive; tests use the same
+ * client with a direct mysql2 connection string (TEST_MYSQL_URL).
  */
 
 import mysql from 'mysql2/promise';
@@ -31,7 +32,6 @@ export interface DbResult<T = Record<string, unknown>> {
   results?: T[];
 }
 
-/** Subset of D1Database used by extractors, reasoner, and tests. */
 export interface DatabaseClient {
   prepare(query: string): PreparedStatement;
 }
@@ -43,30 +43,59 @@ export interface PreparedStatement {
   first<T = Record<string, unknown>>(colName?: string): Promise<T | null>;
 }
 
-export function resolveDatabase(db: Hyperdrive | D1Database): DatabaseClient {
-  if (isD1Database(db)) {
-    return db;
-  }
-  return new HyperdriveDatabase(db);
+export interface MysqlConnectionConfig {
+  host: string;
+  user: string;
+  password: string;
+  database: string;
+  port: number;
 }
 
-function isD1Database(db: Hyperdrive | D1Database): db is D1Database {
-  return typeof (db as D1Database).prepare === 'function';
-}
-
-export async function createMysqlConnection(hyperdrive: Hyperdrive): Promise<MysqlQueryable> {
-  return mysql.createConnection({
+export function hyperdriveToConfig(hyperdrive: Hyperdrive): MysqlConnectionConfig {
+  return {
     host: hyperdrive.host,
     user: hyperdrive.user,
     password: hyperdrive.password,
     database: hyperdrive.database,
     port: hyperdrive.port,
+  };
+}
+
+/** Parse a mysql:// or mysql2:// connection URL. */
+export function parseMysqlUrl(url: string): MysqlConnectionConfig {
+  const parsed = new URL(url);
+  return {
+    host: parsed.hostname,
+    port: parsed.port ? Number(parsed.port) : 3306,
+    user: decodeURIComponent(parsed.username),
+    password: decodeURIComponent(parsed.password),
+    database: parsed.pathname.replace(/^\//, ''),
+  };
+}
+
+export function resolveDatabase(hyperdrive: Hyperdrive): DatabaseClient {
+  return createDatabaseClient(hyperdriveToConfig(hyperdrive));
+}
+
+export function createDatabaseClient(config: MysqlConnectionConfig): DatabaseClient {
+  return new MysqlDatabase(config);
+}
+
+export async function createMysqlConnection(
+  config: MysqlConnectionConfig
+): Promise<MysqlQueryable> {
+  return mysql.createConnection({
+    host: config.host,
+    user: config.user,
+    password: config.password,
+    database: config.database,
+    port: config.port,
     disableEval: true,
   }) as unknown as MysqlQueryable;
 }
 
 export async function execute(hyperdrive: Hyperdrive, sql: string, params: unknown[] = []) {
-  const conn = await createMysqlConnection(hyperdrive);
+  const conn = await createMysqlConnection(hyperdriveToConfig(hyperdrive));
   try {
     const [result] = await conn.execute(sql, params);
     return result;
@@ -80,7 +109,7 @@ export async function query<T = Record<string, unknown>>(
   sql: string,
   params: unknown[] = []
 ): Promise<T[]> {
-  const conn = await createMysqlConnection(hyperdrive);
+  const conn = await createMysqlConnection(hyperdriveToConfig(hyperdrive));
   try {
     const [rows] = await conn.query<RowDataPacket[]>(sql, params);
     return rows as T[];
@@ -98,19 +127,19 @@ export async function queryOne<T = Record<string, unknown>>(
   return rows.length > 0 ? rows[0] : null;
 }
 
-class HyperdriveDatabase implements DatabaseClient {
-  constructor(private hyperdrive: Hyperdrive) {}
+class MysqlDatabase implements DatabaseClient {
+  constructor(private config: MysqlConnectionConfig) {}
 
   prepare(sql: string): PreparedStatement {
-    return new HyperdrivePreparedStatement(this.hyperdrive, sql);
+    return new MysqlPreparedStatement(this.config, sql);
   }
 }
 
-class HyperdrivePreparedStatement implements PreparedStatement {
+class MysqlPreparedStatement implements PreparedStatement {
   private bindings: unknown[] = [];
 
   constructor(
-    private hyperdrive: Hyperdrive,
+    private config: MysqlConnectionConfig,
     private sql: string
   ) {}
 
@@ -120,7 +149,7 @@ class HyperdrivePreparedStatement implements PreparedStatement {
   }
 
   async run(): Promise<DbResult> {
-    const conn = await createMysqlConnection(this.hyperdrive);
+    const conn = await createMysqlConnection(this.config);
     try {
       const [result] = await conn.execute(this.sql, this.bindings);
       const header = result as ResultSetHeader;
@@ -139,7 +168,7 @@ class HyperdrivePreparedStatement implements PreparedStatement {
   }
 
   async all<T = Record<string, unknown>>(): Promise<DbResult<T>> {
-    const conn = await createMysqlConnection(this.hyperdrive);
+    const conn = await createMysqlConnection(this.config);
     try {
       const [rows] = await conn.query<RowDataPacket[]>(this.sql, this.bindings);
       return {

@@ -38,6 +38,8 @@ import type {
   ExtractedFeature,
 } from '../types';
 import type { ManifestEntry } from '../../archive/types';
+import { APIFY_TWITTER_PROFILE_TOOL } from '../../ingest/apify-profile';
+import { APIFY_TWITTER_TIMELINE_TOOL } from '../../ingest/apify-timeline';
 
 const NAME = 'account_metadata_twitter';
 const VERSION = '1.0.0';
@@ -84,6 +86,13 @@ interface TwitterProfile {
   profileBannerUrl?: string;
   profile_banner_url?: string;
   lang?: string;
+  userName?: string;
+  isVerified?: boolean;
+  isBlueVerified?: boolean;
+  followers?: number;
+  following?: number;
+  profilePicture?: string;
+  coverPicture?: string;
 }
 
 export class TwitterAccountMetadataExtractor implements AccountFeatureExtractor {
@@ -91,20 +100,20 @@ export class TwitterAccountMetadataExtractor implements AccountFeatureExtractor 
   readonly version = VERSION;
 
   filterEntry(entry: ManifestEntry): boolean {
-    // Pre-filter based on manifest-entry metadata to avoid reading R2
-    // for obviously-not-Twitter artifacts. False negatives here are
-    // recoverable (extract will return empty), but false positives
-    // waste R2 reads.
     const tool = entry.collectionMethod.tool.toLowerCase();
     const source = entry.source.toLowerCase();
 
-    // Positive signals
+    if (tool === APIFY_TWITTER_TIMELINE_TOOL || tool.includes('timeline')) {
+      return false;
+    }
+    if (source.includes('/timeline')) return false;
+
+    if (tool === APIFY_TWITTER_PROFILE_TOOL || tool.includes('profile')) return true;
+    if (source.includes('/profile')) return true;
+
     if (tool.includes('twitter') || tool.includes('x-com')) return true;
     if (source.includes('twitter.com') || source.includes('x.com')) return true;
 
-    // If we can't tell from metadata, let it through and rely on extract()
-    // to discriminate. This is conservative; refine as more platforms
-    // come online.
     return true;
   }
 
@@ -117,7 +126,7 @@ export class TwitterAccountMetadataExtractor implements AccountFeatureExtractor 
 
     // Identity
     pushText(features, 'display_name', profile.name);
-    pushText(features, 'username', profile.username ?? profile.screen_name);
+    pushText(features, 'username', profile.username ?? profile.screen_name ?? profile.userName);
     pushText(features, 'platform_id', toIdString(profile.id ?? profile.id_str));
 
     // Display name analysis
@@ -146,11 +155,24 @@ export class TwitterAccountMetadataExtractor implements AccountFeatureExtractor 
     pushBool(features, 'has_url', !!(profile.url && profile.url.length > 0));
 
     // Account status flags
-    pushBool(features, 'verified', profile.verified);
-    pushBool(features, 'blue_verified', profile.blueVerified ?? profile.is_blue_verified);
+    pushBool(features, 'verified', profile.verified ?? profile.isVerified);
+    pushBool(features, 'blue_verified', profile.blueVerified ?? profile.is_blue_verified ?? profile.isBlueVerified);
     pushBool(features, 'protected', profile.protected);
     pushBool(features, 'default_profile', profile.defaultProfile ?? profile.default_profile);
-    pushBool(features, 'default_profile_image', profile.defaultProfileImage ?? profile.default_profile_image);
+    const profilePic =
+      profile.profileImageUrl ??
+      profile.profile_image_url ??
+      profile.profile_image_url_https ??
+      profile.profilePicture;
+    const inferredDefaultAvatar =
+      typeof profilePic === 'string' && /default_profile_images/i.test(profilePic);
+    pushBool(
+      features,
+      'default_profile_image',
+      profile.defaultProfileImage ??
+        profile.default_profile_image ??
+        inferredDefaultAvatar
+    );
 
     // Creation date
     const rawCreated = profile.createdAt ?? profile.created_at;
@@ -166,8 +188,17 @@ export class TwitterAccountMetadataExtractor implements AccountFeatureExtractor 
     }
 
     // Counts
-    const followers = pickNumber(profile.followersCount, profile.followers_count);
-    const following = pickNumber(profile.friendsCount, profile.following_count, profile.friends_count);
+    const followers = pickNumber(
+      profile.followersCount,
+      profile.followers_count,
+      profile.followers
+    );
+    const following = pickNumber(
+      profile.friendsCount,
+      profile.following_count,
+      profile.friends_count,
+      profile.following
+    );
     const statuses = pickNumber(profile.statusesCount, profile.statuses_count, profile.tweet_count);
     const listed = pickNumber(profile.listedCount, profile.listed_count);
     const favourites = pickNumber(profile.favouritesCount, profile.favourites_count);
@@ -186,9 +217,16 @@ export class TwitterAccountMetadataExtractor implements AccountFeatureExtractor 
     pushText(
       features,
       'profile_image_url',
-      profile.profileImageUrl ?? profile.profile_image_url ?? profile.profile_image_url_https
+      profile.profileImageUrl ??
+        profile.profile_image_url ??
+        profile.profile_image_url_https ??
+        profile.profilePicture
     );
-    pushText(features, 'banner_image_url', profile.profileBannerUrl ?? profile.profile_banner_url);
+    pushText(
+      features,
+      'banner_image_url',
+      profile.profileBannerUrl ?? profile.profile_banner_url ?? profile.coverPicture
+    );
 
     // Profile language. Twitter deprecated 'lang' from default API
     // responses around 2019 (alongside source/timezone), but some
@@ -224,14 +262,16 @@ function tryParseProfile(bytes: Uint8Array): TwitterProfile | null {
 }
 
 function looksLikeTwitter(profile: TwitterProfile): boolean {
-  // Heuristic: must have at least one Twitter-distinctive field
   return (
     profile.screen_name !== undefined ||
     profile.username !== undefined ||
+    profile.userName !== undefined ||
     profile.statusesCount !== undefined ||
     profile.statuses_count !== undefined ||
     profile.tweet_count !== undefined ||
-    profile.friends_count !== undefined
+    profile.friends_count !== undefined ||
+    profile.followers !== undefined ||
+    profile.following !== undefined
   );
 }
 

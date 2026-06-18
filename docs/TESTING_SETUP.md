@@ -3,12 +3,32 @@
 What this slice delivers, how to wire it into `package.json`, how to
 run the suite, and what is intentionally deferred to follow-on slices.
 
+## Prerequisites
+
+Integration tests require a **real MySQL** instance. By default they
+connect to:
+
+```
+mysql://root@127.0.0.1:3306/common_thread_test
+```
+
+Override with `TEST_MYSQL_URL` if your test database is elsewhere:
+
+```bash
+TEST_MYSQL_URL='mysql://user:pass@host:3306/common_thread_test' npm test
+```
+
+`tests/setup.ts` creates the database if needed and applies
+`mysql-schema.sql` once before tests run.
+
 ## Files in this slice
 
 | File | Purpose |
 |---|---|
-| `vitest.config.ts` | Workers-pool config: D1 + R2 bindings, AI Gateway test secrets, test discovery |
-| `tests/setup.ts` | Applies schema migrations to the test D1 binding via `beforeAll` |
+| `vitest.config.ts` | Workers-pool config: R2 bindings, AI Gateway test secrets, test discovery |
+| `tests/setup.ts` | Applies `mysql-schema.sql` to `TEST_MYSQL_URL` via `beforeAll` |
+| `tests/helpers/mysql.ts` | MySQL connection + schema bootstrap for tests |
+| `tests/helpers/test-env.ts` | `testDb()`, `testRunnerEnv()`, `testReasonerEnv()` helpers |
 | `tests/helpers/db.ts` | Typed seeding helpers (investigations, seed accounts, features, extractor runs, provenance) |
 | `tests/helpers/llm.ts` | AI Gateway mocking via `fetchMock` from `cloudflare:test`: triage and reasoning shapers |
 | `tests/reasoner/ai-gateway.test.ts` | `extractJSONObject` pure-function coverage + `callLLM` HTTP smoke + error path |
@@ -16,7 +36,7 @@ run the suite, and what is intentionally deferred to follow-on slices.
 | `tests/reasoner/reasoner.test.ts` | §7.2.3 retry loop (format + content failures) + declination on exhaustion + `buildRetryPromptAddition` unit tests + retry feedback on-wire verification |
 | `tests/reasoner/validator.test.ts` | §7.2.2 format layer + §7.3.3 cluster composition + §7.3.1 content aggregates + citation directionality |
 | `tests/reasoner/runner-internals.test.ts` | Pure-function unit tests for `derivePairBand` and `seededShuffle` exported from `runner.ts` |
-| `tests/reasoner/runner.test.ts` | End-to-end integration of `runAttribution` with seeded D1, including a multi-category `consistent` happy path |
+| `tests/reasoner/runner.test.ts` | End-to-end integration of `runAttribution` with seeded MySQL, including a multi-category `consistent` happy path |
 
 ## package.json additions
 
@@ -26,7 +46,8 @@ Add to `devDependencies`:
 {
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.5.0",
-    "vitest": "^2.0.0"
+    "vitest": "^2.0.0",
+    "mysql2": "^3.22.0"
   }
 }
 ```
@@ -57,7 +78,7 @@ npm install
 ## Running
 
 ```bash
-# One-shot run
+# One-shot run (MySQL must be reachable)
 npm test
 
 # Watch mode (re-runs on file change)
@@ -73,9 +94,10 @@ npx vitest run -t "triage filters"
 ## How the framework boots
 
 1. `vitest.config.ts` loads, sees `pool: workers`, spins up a Miniflare-backed Workers runtime per test worker.
-2. `wrangler.toml` is read for D1, R2, and var bindings. The `bindings` block in `vitest.config.ts` adds the test-only `AI_GATEWAY_URL` and `ANTHROPIC_API_KEY` values that wrangler.toml documents as out-of-band secrets.
-3. `tests/setup.ts` runs `beforeAll`: applies migration 0001, then migration 0002 to the in-memory D1 binding. Each test file shares the same schema; data accumulates within a single `vitest` run unless tests scope themselves to unique investigation IDs (the runner test does).
-4. Tests import the source modules via relative paths (`../../implementation/reasoner/...`).
+2. `wrangler.toml` is read for R2 and var bindings. The `bindings` block in `vitest.config.ts` adds the test-only `AI_GATEWAY_URL` and `ANTHROPIC_API_KEY` values that wrangler.toml documents as out-of-band secrets.
+3. `tests/setup.ts` runs `beforeAll`: connects to `TEST_MYSQL_URL`, creates the test database if needed, and applies `mysql-schema.sql` when tables are missing. Each test file shares the same schema; data accumulates within a single `vitest` run unless tests scope themselves to unique investigation IDs (the runner test does).
+4. Integration tests use `testDb()` / `testReasonerEnv()` from `tests/helpers/test-env.ts` for MySQL + R2. R2 still comes from `cloudflare:test`.
+5. Tests import the source modules via relative paths (`../../implementation/reasoner/...`).
 
 ## How LLM mocking works
 
@@ -135,11 +157,11 @@ If your project layout differs and `implementation/archive/manifest` is not the 
 All previously deferred reasoner-layer test items are now covered. Remaining test work is outside the reasoner module:
 
 - **Extractor-layer test coverage.** None of the extractors (stylometric pair, temporal, network, etc.) have direct tests. They follow the same data-pull-and-compute pattern as the runner, so the test scaffolding is reusable, but each extractor needs its own fixture suite. Best taken one extractor at a time.
-- **Smoke verification.** No test in this slice has been run against the real `@cloudflare/vitest-pool-workers` runtime. The first `npm test` invocation will surface any environment-specific issues (`?raw` Vite imports, undici mock compatibility, schema-migration ordering). Worth doing before the next slice of test writing.
+- **Smoke verification.** Run `npm test` against a live MySQL instance before merging schema changes. The first run will surface connection issues, migration ordering problems, or environment-specific Vitest/Workers-pool quirks.
 
 ## Known wrinkles
 
-- **Schema state shared within a `vitest` run.** `tests/setup.ts` uses `beforeAll`, so migrations are applied once and the D1 binding is shared across test files in the same worker process. Each test file should use a unique `investigation_id` to avoid cross-test row leakage. If isolation per test becomes important, switch to `beforeEach` with an in-test schema reset.
+- **Schema state shared within a `vitest` run.** `tests/setup.ts` uses `beforeAll`, so the schema is applied once and the MySQL database is shared across test files in the same worker process. Each test file should use a unique `investigation_id` to avoid cross-test row leakage. If isolation per test becomes important, switch to `beforeEach` with an in-test schema reset.
 - **`fetchMock.assertNoPendingInterceptors()` in `afterEach`.** This is strict by design: it catches tests that queue more intercepts than they consume. If a test should NOT consume all queued intercepts, scope the assertion off for that test only.
 - **`vi.mock` path matching.** The mock specifier must match what the importing module uses. If `runner.ts` imports `'../archive/manifest'` and your test file is at `tests/reasoner/runner.test.ts`, the test mock specifier resolves the relative path independently. Vitest uses module-ID matching, not specifier-string matching, so as long as both paths resolve to the same absolute file on disk, the mock applies.
 - **`fetchMock` and the AI Gateway origin.** The intercept origin (`https://gateway.test`) must match the `AI_GATEWAY_URL` env binding in `vitest.config.ts`. If you change one, change the other.

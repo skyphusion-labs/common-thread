@@ -6,7 +6,8 @@ The project uses a split structure:
 - Each has its own `wrangler.toml` configuration
 ## Prerequisites
 - Node.js ≥ 18
-- Cloudflare account with Workers, D1, and R2 enabled
+- Cloudflare account with Workers, R2, and Hyperdrive enabled
+- MySQL 8+ database
 - Wrangler CLI installed and logged in:
   ```bash
   npm install -g wrangler
@@ -37,18 +38,18 @@ Run the creation commands. These commands use --binding and --update-config so t
 Development Resources
 bash
 
-npm run db:create
+MYSQL_URL='mysql://USER:PASS@HOST:3306/common_thread' npm run db:migrate
 npm run r2:create
-npm run db:migrate:local
+npm run db:hyperdrive:create -- 'mysql://USER:PASS@HOST:3306/common_thread'
 
 Production Resources
 bash
 
-npm run db:create:prod
+# Apply mysql-schema.sql to your production MySQL database, then:
 npm run r2:create:prod
-npm run db:migrate:prod
+# Create a separate Hyperdrive config for production and paste id into [env.production.hyperdrive]
 
-After running these commands, open wrangler.toml and web/wrangler.toml and verify that the database_id and bucket_name fields were filled in correctly under the proper binding = "DB" and binding = "ARCHIVE" entries.
+After running these commands, open wrangler.toml and verify the Hyperdrive `id` under `binding = "DB"` and the R2 `bucket_name` under `binding = "ARCHIVE"`.
 3. Backend Worker
 
 The backend is configured in the root wrangler.toml.
@@ -191,9 +192,9 @@ npm run dev:web
 npm run deploy:all:dev
 npm run deploy:all:prod
 # Resources
-npm run db:create
+MYSQL_URL='mysql://...' npm run db:migrate
+npm run db:hyperdrive:create -- 'mysql://...'
 npm run r2:create
-npm run db:create:prod
 npm run r2:create:prod
 
 Need help?

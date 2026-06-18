@@ -7,7 +7,7 @@
  * call, and attribution_runs INSERT. The AI Gateway is intercepted via
  * fetchMock; ManifestStore is mocked at the module level.
  *
- * The schema is applied to the test D1 binding in tests/setup.ts. This
+ * The schema is applied to the test MySQL database in tests/setup.ts. This
  * file seeds the database with a minimal investigation containing two
  * accounts and a handful of features sufficient to populate a non-empty
  * signal table.
@@ -61,6 +61,7 @@ import {
   readAttributionRuns,
   startExtractorRun,
 } from '../helpers/db';
+import { testDb, testReasonerEnv } from '../helpers/test-env';
 import {
   mockReasoningResponse,
   mockTriageResponse,
@@ -73,7 +74,7 @@ beforeAll(() => {
 
 beforeEach(async () => {
   // Each test gets a fresh investigation ID to avoid cross-test
-  // pollution against the shared test D1 binding. The schema is
+  // pollution against the shared test MySQL database. The schema is
   // applied once in tests/setup.ts; data accumulates within a run
   // unless tests scope themselves.
   fetchMock.assertNoPendingInterceptors();
@@ -101,27 +102,27 @@ async function buildTwoAccountScenario(opts: ScenarioOpts): Promise<{
   const rawB = opts.accountB ?? 'bob';
   const [a, b] = rawA < rawB ? [rawA, rawB] : [rawB, rawA];
 
-  await createInvestigation(env.DB, { id: opts.investigationId });
-  await addSeedAccount(env.DB, {
+  await createInvestigation(testDb(), { id: opts.investigationId });
+  await addSeedAccount(testDb(), {
     investigationId: opts.investigationId,
     platform: 'twitter',
     account: a,
     basisStatement: `seed reason for ${a}`,
   });
-  await addSeedAccount(env.DB, {
+  await addSeedAccount(testDb(), {
     investigationId: opts.investigationId,
     platform: 'twitter',
     account: b,
     basisStatement: `seed reason for ${b}`,
   });
 
-  const extractorRunId = await startExtractorRun(env.DB, {
+  const extractorRunId = await startExtractorRun(testDb(), {
     investigationId: opts.investigationId,
     extractorName: 'test_stylometric',
     status: 'completed',
   });
 
-  await insertAccountFeature(env.DB, {
+  await insertAccountFeature(testDb(), {
     investigationId: opts.investigationId,
     platform: 'twitter',
     account: a,
@@ -131,7 +132,7 @@ async function buildTwoAccountScenario(opts: ScenarioOpts): Promise<{
     extractorRunId,
     artifactHashes: ['deadbeef' + '0'.repeat(56)],
   });
-  await insertAccountFeature(env.DB, {
+  await insertAccountFeature(testDb(), {
     investigationId: opts.investigationId,
     platform: 'twitter',
     account: b,
@@ -143,7 +144,7 @@ async function buildTwoAccountScenario(opts: ScenarioOpts): Promise<{
   });
 
   if (opts.withPairFeatures) {
-    await insertPairFeature(env.DB, {
+    await insertPairFeature(testDb(), {
       investigationId: opts.investigationId,
       platformA: 'twitter',
       platformB: 'twitter',
@@ -180,7 +181,7 @@ describe('runAttribution', () => {
       reason: 'no shared signals of substance',
     });
 
-    const summaries = await runAttribution(env, { investigationId });
+    const summaries = await runAttribution(testReasonerEnv(), { investigationId });
 
     expect(summaries).toHaveLength(1);
     const [s] = summaries;
@@ -191,7 +192,7 @@ describe('runAttribution', () => {
     expect(s.reasoning_invoked).toBe(false);
     expect(s.reasoning_declined).toBe(false);
 
-    const rows = await readAttributionRuns(env.DB, investigationId);
+    const rows = await readAttributionRuns(testDb(), investigationId);
     expect(rows).toHaveLength(1);
     expect(rows[0].confidence_band).toBe('insufficient');
     expect(rows[0].account_a).toBe(pair.account_a);
@@ -215,25 +216,25 @@ describe('runAttribution', () => {
     // pulls account_features for either account in the pair, and a
     // single account contributing >=3 categories is sufficient to
     // satisfy the citation aggregate.
-    await createInvestigation(env.DB, { id: investigationId });
-    await addSeedAccount(env.DB, {
+    await createInvestigation(testDb(), { id: investigationId });
+    await addSeedAccount(testDb(), {
       investigationId,
       platform: 'twitter',
       account: a,
       basisStatement: `seed reason for ${a}`,
     });
-    await addSeedAccount(env.DB, {
+    await addSeedAccount(testDb(), {
       investigationId,
       platform: 'twitter',
       account: b,
       basisStatement: `seed reason for ${b}`,
     });
-    const erId = await startExtractorRun(env.DB, {
+    const erId = await startExtractorRun(testDb(), {
       investigationId,
       extractorName: 'multi_category_test',
       status: 'completed',
     });
-    const styloId = await insertAccountFeature(env.DB, {
+    const styloId = await insertAccountFeature(testDb(), {
       investigationId,
       platform: 'twitter',
       account: a,
@@ -242,7 +243,7 @@ describe('runAttribution', () => {
       value: { kind: 'json', value: { the: 0.1, a: 0.05 } },
       extractorRunId: erId,
     });
-    const tempoId = await insertAccountFeature(env.DB, {
+    const tempoId = await insertAccountFeature(testDb(), {
       investigationId,
       platform: 'twitter',
       account: a,
@@ -251,7 +252,7 @@ describe('runAttribution', () => {
       value: { kind: 'json', value: { hours: [1, 2, 3] } },
       extractorRunId: erId,
     });
-    const netId = await insertAccountFeature(env.DB, {
+    const netId = await insertAccountFeature(testDb(), {
       investigationId,
       platform: 'twitter',
       account: a,
@@ -292,7 +293,7 @@ describe('runAttribution', () => {
       ],
     });
 
-    const summaries = await runAttribution(env, { investigationId });
+    const summaries = await runAttribution(testReasonerEnv(), { investigationId });
 
     expect(summaries).toHaveLength(1);
     const [s] = summaries;
@@ -304,7 +305,7 @@ describe('runAttribution', () => {
     expect(s.reasoning_declined).toBe(false);
     expect(s.reasoning_attempts).toBe(1);
 
-    const rows = await readAttributionRuns(env.DB, investigationId);
+    const rows = await readAttributionRuns(testDb(), investigationId);
     expect(rows).toHaveLength(1);
     expect(rows[0].confidence_band).toBe('consistent');
     expect(rows[0].reasoning_prompt_version).toBe('reasoning-v1');
@@ -334,12 +335,12 @@ describe('runAttribution', () => {
 
     mockTriageResponse({ verdict: 'obviously_not_coordinated', reason: 'test' });
 
-    const summaries = await runAttribution(env, { investigationId });
+    const summaries = await runAttribution(testReasonerEnv(), { investigationId });
     expect(summaries).toHaveLength(1);
     expect(summaries[0].account_a).toBe('aardvark');
     expect(summaries[0].account_b).toBe('zebra');
 
-    const rows = await readAttributionRuns(env.DB, investigationId);
+    const rows = await readAttributionRuns(testDb(), investigationId);
     expect(rows).toHaveLength(1);
     expect(rows[0].account_a).toBe('aardvark');
     expect(rows[0].account_b).toBe('zebra');

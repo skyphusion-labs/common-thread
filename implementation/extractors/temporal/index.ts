@@ -12,8 +12,7 @@
  * temporal features: burst-overlap (§4.2.5), cadence JSD on hour-dow
  * joint (§4.2.1), active-hour JSD on hour marginal (§4.2.3), and
  * quiet-period overlap (§4.2.4). Response-latency correlation (§4.2.2)
- * is deferred-by-design because it requires practitioner-supplied
- * triggering events.
+ * uses practitioner-supplied triggering_events in investigation metadata.
  */
 
 import { TwitterTemporalExtractor } from './twitter';
@@ -22,6 +21,7 @@ import { BurstOverlapExtractor } from './burst-correlation';
 import { CadenceJsdExtractor } from './cadence-jsd';
 import { ActiveHourJsdExtractor } from './active-hour-jsd';
 import { QuietPeriodOverlapExtractor } from './quiet-period-overlap';
+import { ResponseLatencyPairExtractor } from './response-latency';
 import type { AccountFeatureExtractor } from '../types';
 import type { PairFeatureExtractor } from '../pair-types';
 
@@ -38,6 +38,7 @@ export const TEMPORAL_PAIR_EXTRACTORS: PairFeatureExtractor[] = [
   new CadenceJsdExtractor(),         // §4.2.1 JSD on 168-bin hour-dow joint
   new ActiveHourJsdExtractor(),      // §4.2.3 JSD on 24-bin hour marginal
   new QuietPeriodOverlapExtractor(), // §4.2.4 silence-period overlap
+  new ResponseLatencyPairExtractor(), // §4.2.2 response latency correlation
 ];
 
 export { TwitterTemporalExtractor } from './twitter';

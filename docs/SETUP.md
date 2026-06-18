@@ -6,7 +6,8 @@ ahead if you've already done a step.
 ## Prerequisites
 
 - Node.js 18 or later
-- A Cloudflare account with Workers, D1, and R2 enabled
+- A Cloudflare account with Workers, R2, and Hyperdrive enabled
+- A MySQL 8+ instance (local Docker, managed Cloud SQL, PlanetScale, etc.)
 - Wrangler authenticated to your account (`wrangler login`)
 
 ## A note on shells
@@ -41,26 +42,25 @@ npm install
 This installs Wrangler, TypeScript, and the Workers type definitions
 as devDependencies.
 
-## 2. Create the D1 database
+## 2. Create MySQL database and Hyperdrive
+
+Create a MySQL database (example using the mysql CLI):
 
 ```bash
-npm run db:create
+mysql -h HOST -u USER -p -e "CREATE DATABASE IF NOT EXISTS common_thread CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+MYSQL_URL='mysql://USER:PASS@HOST:3306/common_thread' npm run db:migrate
 ```
 
-Wrangler will create the database and print output that looks like:
+Create a Hyperdrive configuration pointing at that database:
 
-```
-✅ Successfully created DB 'common-thread' in region ENAM
-Created your new D1 database.
-
-[[d1_databases]]
-binding = "DB"
-database_name = "common-thread"
-database_id = "01234567-89ab-cdef-0123-456789abcdef"
+```bash
+npm run db:hyperdrive:create -- 'mysql://USER:PASS@HOST:3306/common_thread'
 ```
 
-Copy the `database_id` value into `wrangler.toml`, replacing the
-placeholder `REPLACE_AFTER_RUNNING_db:create`.
+Paste the printed Hyperdrive `id` into `wrangler.toml` under `[[hyperdrive]] binding = "DB"`.
+
+For local `wrangler dev`, set `localConnectionString` on the Hyperdrive binding or export
+`CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_DB`.
 
 ## 3. Create the R2 bucket
 
@@ -74,29 +74,17 @@ name.
 
 ## 4. Apply the schema
 
-For local development:
+If you did not run `npm run db:migrate` in step 2:
 
 ```bash
-npm run db:migrate:local
+MYSQL_URL='mysql://USER:PASS@HOST:3306/common_thread' npm run db:migrate
 ```
 
-This applies `implementation/schema/migrations/0001_initial.sql` to
-the local D1 sandbox that Wrangler uses for `wrangler dev`. The local
-sandbox is independent from your remote D1 database.
-
-To apply the schema to your remote D1 database:
+Verify tables exist:
 
 ```bash
-npm run db:migrate
+mysql -h HOST -u USER -p common_thread -e "SHOW TABLES;"
 ```
-
-Verify the schema with:
-
-```bash
-wrangler d1 execute common-thread --local --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-```
-
-You should see all the schema tables listed.
 
 ## 5. Generate a signer keypair
 
@@ -201,22 +189,21 @@ avoid the `Invoke-WebRequest` alias, or `Invoke-RestMethod
 http://localhost:8787/investigations` for the native cmdlet.
 
 If you get back the investigation you just created, the full stack
-(Worker + D1 + schema) is working.
+(Worker + MySQL + schema) is working.
 
 ## 9. Production deployment
 
 When you're ready to deploy:
 
 ```bash
-# Create the production database
-npm run db:create:prod
-# (copy the database_id into wrangler.toml under [env.production])
+# Apply the schema to your production MySQL database
+MYSQL_URL='mysql://USER:PASS@HOST:3306/common_thread' npm run db:migrate
+
+# Create a production Hyperdrive config and paste its id into
+# wrangler.toml under [env.production.hyperdrive]
 
 # Create the production R2 bucket
 npm run r2:create:prod
-
-# Apply the schema to production
-npm run db:migrate:prod
 
 # Set the public key as a Worker secret
 # bash/WSL:
@@ -233,10 +220,12 @@ npm run deploy:prod
 
 ## Common issues
 
-### "Database not found"
+### "Database not found" or connection errors
 
-Wrangler's local D1 sandbox is stored under `.wrangler/state/`. If you
-deleted that directory, you need to re-run `npm run db:migrate:local`.
+Confirm MySQL is running and reachable from your machine. Re-apply the
+schema with `MYSQL_URL=... npm run db:migrate`. For `wrangler dev`, set
+`localConnectionString` on the Hyperdrive binding or export
+`CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_DB`.
 
 ### "Bucket not found"
 
@@ -264,9 +253,9 @@ You now have a working Worker that can manage investigations, serve
 manifest entries, and verify signatures. The next layers to build:
 
 - **Feature extractors** (`implementation/extractors/`): deterministic
-  modules that read artifacts from R2 and write feature rows to D1.
+  modules that read artifacts from R2 and write feature rows to MySQL.
 - **Attribution reasoning** (`implementation/reasoner/`): LLM-assisted
-  module that reads features from D1 and produces attribution outputs.
+  module that reads features from MySQL and produces attribution outputs.
 - **HTTP API expansion**: routes for seed accounts, features, attribution
   runs, evidence packets.
 

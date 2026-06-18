@@ -37,7 +37,7 @@
  * METADATA_LEAKAGE_PAIR_EXTRACTORS.
  */
 
-import { ACCOUNT_METADATA_EXTRACTORS } from './account-metadata';
+import { ACCOUNT_METADATA_EXTRACTORS, ACCOUNT_METADATA_PAIR_EXTRACTORS } from './account-metadata';
 import {
   TEMPORAL_EXTRACTORS,
   TEMPORAL_PAIR_EXTRACTORS,
@@ -52,6 +52,8 @@ import {
 import {
   NETWORK_EXTRACTORS,
   NETWORK_PAIR_EXTRACTORS,
+  NETWORK_EVENT_EXTRACTORS,
+  NETWORK_ENGAGEMENT_PAIR_EXTRACTORS,
 } from './network';
 import {
   VISUAL_EXTRACTORS,
@@ -94,6 +96,7 @@ export const ACCOUNT_EXTRACTORS_BY_CATEGORY = {
 
 /** All pair-feature extractors across all categories. */
 export const ALL_PAIR_EXTRACTORS: PairFeatureExtractor[] = [
+  ...ACCOUNT_METADATA_PAIR_EXTRACTORS,
   ...STYLOMETRIC_PAIR_EXTRACTORS,
   ...TEMPORAL_PAIR_EXTRACTORS,
   ...CROSS_PLATFORM_PAIR_EXTRACTORS,
@@ -102,8 +105,15 @@ export const ALL_PAIR_EXTRACTORS: PairFeatureExtractor[] = [
   ...METADATA_LEAKAGE_PAIR_EXTRACTORS,
 ];
 
+/** Engagement event extractors (event_features rows). */
+export const ALL_EVENT_EXTRACTORS = [...NETWORK_EVENT_EXTRACTORS];
+
+/** Pair extractors that read event_features (§4.4.3, §4.4.4). */
+export const ALL_ENGAGEMENT_PAIR_EXTRACTORS = [...NETWORK_ENGAGEMENT_PAIR_EXTRACTORS];
+
 /** Pair-level extractors grouped by signal category. */
 export const PAIR_EXTRACTORS_BY_CATEGORY = {
+  account_metadata: ACCOUNT_METADATA_PAIR_EXTRACTORS,
   stylometric: STYLOMETRIC_PAIR_EXTRACTORS,
   temporal: TEMPORAL_PAIR_EXTRACTORS,
   cross_platform: CROSS_PLATFORM_PAIR_EXTRACTORS,
@@ -116,13 +126,15 @@ export const PAIR_EXTRACTORS_BY_CATEGORY = {
 // Re-exports
 // ---------------------------------------------------------------------------
 
-export { ACCOUNT_METADATA_EXTRACTORS } from './account-metadata';
+export { ACCOUNT_METADATA_EXTRACTORS, ACCOUNT_METADATA_PAIR_EXTRACTORS } from './account-metadata';
 export { TEMPORAL_EXTRACTORS, TEMPORAL_PAIR_EXTRACTORS } from './temporal';
 export { STYLOMETRIC_EXTRACTORS, STYLOMETRIC_PAIR_EXTRACTORS } from './stylometric';
 export { CROSS_PLATFORM_PAIR_EXTRACTORS } from './cross-platform';
-export { NETWORK_EXTRACTORS, NETWORK_PAIR_EXTRACTORS } from './network';
+export { NETWORK_EXTRACTORS, NETWORK_PAIR_EXTRACTORS, NETWORK_EVENT_EXTRACTORS, NETWORK_ENGAGEMENT_PAIR_EXTRACTORS } from './network';
 export { VISUAL_EXTRACTORS, VISUAL_PAIR_EXTRACTORS } from './visual';
 export { METADATA_LEAKAGE_EXTRACTORS, METADATA_LEAKAGE_PAIR_EXTRACTORS } from './metadata-leakage';
 
 export { runAccountExtractors } from './runner';
 export { runPairExtractors } from './pair-runner';
+export { runEventExtractors } from './event-runner';
+export { runEngagementPairExtractors } from './engagement-pair-runner';

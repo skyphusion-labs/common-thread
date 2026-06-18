@@ -10,10 +10,6 @@ const VERSION = '1.0.0';
 
 type Direction = 'followers' | 'following';
 
-interface ExtractorInputWithEntry extends ExtractorInput {
-  entry: ManifestEntry;
-}
-
 export class TwitterNetworkExtractor implements AccountFeatureExtractor {
   readonly name = NAME;
   readonly version = VERSION;
@@ -49,8 +45,7 @@ export class TwitterNetworkExtractor implements AccountFeatureExtractor {
   }
 
   extract(input: ExtractorInput): ExtractedFeature[] {
-    const inputWithEntry = input as ExtractorInputWithEntry;
-    const entry = inputWithEntry.entry;
+    const entry = input.entry;
 
     const direction = detectDirection(entry);
     if (!direction) return [];

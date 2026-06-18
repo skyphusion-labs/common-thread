@@ -15,19 +15,15 @@
  *       score so the attribution reasoner can downweight pairs where
  *       the two evidence sources disagree
  *
- *   §4.4.3 Co-engagement timing on third-party content: NOT YET
- *     IMPLEMENTED. Requires engagement-event data (likes, reposts,
- *     replies WITH TIMESTAMPS on posts the seed accounts did not
- *     author). This is a different collection prerequisite from
- *     follower lists; needs a separate engagement-event archive
- *     type. Queued.
+ *   §4.4.3 Co-engagement timing on third-party content:
+ *     - event-level: TwitterEngagementEventExtractor (emits reply,
+ *       repost, quote rows to event_features)
+ *     - pair-level: CoEngagementTimingExtractor (via engagement-pair
+ *       runner)
  *
- *   §4.4.4 Cross-account amplification: NOT YET IMPLEMENTED.
- *     Requires engagement-event data showing who-amplifies-whom
- *     among the seed accounts. Different from §4.4.3 in that it
- *     looks at engagement WITHIN the seed set rather than on
- *     third-party content. Queued; shares the engagement-event
- *     collection prerequisite with §4.4.3.
+ *   §4.4.4 Cross-account amplification:
+ *     - pair-level: AmplificationExtractor (via engagement-pair runner;
+ *       shares the engagement event prerequisite with §4.4.3)
  *
  * Platform parity:
  *
@@ -54,23 +50,38 @@
  */
 
 import { TwitterNetworkExtractor } from './twitter';
+import { TwitterEngagementEventExtractor } from './engagement-events';
 import { FollowerOverlapExtractor } from './follower-overlap';
 import { MutualFollowExtractor } from './mutual-follow';
+import { CoEngagementTimingExtractor } from './co-engagement-timing';
+import { AmplificationExtractor } from './amplification';
 import type { AccountFeatureExtractor } from '../types';
 import type { PairFeatureExtractor } from '../pair-types';
+import type { EventFeatureExtractor } from '../event-types';
+import type { EngagementPairFeatureExtractor } from '../event-types';
 
 export const NETWORK_EXTRACTORS: AccountFeatureExtractor[] = [
   new TwitterNetworkExtractor(),
 ];
 
+/** Event extractors that emit engagement rows for §4.4.3 / §4.4.4. */
+export const NETWORK_EVENT_EXTRACTORS: EventFeatureExtractor[] = [
+  new TwitterEngagementEventExtractor(),
+];
+
 export const NETWORK_PAIR_EXTRACTORS: PairFeatureExtractor[] = [
   new FollowerOverlapExtractor(), // §4.4.1
   new MutualFollowExtractor(),    // §4.4.2
-  // Future:
-  // new CoEngagementTimingExtractor(),   // §4.4.3
-  // new AmplificationExtractor(),        // §4.4.4
+];
+
+export const NETWORK_ENGAGEMENT_PAIR_EXTRACTORS: EngagementPairFeatureExtractor[] = [
+  new CoEngagementTimingExtractor(), // §4.4.3
+  new AmplificationExtractor(),      // §4.4.4
 ];
 
 export { TwitterNetworkExtractor } from './twitter';
+export { TwitterEngagementEventExtractor } from './engagement-events';
 export { FollowerOverlapExtractor } from './follower-overlap';
 export { MutualFollowExtractor } from './mutual-follow';
+export { CoEngagementTimingExtractor } from './co-engagement-timing';
+export { AmplificationExtractor } from './amplification';

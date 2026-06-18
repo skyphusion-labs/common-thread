@@ -12,18 +12,19 @@ The methodology rests on four commitments:
 Common Thread is not a bot detector (use Botometer or BotSentinel for automated-account detection). It is not an open-world discovery tool (it operates on a seed set you provide). It is not a natural-person identification tool (it stops at the cluster level by structural commitment). It is not a stalker's tool or an unmasker of legitimate pseudonymous activity. The methodology paper's §1.2 names the audiences the methodology is for and the audiences it is explicitly not for; please read it before applying the methodology to an investigation.
 ## Repository contents
 
-paper/ Methodology paper, twelve sections plus references implementation/ Backend reference implementation workers/ Cloudflare Workers handlers (core API) extractors/ Deterministic feature extractors per signal category reasoner/ LLM-assisted attribution reasoning layer schema/ D1 schema and migrations archive/ Archival utilities for R2 content-addressed storage web/ Self-contained web frontend Worker (browser-based UI) docs/ Practitioner documentation (DEPLOYMENT.md, SETUP.md, etc.) scripts/ Utility scripts (keygen, etc.) tests/ Tests and test utilities examples/ Worked examples (placeholder until anonymized case studies land)
+paper/ Methodology paper, twelve sections plus references implementation/ Backend reference implementation workers/ Cloudflare Workers handlers (core API) extractors/ Deterministic feature extractors per signal category reasoner/ LLM-assisted attribution reasoning layer schema/ TypeScript types + MySQL schema docs archive/ Archival utilities for R2 content-addressed storage web/ Self-contained web frontend Worker (browser-based UI) docs/ Practitioner documentation (DEPLOYMENT.md, SETUP.md, etc.) scripts/ Utility scripts (keygen, etc.) tests/ Tests and test utilities examples/ Worked examples (placeholder until anonymized case studies land)
 
 ## Deployment
 The project uses a split structure:
 - Backend logic lives in `implementation/`
 - Web frontend lives in the `web/` subdirectory
 - Each has its own `wrangler.toml` configuration
-**Full deployment instructions** (Cloudflare resources, D1 + R2 setup, backend Worker, web frontend Worker, service bindings, local development, secrets, one-command deploys, troubleshooting, etc.) are in:
+**Full deployment instructions** (Cloudflare resources, MySQL + Hyperdrive + R2 setup, backend Worker, web frontend Worker, service bindings, local development, secrets, one-command deploys, troubleshooting, etc.) are in:
 → **`docs/DEPLOYMENT.md`**
 ### High-level prerequisites
 - Node.js ≥ 18
-- Cloudflare account with Workers, D1, and R2 enabled
+- Cloudflare account with Workers, Hyperdrive, and R2 enabled
+- MySQL 8+ database
 - Wrangler CLI installed and logged in
 See `docs/DEPLOYMENT.md` for the complete setup commands, resource creation scripts, deployment targets, and service binding configuration.
 ## Web Frontend Worker

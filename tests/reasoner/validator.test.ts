@@ -38,7 +38,7 @@
  *       when cited with value < 0.5 in support of coordination
  *
  * These tests are pure functions of constructed ReasoningOutput +
- * SignalTable inputs. No D1, fetch, or env dependency.
+ * SignalTable inputs. No database, fetch, or env dependency.
  */
 
 import { describe, expect, it } from 'vitest';

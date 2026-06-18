@@ -11,7 +11,7 @@
  *   - Resolves candidate accounts with per-account platforms via
  *     loadSeedAccounts (or resolveAccountPlatforms for accountFilter).
  *   - Iterates canonical pairs via canonicalPlatformedPair.
- *   - Reads from D1 (account_features, pair_features, provenance,
+ *   - Reads from MySQL (account_features, pair_features, provenance,
  *     extractor_runs, seed_accounts, investigations).
  *   - Captures manifest hash at run time for reproducibility (§3.4).
  *
@@ -20,19 +20,12 @@
  * to the pair iteration loop: each pair's signal table is built from
  * pair_features for the canonical pair plus account_features for
  * either account. A separate helper file would mostly export one
- * function that takes the same D1 handle the runner already holds.
+ * function that takes the same database handle the runner already holds.
  *
- * v1 scope notes:
- *   - event_features are not included in signal tables. The schema
- *     and the SignalId taxonomy (account:N | pair:N | event:N) reserve
- *     the slot; the §7.3.1 category-coverage rules in validator.ts
- *     don't have a clean event category. Add an event-row → signal
- *     mapping when the methodology resolves the event treatment.
- *   - control_accounts (§5.1.4) are not populated. seed_accounts has
- *     no is_control flag yet; SignalTable.control_accounts is left
- *     undefined.
- *   - time_bounds (§5.2.1) are populated when investigations.metadata_json
- *     contains a 'time_bounds' object; otherwise undefined.
+ *   - event_features are included for accounts in the pair scope.
+ *   - control_accounts (§5.1.4) populate from seed_accounts.is_control.
+ *   - Per-feature confidence_flag columns (§6.4.1) map to presentation
+ *     sufficient/degraded flags in the signal table.
  */
 
 import { ManifestStore } from '../archive/manifest';
@@ -50,8 +43,8 @@ import type {
 import { REASONING_PROMPT_VERSION, TRIAGE_PROMPT_VERSION } from './prompts';
 import { runReasoning } from './reasoner';
 import { runTriage } from './triage';
+import { toPresentationConfidence } from '../extractors/confidence';
 import type {
-  ConfidenceFlag,
   PresentedSignal,
   ReasoningClaim,
   ReasoningOutput,
@@ -161,6 +154,7 @@ export async function runAttribution(
     candidates.map(c => c.account)
   );
   const timeBounds = await loadTimeBounds(env.DB, options.investigationId);
+  const controlAccounts = await loadControlAccounts(env.DB, options.investigationId);
 
   const summaries: AttributionRunSummary[] = [];
 
@@ -184,6 +178,7 @@ export async function runAttribution(
           b => b.account === left.account || b.account === right.account
         ),
         timeBounds,
+        controlAccounts,
         randomizationSeed: seed,
       });
 
@@ -449,6 +444,7 @@ interface BuildSignalTableArgs {
   };
   basisStatementsForPair: Array<{ account: string; platform: string; statement: string }>;
   timeBounds?: { start: string; end: string };
+  controlAccounts?: Array<{ account: string; platform: string }>;
   randomizationSeed: string;
 }
 
@@ -461,16 +457,22 @@ async function buildSignalTable(
     args.pair.account_a,
     args.pair.account_b,
   ]);
+  const eventSignals = await loadEventSignals(db, args.investigationId, [
+    args.pair.account_a,
+    args.pair.account_b,
+  ]);
 
-  const all = [...pairSignals, ...accountSignals];
+  const all = [...pairSignals, ...accountSignals, ...eventSignals];
   const ordered = seededShuffle(all, args.randomizationSeed);
 
   return {
     investigation_id: args.investigationId,
     basis_statements: args.basisStatementsForPair,
     time_bounds: args.timeBounds,
-    // control_accounts intentionally omitted in v1 (no is_control flag
-    // on seed_accounts; see v1 scope notes at top of file).
+    control_accounts:
+      args.controlAccounts && args.controlAccounts.length > 0
+        ? args.controlAccounts
+        : undefined,
     signals: ordered,
     randomization_seed: args.randomizationSeed,
   };
@@ -487,7 +489,9 @@ interface PairSignalRow {
   feature_value_text: string | null;
   feature_value_numeric: number | null;
   feature_value_json: string | null;
-  confidence_flag: ConfidenceFlag;
+  stored_confidence: string | null;
+  extractor_status: string | null;
+  extractor_error: string | null;
 }
 
 async function loadPairSignals(
@@ -507,10 +511,9 @@ async function loadPairSignals(
       pf.feature_value_text,
       pf.feature_value_numeric,
       pf.feature_value_json,
-      CASE
-        WHEN er.status = 'completed' AND er.error_message IS NULL THEN 'sufficient'
-        ELSE 'degraded'
-      END AS confidence_flag
+      pf.confidence_flag AS stored_confidence,
+      er.status AS extractor_status,
+      er.error_message AS extractor_error
     FROM pair_features pf
     LEFT JOIN extractor_runs er ON er.id = pf.extractor_run_id
     WHERE pf.investigation_id = ?
@@ -550,7 +553,10 @@ async function loadPairSignals(
         platform_b: row.platform_b,
       },
       value: value as FeatureValue,
-      confidence_flag: row.confidence_flag,
+      confidence_flag: toPresentationConfidence(
+        row.stored_confidence as 'sufficient' | 'marginal' | 'insufficient' | null,
+        row.extractor_status === 'completed' && !row.extractor_error
+      ),
       provenance_fingerprint: fingerprintMap.get(row.id) ?? '',
     };
   });
@@ -565,7 +571,9 @@ interface AccountSignalRow {
   feature_value_text: string | null;
   feature_value_numeric: number | null;
   feature_value_json: string | null;
-  confidence_flag: ConfidenceFlag;
+  stored_confidence: string | null;
+  extractor_status: string | null;
+  extractor_error: string | null;
 }
 
 async function loadAccountSignals(
@@ -585,10 +593,9 @@ async function loadAccountSignals(
       af.feature_value_text,
       af.feature_value_numeric,
       af.feature_value_json,
-      CASE
-        WHEN er.status = 'completed' AND er.error_message IS NULL THEN 'sufficient'
-        ELSE 'degraded'
-      END AS confidence_flag
+      af.confidence_flag AS stored_confidence,
+      er.status AS extractor_status,
+      er.error_message AS extractor_error
     FROM account_features af
     LEFT JOIN extractor_runs er ON er.id = af.extractor_run_id
     WHERE af.investigation_id = ?
@@ -625,7 +632,97 @@ async function loadAccountSignals(
         platform: row.platform,
       },
       value: value as FeatureValue,
-      confidence_flag: row.confidence_flag,
+      confidence_flag: toPresentationConfidence(
+        row.stored_confidence as 'sufficient' | 'marginal' | 'insufficient' | null,
+        row.extractor_status === 'completed' && !row.extractor_error
+      ),
+      provenance_fingerprint: fingerprintMap.get(row.id) ?? '',
+    };
+  });
+}
+
+interface EventSignalRow {
+  id: number;
+  platform: string;
+  account_identifier: string;
+  event_timestamp: string;
+  event_type: string;
+  event_data_json: string | null;
+  stored_confidence: string | null;
+  extractor_status: string | null;
+  extractor_error: string | null;
+}
+
+async function loadEventSignals(
+  db: DatabaseClient,
+  investigationId: string,
+  accounts: string[]
+): Promise<PresentedSignal[]> {
+  if (accounts.length === 0) return [];
+  const placeholders = accounts.map(() => '?').join(', ');
+  const sql = `
+    SELECT
+      ef.id,
+      ef.platform,
+      ef.account_identifier,
+      ef.event_timestamp,
+      ef.event_type,
+      ef.event_data_json,
+      ef.confidence_flag AS stored_confidence,
+      er.status AS extractor_status,
+      er.error_message AS extractor_error
+    FROM event_features ef
+    LEFT JOIN extractor_runs er ON er.id = ef.extractor_run_id
+    WHERE ef.investigation_id = ?
+      AND ef.account_identifier IN (${placeholders})
+    ORDER BY ef.account_identifier, ef.event_timestamp, ef.event_type
+    LIMIT 500
+  `;
+  const res = await db
+    .prepare(sql)
+    .bind(investigationId, ...accounts)
+    .all<EventSignalRow>();
+  const rows = res.results ?? [];
+  if (rows.length === 0) return [];
+
+  const fingerprintMap = await loadProvenanceFingerprints(
+    db,
+    'event_feature_provenance',
+    'event_feature_id',
+    rows.map(r => r.id)
+  );
+
+  return rows.map((row): PresentedSignal => {
+    let eventData: unknown = row.event_data_json;
+    if (typeof row.event_data_json === 'string') {
+      try {
+        eventData = JSON.parse(row.event_data_json);
+      } catch {
+        eventData = row.event_data_json;
+      }
+    }
+
+    return {
+      signal_id: `event:${row.id}` as SignalId,
+      category: 'network',
+      feature_name: row.event_type,
+      scope: {
+        type: 'account',
+        account: row.account_identifier,
+        platform: row.platform,
+      },
+      value: {
+        kind: 'json',
+        value: {
+          event_timestamp: row.event_timestamp,
+          event_type: row.event_type,
+          event_data: eventData,
+        },
+      },
+      confidence_flag: toPresentationConfidence(
+        row.stored_confidence as 'sufficient' | 'marginal' | 'insufficient' | null,
+        row.extractor_status === 'completed' && !row.extractor_error
+      ),
       provenance_fingerprint: fingerprintMap.get(row.id) ?? '',
     };
   });
@@ -721,6 +818,28 @@ async function loadTimeBounds(
     // metadata_json is not parseable JSON; treat as no time bounds.
   }
   return undefined;
+}
+
+async function loadControlAccounts(
+  db: DatabaseClient,
+  investigationId: string
+): Promise<Array<{ account: string; platform: string }>> {
+  const res = await db
+    .prepare(
+      `SELECT account_identifier, MIN(platform) AS platform
+       FROM seed_accounts
+       WHERE investigation_id = ?
+         AND removed_at IS NULL
+         AND is_control = 1
+       GROUP BY account_identifier
+       ORDER BY account_identifier ASC`
+    )
+    .bind(investigationId)
+    .all<{ account_identifier: string; platform: string }>();
+  return (res.results ?? []).map(r => ({
+    account: r.account_identifier,
+    platform: r.platform,
+  }));
 }
 
 // ---------------------------------------------------------------------------

@@ -2,13 +2,13 @@
  * Pair extractor runner.
  *
  * Iterates ordered pairs of accounts in an investigation, loads each
- * account's required features from D1, calls each pair extractor's
+ * account's required features from MySQL, calls each pair extractor's
  * extract() method, and writes the resulting features to pair_features
  * with provenance traced from the contributing account features.
  *
  * Structurally different from the account runner:
  *   - Iterates N*(N-1)/2 pairs (N = seed account count), not manifest entries
- *   - Reads from D1 (account_features), not R2 (artifacts)
+ *   - Reads from MySQL (account_features), not R2 (artifacts)
  *   - Provenance traced transitively through account_feature_provenance,
  *     since pair features derive from already-extracted account features
  *     which themselves derive from artifacts
@@ -26,7 +26,7 @@
  */
 
 import {
-  canonicalPair,
+  canonicalPlatformedPair,
   packFeatureValue,
   readFeatureValue,
 } from '../schema/db-types';
@@ -35,6 +35,7 @@ import type { DatabaseClient } from '../db';
 import type { PairFeatureExtractor, AccountFeatureMap } from './pair-types';
 import type { ExtractedFeature } from './types';
 import type { FeatureValue } from '../schema/db-types';
+import { deriveStoredConfidence } from './confidence';
 
 export interface PairRunnerEnv {
   DB: DatabaseClient;
@@ -191,18 +192,30 @@ export async function runPairExtractors(
       }
 
       // Build context once, if the extractor wants it.
+      const controlFlags = await loadSeedControlFlags(
+        env.DB,
+        options.investigationId,
+        ready
+      );
       const seedAccountInputs = ready.map(acct => ({
         account: acct,
         features: accountFeatures.get(acct)!,
+        isControl: controlFlags.get(acct) ?? false,
       }));
       const context = extractor.buildContext
         ? extractor.buildContext(seedAccountInputs)
         : undefined;
 
-      // Iterate canonical pairs.
+      // Iterate canonical pairs (account + platform travel together).
       for (let i = 0; i < ready.length - 1; i++) {
         for (let j = i + 1; j < ready.length; j++) {
-          const [a, b] = canonicalPair(ready[i], ready[j]);
+          const left = { account: ready[i], platform: accountPlatformMap.get(ready[i])! };
+          const right = { account: ready[j], platform: accountPlatformMap.get(ready[j])! };
+          const [canonLeft, canonRight] = canonicalPlatformedPair(left, right);
+          const a = canonLeft.account;
+          const b = canonRight.account;
+          const platformA = canonLeft.platform;
+          const platformB = canonRight.platform;
           const featuresA = accountFeatures.get(a)!;
           const featuresB = accountFeatures.get(b)!;
 
@@ -223,9 +236,6 @@ export async function runPairExtractors(
 
           // Gather artifact_hashes that produced those contributing features.
           const artifactHashes = await tracProvenance(env.DB, contributingIds);
-
-          const platformA = accountPlatformMap.get(a)!;
-          const platformB = accountPlatformMap.get(b)!;
 
           for (const feature of pairFeatures) {
             await writePairFeature(env.DB, {
@@ -278,7 +288,7 @@ export async function runPairExtractors(
 }
 
 // ---------------------------------------------------------------------------
-// D1 helpers
+// MySQL helpers
 // ---------------------------------------------------------------------------
 
 /**
@@ -461,6 +471,9 @@ async function writePairFeature(
 ): Promise<void> {
   const packed = packFeatureValue(params.feature.value);
   const extractedAt = new Date().toISOString();
+  const confidenceFlag =
+    params.feature.confidence ??
+    deriveStoredConfidence(params.feature.category, params.feature.name, params.feature.value);
 
   const result = await db
     .prepare(
@@ -468,8 +481,9 @@ async function writePairFeature(
          investigation_id, platform_a, platform_b, account_a, account_b,
          feature_category, feature_name,
          feature_value_text, feature_value_numeric, feature_value_json,
-         extracted_at, extractor_name, extractor_version, extractor_run_id
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+         extracted_at, extractor_name, extractor_version, extractor_run_id,
+         confidence_flag
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       params.investigationId,
@@ -485,7 +499,8 @@ async function writePairFeature(
       extractedAt,
       params.extractorName,
       params.extractorVersion,
-      params.extractorRunId
+      params.extractorRunId,
+      confidenceFlag
     )
     .run();
 
@@ -494,14 +509,40 @@ async function writePairFeature(
   for (const prov of params.artifactHashes) {
     await db
       .prepare(
-        `INSERT INTO pair_feature_provenance (
+        `INSERT IGNORE INTO pair_feature_provenance (
            pair_feature_id, artifact_hash, manifest_entry_hash
-         ) VALUES (?, ?, ?)
-         ON CONFLICT(pair_feature_id, artifact_hash) DO NOTHING`
+         ) VALUES (?, ?, ?)`
       )
       .bind(pairFeatureId, prov.artifact_hash, prov.manifest_entry_hash)
       .run();
   }
+}
+
+async function loadSeedControlFlags(
+  db: DatabaseClient,
+  investigationId: string,
+  accounts: string[]
+): Promise<Map<string, boolean>> {
+  const out = new Map<string, boolean>();
+  if (accounts.length === 0) return out;
+
+  const placeholders = accounts.map(() => '?').join(', ');
+  const res = await db
+    .prepare(
+      `SELECT account_identifier, MAX(is_control) AS is_control
+       FROM seed_accounts
+       WHERE investigation_id = ?
+         AND removed_at IS NULL
+         AND account_identifier IN (${placeholders})
+       GROUP BY account_identifier`
+    )
+    .bind(investigationId, ...accounts)
+    .all<{ account_identifier: string; is_control: number }>();
+
+  for (const row of res.results ?? []) {
+    out.set(row.account_identifier, row.is_control === 1);
+  }
+  return out;
 }
 
 async function markRunCompleted(

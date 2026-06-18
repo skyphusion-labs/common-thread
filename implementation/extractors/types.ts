@@ -8,20 +8,23 @@
  *
  * Extractors are categorized by what they produce:
  *   - AccountFeatureExtractor produces account_features rows
- *   - PairFeatureExtractor   produces pair_features rows (future)
- *   - EventFeatureExtractor  produces event_features rows (future)
- *
- * Only AccountFeatureExtractor is defined in this initial slice.
- * The other two follow the same pattern when they're built out.
+ *   - PairFeatureExtractor   produces pair_features rows
+ *   - EventFeatureExtractor  produces event_features rows
+ *   - EngagementPairFeatureExtractor produces pair_features from
+ *     event_features (see event-types.ts)
  */
 
 import type { ManifestEntry } from '../archive/types';
 import type { FeatureCategory, FeatureValue } from '../schema/db-types';
+import type { StoredFeatureConfidence } from './confidence';
 
-/** Input to an extractor: artifact bytes plus optional metadata hints. */
+/** Input to an extractor: artifact bytes plus manifest entry metadata. */
 export interface ExtractorInput {
   /** The raw artifact bytes from the archive. */
   bytes: Uint8Array;
+
+  /** Manifest entry for this artifact (source, collection method, hash, etc.). */
+  entry: ManifestEntry;
 
   /** Optional MIME type hint from the manifest entry. */
   mimeType?: string;
@@ -37,6 +40,8 @@ export interface ExtractedFeature {
   category: FeatureCategory;
   name: string;
   value: FeatureValue;
+  /** Optional §6.4.1 confidence; derived at write time when omitted. */
+  confidence?: StoredFeatureConfidence;
 }
 
 /**

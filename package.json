@@ -24,29 +24,27 @@
     "deploy:all:prod": "npm run deploy:backend:prod && npm run deploy:web:prod",
     "dev:web": "wrangler dev --config web/wrangler.toml",
     "typecheck": "tsc --noEmit",
-    "db:create": "wrangler d1 create common-thread --binding DB --update-config",
-    "db:create:prod": "wrangler d1 create common-thread-prod --binding DB --env production --update-config",
-    "db:migrate:local": "wrangler d1 migrations apply common-thread --local",
-    "db:migrate": "wrangler d1 migrations apply common-thread --remote",
-    "db:migrate:prod": "wrangler d1 migrations apply common-thread-prod --remote --env production",
-    "db:migrate:mysql": "echo 'Apply mysql-schema.sql: mysql -h HOST -u USER -p common_thread < mysql-schema.sql'",
+    "test": "vitest run",
+    "db:migrate": "node scripts/apply-mysql-schema.mjs",
     "db:hyperdrive:create": "wrangler hyperdrive create common-thread --connection-string",
     "r2:create": "wrangler r2 bucket create common-thread-archive --binding ARCHIVE --update-config",
     "r2:create:prod": "wrangler r2 bucket create common-thread-archive-prod --binding ARCHIVE --env production --update-config",
     "keygen": "node scripts/keygen.mjs"
   },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.888.0",
+    "mysql2": "^3.22.5"
+  },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.16.16",
     "@cloudflare/workers-types": "^4.20260616.1",
     "@vitest/coverage-istanbul": "^4.1.9",
+    "tsx": "^4.20.3",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9",
     "wrangler": "^4.101.0"
   },
   "engines": {
     "node": ">=18.0.0"
-  },
-  "dependencies": {
-    "mysql2": "^3.22.5"
   }
 }

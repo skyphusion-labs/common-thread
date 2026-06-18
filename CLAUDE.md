@@ -31,9 +31,9 @@ npm run dev              # wrangler dev (local Worker on :8787)
 npm run deploy           # wrangler deploy (default env)
 npm run deploy:prod      # wrangler deploy --env production
 
-npm run db:create        # create D1 db, then paste database_id into wrangler.toml
-npm run r2:create        # create R2 bucket
-npm run db:migrate:local # apply schema migrations to local D1
+npm run db:migrate         # apply mysql-schema.sql (set MYSQL_URL)
+npm run db:hyperdrive:create  # create Hyperdrive → paste id into wrangler.toml
+npm run r2:create          # create R2 bucket
 npm run keygen           # generate an Ed25519 signer keypair (scripts/keygen.mjs)
 ```
 
@@ -48,20 +48,20 @@ Targets the **Cloudflare Workers runtime**, not Node. In `implementation/` use
 only Web/Workers APIs (Web Crypto, `fetch`, etc.); `node:*` imports appear only
 in `scripts/` and `vitest.config.ts`, which run on the host.
 
-Bindings (`wrangler.toml`): `DB` (D1), `ARCHIVE` (R2). Vars: `ENVIRONMENT`,
+Bindings (`wrangler.toml`): `DB` (Hyperdrive → MySQL), `ARCHIVE` (R2). Vars: `ENVIRONMENT`,
 `TRIAGE_MODEL` (default `claude-haiku-4-5`), `REASONING_MODEL` (default
 `claude-opus-4-7`). Secrets (never committed; local via `.dev.vars`):
 `AI_GATEWAY_URL` (Cloudflare AI Gateway base ending in `/anthropic` — secret
 because it embeds the account ID) and `ANTHROPIC_API_KEY`. Note the LLM layer
 calls Anthropic **through the AI Gateway**, not Workers AI.
 
-`wrangler.toml`'s `main` is `implementation/workers/index.ts`. After
-`db:create`, paste the printed `database_id` into `wrangler.toml`.
+`wrangler.toml`'s `main` is `implementation/workers/index.ts`. Apply
+`mysql-schema.sql` to your MySQL instance and configure Hyperdrive `binding = "DB"`.
 
 ## Architecture
 
 A document flows through three deterministic-then-probabilistic stages. The
-ordering is a hard pipeline: **archive → extract → reason**, each writing D1
+ordering is a hard pipeline: **archive → extract → reason**, each writing MySQL
 rows that the next stage reads.
 
 ### 1. Archive (`implementation/archive/`) — content-addressed, signed
@@ -142,23 +142,24 @@ unit testing (`tests/reasoner/runner-internals.test.ts`).
 
 ### HTTP surface (`implementation/workers/index.ts`)
 
-Minimal v0.1 scaffolding only: `GET /` (health), `GET`/`POST /investigations`,
-`GET /manifest`, `GET /signatures`, `GET /verify`. The reasoner and extractors
-are **library code not yet wired to routes** — invoke them in tests. Planned
-routes (seeds, features, `/attribute`, runs, evidence packet) are in `TODO.md`.
+Routes include `GET /` (health), investigations, seeds, manifest, signatures,
+`POST /investigations/:id/ingest/apify-twitter`, `GET …/ingest-jobs/:job_id`,
+`POST /investigations/:id/attribute`, and attribution run listing. When
+`VPC_INGEST` is configured, ingest archives raw JSON once and dispatches to the
+self-hosted extraction container (`containers/ingest-worker/`); otherwise pass
+`?runExtractors=true` for inline local dev. Planned routes are in `TODO.md`.
 
 ## Data model (`implementation/schema/`)
 
-Ordered SQL migrations in `schema/migrations/` (`0001_initial.sql`,
-`0002_split_pair_platform_columns.sql`). Core tables: `investigations`,
-`seed_accounts` (with `basis_statement`, soft-deleted via `removed_at`),
+MySQL schema in `mysql-schema.sql` at the repo root (incremental changes in
+`mysql-migrations/`). Core tables: `investigations`, `seed_accounts` (with
+`basis_statement`, `is_control`, soft-deleted via `removed_at`),
 `account_features` / `pair_features` / `event_features` (each stores a value in
 exactly one of `feature_value_text|numeric|json`, enforced by CHECK), parallel
 `*_provenance` tables linking features → `artifact_hash`, `extractor_runs`, and
-`attribution_runs`. Migration 0002 split pair tables from a single `platform`
-into `platform_a`/`platform_b` for cross-platform pairs; its CHECK orders by
-account identifier only, so same-identifier-cross-platform pairs are
-unsupported (a future 0003 with a tuple CHECK is noted in `TODO.md`).
+`attribution_runs`. Pair tables use `platform_a`/`platform_b`; the CHECK orders
+by account identifier only, so same-identifier-cross-platform pairs are
+unsupported (noted in `TODO.md`).
 
 `db-types.ts` holds row/insert types and the canonicalization + value helpers
 the runners depend on: `canonicalPair`, `canonicalPlatformedPair`,
@@ -167,27 +168,20 @@ ordering or column packing.
 
 ## Testing conventions
 
-Tests run **inside a real Miniflare Workers runtime** via
-`@cloudflare/vitest-pool-workers`, so `env.DB` (in-memory SQLite) and
-`env.ARCHIVE` (in-memory R2) are real — SQLite functions like `GROUP_CONCAT` /
-`SUBSTR` are exercised for real, not mocked.
+Integration tests use **MySQL** (`TEST_MYSQL_URL`, default
+`mysql://root@127.0.0.1:3306/common_thread_test`) via `tests/helpers/mysql.ts`.
+`tests/setup.ts` applies `mysql-schema.sql` once before tests run. R2 and
+`fetchMock` still use `@cloudflare/vitest-pool-workers` / `cloudflare:test`.
 
-- Migrations are read at config-load time in `vitest.config.ts`
-  (`readD1Migrations`) and passed in via the `TEST_MIGRATIONS` binding;
-  `tests/setup.ts` applies them in a `beforeAll` with `applyD1Migrations`. **Add
-  a new migration file and it is picked up automatically** — no test wiring
-  needed.
-- LLM calls never hit the network: `fetchMock` from `cloudflare:test` intercepts
-  requests to the (stubbed) gateway URL. Helpers live in `tests/helpers/`
-  (`db.ts` for seeding, `llm.ts` for shaping triage/reasoning responses).
-- Use a **unique `investigation_id` per test** — schema/D1 state is shared
-  across a vitest run.
+- LLM calls never hit the network: `fetchMock` intercepts the stubbed gateway.
+  Helpers: `tests/helpers/db.ts`, `llm.ts`, `test-env.ts`.
+- Use a **unique `investigation_id` per test** — MySQL state is shared across a
+  vitest run.
 - Pure exported helpers (`derivePairBand`, `seededShuffle`) are tested directly
   without any binding.
 
-The reasoner layer has full coverage; **extractors have no direct tests yet**
-(see `TODO.md` for the planned pattern: seed D1 with artifacts → run extractor →
-assert feature rows).
+The reasoner layer has full coverage; extractor integration tests seed MySQL +
+R2 and assert feature rows.
 
 ## Conventions
 
@@ -198,4 +192,4 @@ assert feature rows).
 - Runner internals are bundled with their entry point (signal-table assembly
   lives in `reasoner/runner.ts`, not a sibling) because they are tightly coupled
   to the pair-iteration loop — follow that pattern rather than splitting helpers
-  that just re-take the same `D1Database` handle.
+  that just re-take the same `DatabaseClient` handle.
