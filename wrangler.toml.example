@@ -132,12 +132,35 @@ service = "common-thread-web-prod"
 # Queues
 # =============================================================================
 
+# --- Default / Local ---
 [[queues.producers]]
 binding = "INGEST_QUEUE"
 queue = "apify-ingest"
 
 [[queues.consumers]]
 queue = "apify-ingest"
+max_batch_size = 5
+max_batch_timeout = 30
+max_concurrency = 2
+
+# --- Development ---
+[[env.dev.queues.producers]]
+binding = "INGEST_QUEUE"
+queue = "apify-ingest-dev"
+
+[[env.dev.queues.consumers]]
+queue = "apify-ingest-dev"
+max_batch_size = 5
+max_batch_timeout = 30
+max_concurrency = 2
+
+# --- Production ---
+[[env.production.queues.producers]]
+binding = "INGEST_QUEUE"
+queue = "apify-ingest-prod"
+
+[[env.production.queues.consumers]]
+queue = "apify-ingest-prod"
 max_batch_size = 5
 max_batch_timeout = 30
 max_concurrency = 2
