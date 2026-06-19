@@ -170,7 +170,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     return jsonResponse({ investigation: publicInvestigationView(auth) });
   }
 
-  // Seal investigation — read-only thereafter (requires capability token)
+  // Seal investigation (read-only thereafter; requires capability token)
   if (method === 'POST' && path.match(/^\/investigations\/[^/]+\/seal$/)) {
     const match = path.match(/^\/investigations\/([^/]+)\/seal$/);
     const investigationId = match ? match[1] : '';
@@ -410,7 +410,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     );
   }
 
-  // Soft-delete seed account (§5.1 — preserves row for audit trail)
+  // Soft-delete seed account (§5.1; preserves row for audit trail)
   if (method === 'DELETE' && path.match(/^\/investigations\/[^/]+\/seeds$/)) {
     const match = path.match(/^\/investigations\/([^/]+)\/seeds$/);
     const investigationId = match ? match[1] : '';

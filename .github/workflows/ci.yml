@@ -1,6 +1,12 @@
-name: ci (self-hosted)
+name: ci
 
-# Full CI (typecheck + tests) on the self-hosted dischord runner.
+# Full CI on push + same-repo PRs, all on GitHub-HOSTED runners:
+#   - `ci`: typecheck + the Workers-pool test project. workerd needs a modern
+#     glibc (>= 2.32) that the self-hosted box does not have, and nothing here
+#     needs the box, so this runs hosted. Free on our GitHub Enterprise plan.
+#   - `db-tests`: the DB-backed (node) test project against a MySQL service
+#     container (issue #30): mysql2 cannot run in the Workers pool, so those
+#     suites need a Node runtime + a real MySQL.
 # The GitHub-hosted typecheck.yml stays as the safe path for untrusted fork PRs.
 on:
   push:
@@ -12,19 +18,13 @@ on:
 permissions:
   contents: read
 
-# Supersede in-flight runs on the same ref so a self-hosted runner is never
-# queued up behind stale commits.
 concurrency:
-  group: ci-self-hosted-${{ github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   ci:
-    # SECURITY: this repo is PUBLIC and the runner is self-hosted. Never let an
-    # untrusted fork PR execute on the box. Run for pushes (trusted) and only for
-    # same-repo (non-fork) PRs; fork PRs still get typecheck via the hosted workflow.
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -33,4 +33,48 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
-#     - run: npm test
+      # wrangler.toml is gitignored; the workers pool needs it to start Miniflare.
+      - name: Materialize wrangler.toml
+        run: cp wrangler.toml.example wrangler.toml
+      - name: Workers-pool tests
+        run: npx vitest run --project workers
+
+  db-tests:
+    # DB-backed (node) suites against a real MySQL. Hosted runner + service
+    # container is the canonical pattern and isolates untrusted-PR code in
+    # GitHub's sandbox (this repo is public).
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+          MYSQL_DATABASE: common_thread_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      TEST_MYSQL_URL: mysql://root@127.0.0.1:3306/common_thread_test
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      # wrangler.toml is gitignored but the shared vitest config loads it; the
+      # node project does not use it, but the config file references it, so provide it.
+      - name: Materialize wrangler.toml
+        run: cp wrangler.toml.example wrangler.toml
+      # The node project's globalSetup bootstraps the schema, but apply it
+      # explicitly first so a schema failure is an obvious, separate step.
+      - name: Apply schema
+        run: npm run db:migrate
+        env:
+          MYSQL_URL: mysql://root@127.0.0.1:3306/common_thread_test
+      - name: DB-backed (node) tests
+        run: npx vitest run --project node-db
