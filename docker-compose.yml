@@ -1,4 +1,4 @@
-# Common Thread — MySQL, ingest + PDF containers, and Cloudflare Tunnel.
+# Common Thread -- MySQL, ingest + PDF containers, and Cloudflare Tunnel.
 #
 # All services share common-thread-network. Workers VPC Hyperdrive reaches
 # MySQL at mysql:3306; VPC_INGEST → json-ingest:8080; VPC_PDF → json-pdf:8081.
@@ -10,7 +10,15 @@
 #   docker compose up -d
 #
 # Schema is applied on first MySQL boot (empty mysql_data volume). To re-apply:
-#   MYSQL_URL='mysql://commonthread:commonthreadpass@localhost:3306/common_thread' npm run db:migrate
+#   MYSQL_URL='mysql://commonthread:<MYSQL_PASSWORD>@localhost:3306/common_thread' npm run db:migrate
+#
+# No service publishes a host port (#29): Docker port-publishing writes iptables
+# rules that bypass UFW, so a published port would expose MySQL / the containers
+# on the box's public interface regardless of the firewall. The Worker reaches
+# json-ingest / json-pdf and MySQL (via Hyperdrive) through the cloudflared VPC
+# connector on this shared network, by service name. If a host-local debug port
+# is ever truly needed, bind loopback explicitly (127.0.0.1:3306:3306), never the
+# bare 3306:3306 form.
 #
 # Worker (wrangler.toml):
 #   INGEST_WORKER_URL = "http://json-ingest:8080/trigger"
@@ -24,13 +32,11 @@ services:
     container_name: common-thread-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-common_thread}
-      MYSQL_USER: ${MYSQL_USER:-commonthread}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-commonthreadpass}
+      MYSQL_USER: ${MYSQL_USER:?set MYSQL_USER in .env}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
       TZ: UTC
-    ports:
-      - "${MYSQL_PORT:-3306}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./mysql-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
@@ -42,6 +48,20 @@ services:
       --max_allowed_packet=256M
       --innodb_buffer_pool_size=1G
       --innodb_log_file_size=256M
+    # MySQL needs a writable data dir (the named volume) so it is not read_only,
+    # but it still drops all caps it does not need and gets no-new-privileges.
+    # It runs as the mysql user inside the official image already.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      # mysqld drops privileges to the mysql user at startup and the entrypoint
+      # fixes data-dir ownership; these are the only capabilities it needs.
+      - CHOWN
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
     healthcheck:
       test:
         [
@@ -52,7 +72,7 @@ services:
           "localhost",
           "-u",
           "root",
-          "-p${MYSQL_ROOT_PASSWORD:-rootpassword}",
+          "-p${MYSQL_ROOT_PASSWORD}",
         ]
       interval: 10s
       timeout: 5s
@@ -69,17 +89,26 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-    ports:
-      - "${INGEST_PORT:-8080}:8080"
     environment:
       PORT: "8080"
       CONTAINER_NAME: json-ingest
-      MYSQL_URL: mysql://${MYSQL_USER:-commonthread}:${MYSQL_PASSWORD:-commonthreadpass}@mysql:3306/${MYSQL_DATABASE:-common_thread}
+      MYSQL_URL: mysql://${MYSQL_USER:?set MYSQL_USER in .env}:${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}@mysql:3306/${MYSQL_DATABASE:-common_thread}
       R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:?set R2_ACCOUNT_ID in .env}
       R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:?set R2_ACCESS_KEY_ID in .env}
       R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:?set R2_SECRET_ACCESS_KEY in .env}
       R2_BUCKET_NAME: ${R2_BUCKET_NAME:-common-thread-archive}
       INGEST_SECRET: ${INGEST_SECRET:?set INGEST_SECRET in .env}
+    # Hardening (#33): non-root, read-only rootfs with a tmpfs scratch, no caps,
+    # no privilege escalation. The server only needs to read its bundled code and
+    # talk out over the network; it writes nothing to disk.
+    user: "1000:1000"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
       test:
         [
@@ -100,12 +129,22 @@ services:
     container_name: common-thread-pdf
     hostname: json-pdf
     restart: unless-stopped
-    ports:
-      - "${PDF_PORT:-8081}:8081"
     environment:
       PORT: "8081"
       CONTAINER_NAME: json-pdf
       PDF_SECRET: ${PDF_SECRET:?set PDF_SECRET in .env}
+    # Hardening (#33): non-root, read-only rootfs, no caps, no privilege
+    # escalation. wkhtmltopdf + ghostscript write only under /tmp (render-pdfa.ts
+    # uses os.tmpdir()), which is a writable tmpfs here; the rootfs stays
+    # read-only. tmpfs sized generously for large evidence-packet renders.
+    user: "1000:1000"
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
       test:
         [
