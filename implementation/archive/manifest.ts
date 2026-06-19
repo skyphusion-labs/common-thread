@@ -19,6 +19,7 @@
  */
 
 import { sha256 } from './hash';
+import { investigationManifestPath } from './paths';
 import type { R2BucketLike } from './store';
 import type { ManifestEntry, ManifestFilter } from './types';
 
@@ -27,17 +28,33 @@ export interface ManifestStoreOptions {
   bucket: R2BucketLike;
 
   /**
+   * Scope storage to one investigation. Preferred for all production use;
+   * manifests are keyed per investigation in R2.
+   */
+  investigationId?: string;
+
+  /**
    * Path to the manifest JSONL file in the bucket.
-   * Defaults to 'manifest.jsonl' at the bucket root.
+   * Use only for tests or migration tooling; production code should pass
+   * investigationId instead.
    */
   manifestPath?: string;
 }
 
 export class ManifestStore {
   private readonly manifestPath: string;
+  private readonly investigationId?: string;
 
   constructor(private readonly options: ManifestStoreOptions) {
-    this.manifestPath = options.manifestPath ?? 'manifest.jsonl';
+    if (options.manifestPath && options.investigationId) {
+      throw new Error('ManifestStore: pass investigationId or manifestPath, not both');
+    }
+    this.investigationId = options.investigationId;
+    this.manifestPath =
+      options.manifestPath ??
+      (options.investigationId
+        ? investigationManifestPath(options.investigationId)
+        : 'manifest.jsonl');
   }
 
   /**
@@ -49,6 +66,11 @@ export class ManifestStore {
    */
   async append(entry: ManifestEntry): Promise<void> {
     this.validateEntry(entry);
+    if (this.investigationId && entry.investigationId !== this.investigationId) {
+      throw new Error(
+        `Manifest entry investigationId ${entry.investigationId} does not match store scope ${this.investigationId}`
+      );
+    }
     const line = JSON.stringify(entry) + '\n';
 
     const existing = await this.options.bucket.get(this.manifestPath);

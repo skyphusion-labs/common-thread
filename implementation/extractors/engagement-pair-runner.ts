@@ -53,7 +53,7 @@ export async function runEngagementPairExtractors(
   env: EngagementPairRunnerEnv,
   options: RunEngagementPairExtractorsOptions
 ): Promise<EngagementPairExtractorRunResult[]> {
-  const manifest = new ManifestStore({ bucket: env.ARCHIVE });
+  const manifest = new ManifestStore({ bucket: env.ARCHIVE, investigationId: options.investigationId });
   const manifestHash = await manifest.manifestHash();
   if (!manifestHash) {
     throw new Error(

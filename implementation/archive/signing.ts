@@ -24,15 +24,18 @@
  * If you need in-Worker signing (less secure, simpler), the same
  * functions work; just provide the private key as a Worker secret.
  *
- * Signature storage: signatures live in a sidecar file alongside
- * the manifest (default: `manifest.jsonl.sigs.jsonl`), append-only,
- * one JSON signature record per line. Multiple practitioners can
- * countersign the same manifest by appending their own signature
- * records.
+ * Signature storage: signatures live in a sidecar file alongside the
+ * per-investigation manifest (`investigations/<id>/manifest.jsonl.sigs.jsonl`),
+ * append-only, one JSON signature record per line. Multiple practitioners can
+ * countersign the same manifest by appending their own signature records.
  */
 
 import type { R2BucketLike } from './store';
 import { bytesToHex } from './hash';
+import {
+  investigationManifestPath,
+  investigationSignaturesPath,
+} from './paths';
 
 /** An Ed25519 keypair, with keys encoded as base64 strings. */
 export interface KeyPair {
@@ -325,6 +328,8 @@ export async function verifyManifestSignature(
 
 export interface ManifestSignerOptions {
   bucket: R2BucketLike;
+  /** Scope signing to one investigation's manifest. */
+  investigationId?: string;
   manifestPath?: string;
   signaturesPath?: string;
 }
@@ -334,9 +339,24 @@ export class ManifestSigner {
   private readonly signaturesPath: string;
 
   constructor(private readonly options: ManifestSignerOptions) {
-    this.manifestPath = options.manifestPath ?? 'manifest.jsonl';
+    if (options.manifestPath && options.investigationId) {
+      throw new Error('ManifestSigner: pass investigationId or manifestPath, not both');
+    }
+    if (options.signaturesPath && options.investigationId && !options.manifestPath) {
+      throw new Error(
+        'ManifestSigner: signaturesPath with investigationId requires an explicit manifestPath'
+      );
+    }
+    this.manifestPath =
+      options.manifestPath ??
+      (options.investigationId
+        ? investigationManifestPath(options.investigationId)
+        : 'manifest.jsonl');
     this.signaturesPath =
-      options.signaturesPath ?? `${this.manifestPath}.sigs.jsonl`;
+      options.signaturesPath ??
+      (options.investigationId
+        ? investigationSignaturesPath(options.investigationId)
+        : `${this.manifestPath}.sigs.jsonl`);
   }
 
   async sign(
