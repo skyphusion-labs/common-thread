@@ -1,14 +1,16 @@
 /**
  * Vitest config for Common Thread (two projects).
  *
- * The DB layer (implementation/db.ts -> mysql2/promise) cannot load or run
- * inside the Workers runtime: @cloudflare/vitest-pool-workers forces
- * nodejs_compat v1 (mysql2's `lru.min` fails to resolve there), and even past
- * that, mysql2 needs a raw outbound TCP socket + node:fs, neither of which
- * workerd provides (Hyperdrive is the runtime DB path). So suites that touch
- * the DB run in a NODE project against a real MySQL (TEST_MYSQL_URL, a service
- * container in CI); the Workers-runtime suites (R2, fetchMock, Hyperdrive
- * bindings) stay in the workers pool. See issue #30.
+ * The DB layer (implementation/db.ts -> mysql2/promise) fails to LOAD under
+ * @cloudflare/vitest-pool-workers: the pool force-injects nodejs_compat v1,
+ * where mysql2's `lru.min` does not resolve (Cannot destructure createLRU).
+ * This is a TEST-HARNESS limitation, NOT a prod issue -- in production the
+ * worker reaches MySQL via Hyperdrive using mysql2 with `disableEval: true` +
+ * query() (Cloudflare's supported mysql2-in-Workers path) at the real compat
+ * date, where it loads fine. So here, suites that touch the DB run in a NODE
+ * project against a real MySQL (TEST_MYSQL_URL, a service container in CI); the
+ * Workers-runtime suites (R2, fetchMock, Hyperdrive bindings) stay in the
+ * workers pool. See issue #30.
  *
  * This file uses the `.mts` extension so Node/Vite load it as ESM.
  * `@cloudflare/vitest-pool-workers` is ESM-only and fails when the config is
@@ -41,11 +43,13 @@ const nodeSuites = ['tests/investigation/api-routes.test.ts'];
 
 // HYBRID suites: they import BOTH the mysql2 DB layer AND `cloudflare:test`
 // (env.ARCHIVE / fetchMock / worker.fetch). They have no working pool today --
-// mysql2 cannot load under the workers pool, and `cloudflare:test` does not
-// exist under the node environment. They are EXCLUDED from both projects (an
-// honest, documented skip; NOT silently green) until refactored to drop
-// cloudflare:test (fake R2 + undici MockAgent) so they can run in the node
-// project against MySQL. Tracked in the #30 follow-up issue.
+// mysql2 fails to load under the workers pool (nodejs_compat v1, a vitest-pool
+// limitation, NOT a prod issue -- prod runs mysql2 over Hyperdrive), and
+// `cloudflare:test` does not exist under the node environment. They are
+// EXCLUDED from both projects (an honest, documented skip; NOT silently green)
+// until refactored to run against the MySQL service container with R2 fidelity
+// preserved. Tracked in #46 (records the fidelity-preferred Hyperdrive-binding
+// approach vs the node/fake-R2 fallback).
 const hybridSuitesBlocked = [
   'tests/extractors/engagement.test.ts',
   'tests/extractors/runner.test.ts',
