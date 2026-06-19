@@ -21,7 +21,7 @@ import {
   TWITTER_ACCOUNT_EXTRACTORS,
   TWITTER_PAIR_EXTRACTORS,
 } from '../ingest/apify-ingest';
-import { resolveAttributionCredentials } from '../reasoner/credentials';
+import { resolveAttributionCredentials, parseAllowedGatewayHosts } from '../reasoner/credentials';
 import { runAttribution } from '../reasoner/runner';
 import { listAttributionRuns, getAttributionRun } from '../attribution/query';
 import {
@@ -49,6 +49,8 @@ export interface Env {
   REASONING_MODEL?: string;
   AI_GATEWAY_URL?: string;
   ANTHROPIC_API_KEY?: string;
+  /** Comma-separated hostnames allowed for AI Gateway URLs (BYOK + server secret). */
+  AI_GATEWAY_ALLOWED_HOSTS?: string;
   SIGNER_PUBLIC_KEY?: string;
   INVESTIGATION_NAMESPACE?: string;
   /** Comma-separated browser origins permitted to call the API (empty = browser blocked). */
@@ -504,6 +506,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
       envAnthropicApiKey: env.ANTHROPIC_API_KEY,
       requestHeaders: request.headers,
       body,
+      allowedGatewayHosts: parseAllowedGatewayHosts(env.AI_GATEWAY_ALLOWED_HOSTS),
     });
     if ('error' in credentials) {
       return jsonResponse({ error: credentials.error }, 503);

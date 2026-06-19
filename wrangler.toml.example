@@ -13,6 +13,7 @@
 #
 # Attribution (server-side keys OR user BYOK from web UI):
 #   Secrets: AI_GATEWAY_URL, ANTHROPIC_API_KEY (optional if all users BYOK)
+#   Vars: AI_GATEWAY_ALLOWED_HOSTS (optional; default gateway.ai.cloudflare.com)
 
 name = "common-thread"
 main = "implementation/workers/index.ts"

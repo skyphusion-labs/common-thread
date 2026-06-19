@@ -1,13 +1,92 @@
 import { describe, expect, it } from 'vitest';
-import { resolveAttributionCredentials } from '../../implementation/reasoner/credentials';
+import {
+  resolveAttributionCredentials,
+  validateAiGatewayUrl,
+} from '../../implementation/reasoner/credentials';
+
+const TEST_ALLOWED_HOSTS = ['gateway.example', 'api.anthropic.com'] as const;
+
+const withAllowedHosts = (
+  input: Parameters<typeof resolveAttributionCredentials>[0]
+) => ({
+  ...input,
+  allowedGatewayHosts: TEST_ALLOWED_HOSTS,
+});
+
+describe('validateAiGatewayUrl', () => {
+  it('accepts HTTPS URLs on the allowlist', () => {
+    expect(
+      validateAiGatewayUrl('https://gateway.ai.cloudflare.com/v1/acct/gw/anthropic')
+    ).toEqual({
+      url: 'https://gateway.ai.cloudflare.com/v1/acct/gw/anthropic',
+    });
+  });
+
+  it('rejects non-HTTPS schemes', () => {
+    expect(validateAiGatewayUrl('http://gateway.ai.cloudflare.com/anthropic')).toEqual({
+      error: 'AI Gateway URL must use HTTPS.',
+    });
+  });
+
+  it('rejects unparseable URLs', () => {
+    expect(validateAiGatewayUrl('not a url')).toEqual({
+      error: 'AI Gateway URL is not a valid URL.',
+    });
+  });
+
+  it('rejects hosts outside the allowlist', () => {
+    expect(
+      validateAiGatewayUrl('https://evil.example/anthropic', ['gateway.ai.cloudflare.com'])
+    ).toEqual({
+      error:
+        'AI Gateway URL host is not permitted. Allowed hosts: gateway.ai.cloudflare.com.',
+    });
+  });
+
+  it('rejects loopback hosts', () => {
+    expect(validateAiGatewayUrl('https://127.0.0.1/anthropic')).toEqual({
+      error:
+        'AI Gateway URL must not target private, link-local, or loopback hosts.',
+    });
+    expect(validateAiGatewayUrl('https://localhost/anthropic')).toEqual({
+      error:
+        'AI Gateway URL must not target private, link-local, or loopback hosts.',
+    });
+  });
+
+  it('rejects private and link-local hosts', () => {
+    expect(validateAiGatewayUrl('https://192.168.1.1/anthropic')).toEqual({
+      error:
+        'AI Gateway URL must not target private, link-local, or loopback hosts.',
+    });
+    expect(validateAiGatewayUrl('https://10.0.0.5/anthropic')).toEqual({
+      error:
+        'AI Gateway URL must not target private, link-local, or loopback hosts.',
+    });
+    expect(validateAiGatewayUrl('https://169.254.169.254/anthropic')).toEqual({
+      error:
+        'AI Gateway URL must not target private, link-local, or loopback hosts.',
+    });
+  });
+
+  it('rejects embedded credentials', () => {
+    expect(
+      validateAiGatewayUrl('https://user:pass@gateway.ai.cloudflare.com/anthropic')
+    ).toEqual({
+      error: 'AI Gateway URL must not include credentials.',
+    });
+  });
+});
 
 describe('resolveAttributionCredentials', () => {
   it('uses environment secrets when request omits credentials', () => {
-    const result = resolveAttributionCredentials({
-      envAiGatewayUrl: 'https://gateway.example/anthropic',
-      envAnthropicApiKey: 'env-key',
-      requestHeaders: new Headers(),
-    });
+    const result = resolveAttributionCredentials(
+      withAllowedHosts({
+        envAiGatewayUrl: 'https://gateway.example/anthropic',
+        envAnthropicApiKey: 'env-key',
+        requestHeaders: new Headers(),
+      })
+    );
 
     expect(result).toEqual({
       aiGatewayUrl: 'https://gateway.example/anthropic',
@@ -22,11 +101,13 @@ describe('resolveAttributionCredentials', () => {
       'x-anthropic-api-key': 'user-key',
     });
 
-    const result = resolveAttributionCredentials({
-      envAiGatewayUrl: 'https://gateway.example/anthropic',
-      envAnthropicApiKey: 'env-key',
-      requestHeaders: headers,
-    });
+    const result = resolveAttributionCredentials(
+      withAllowedHosts({
+        envAiGatewayUrl: 'https://gateway.example/anthropic',
+        envAnthropicApiKey: 'env-key',
+        requestHeaders: headers,
+      })
+    );
 
     expect(result).toEqual({
       aiGatewayUrl: 'https://api.anthropic.com',
@@ -36,13 +117,15 @@ describe('resolveAttributionCredentials', () => {
   });
 
   it('accepts snake_case body fields', () => {
-    const result = resolveAttributionCredentials({
-      requestHeaders: new Headers(),
-      body: {
-        ai_gateway_url: 'https://api.anthropic.com',
-        anthropic_api_key: 'body-key',
-      },
-    });
+    const result = resolveAttributionCredentials(
+      withAllowedHosts({
+        requestHeaders: new Headers(),
+        body: {
+          ai_gateway_url: 'https://api.anthropic.com',
+          anthropic_api_key: 'body-key',
+        },
+      })
+    );
 
     expect(result).toEqual({
       aiGatewayUrl: 'https://api.anthropic.com',
@@ -57,5 +140,37 @@ describe('resolveAttributionCredentials', () => {
     });
 
     expect(result).toMatchObject({ error: expect.stringContaining('both') });
+  });
+
+  it('rejects invalid AI Gateway URLs before returning credentials', () => {
+    const result = resolveAttributionCredentials(
+      withAllowedHosts({
+        requestHeaders: new Headers({
+          'x-ai-gateway-url': 'http://gateway.example/anthropic',
+          'x-anthropic-api-key': 'user-key',
+        }),
+      })
+    );
+
+    expect(result).toEqual({
+      error: 'AI Gateway URL must use HTTPS.',
+    });
+  });
+
+  it('rejects SSRF targets supplied via request body', () => {
+    const result = resolveAttributionCredentials(
+      withAllowedHosts({
+        requestHeaders: new Headers(),
+        body: {
+          aiGatewayUrl: 'https://127.0.0.1/anthropic',
+          anthropicApiKey: 'body-key',
+        },
+      })
+    );
+
+    expect(result).toEqual({
+      error:
+        'AI Gateway URL must not target private, link-local, or loopback hosts.',
+    });
   });
 });
