@@ -21,7 +21,7 @@ export {
 import type { ApifyIngestResult } from './apify-ingest-types';
 
 function vpcIngestEnabled(env: Env): boolean {
-  return Boolean(env.VPC_INGEST && env.INGEST_WORKER_URL);
+  return Boolean(env.VPC_INGEST && env.INGEST_WORKER_URL && env.INGEST_SECRET);
 }
 
 /**

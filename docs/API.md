@@ -66,8 +66,8 @@ All routes under `/investigations/:id` require the investigation **capability
 token** returned at creation (see [Investigation access](#investigation-access)).
 There is no public listing of investigations.
 
-With **Workers VPC** configured (`VPC_INGEST`), ingest and PDF rendering run on
-self-hosted containers (`containers/ingest-worker/`, `containers/pdf-worker/`).
+With **Workers VPC** configured (`VPC_INGEST`, `INGEST_WORKER_URL`, and
+`INGEST_SECRET`), ingest and PDF rendering run on self-hosted containers (`containers/ingest-worker/`, `containers/pdf-worker/`).
 Without VPC, ingest runs the full archive + extraction pipeline inline in the
 Worker (suitable for local dev only on small exports).
 
@@ -318,7 +318,8 @@ Query extracted features from MySQL.
 Requires capability token. Requires `status: active`.
 
 Upload an Apify Twitter export. Always archives raw JSON and runs the full
-extractor pipeline (container when `VPC_INGEST` is configured, inline otherwise).
+extractor pipeline (container when `VPC_INGEST`, `INGEST_WORKER_URL`, and
+`INGEST_SECRET` are configured; inline otherwise).
 
 **Content types**
 
@@ -471,7 +472,8 @@ Not called directly in normal operation; invoked by the Worker over Workers VPC.
 | `GET` | `/health` | Health check |
 | `POST` | `/trigger` | Run archive + extraction (`IngestJobHandoff`) |
 
-Configured via `INGEST_WORKER_URL` (e.g. `http://json-ingest:8080/trigger`).
+Configured via `INGEST_WORKER_URL` (e.g. `http://json-ingest:8080/trigger`) and
+`VPC_INGEST` binding. Auth: `INGEST_SECRET` (required).
 
 ### PDF container (`containers/pdf-worker/`)
 
@@ -509,7 +511,7 @@ See `containers/ingest-worker/README.md` and `containers/pdf-worker/README.md`.
 | `VPC_PDF` | Workers VPC → PDF container (`json-pdf`) |
 | `AI_GATEWAY_URL` | Attribution (secret; optional if users BYOK) |
 | `ANTHROPIC_API_KEY` | Attribution (secret; optional if users BYOK) |
-| `INGEST_SECRET` | Container auth (secret) |
+| `INGEST_SECRET` | Container auth (secret; required with `VPC_INGEST`) |
 | `PDF_SECRET` | PDF container auth (secret; required for `?format=pdf`) |
 | `SIGNER_PUBLIC_KEY` | Manifest verification |
 

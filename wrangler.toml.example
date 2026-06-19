@@ -156,5 +156,5 @@ enabled = true
 # AI_GATEWAY_URL      — optional if users BYOK via web UI
 # ANTHROPIC_API_KEY   — optional if users BYOK via web UI
 # SIGNER_PUBLIC_KEY   — manifest verification
-# INGEST_SECRET       — VPC ingest container auth
+# INGEST_SECRET       — VPC ingest container auth (required with VPC_INGEST)
 # PDF_SECRET          — VPC PDF container auth (?format=pdf)

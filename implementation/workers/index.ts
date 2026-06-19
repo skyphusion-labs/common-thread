@@ -59,6 +59,7 @@ export interface Env {
   VPC_INGEST?: Fetcher;
   /** Full URL for VPC_INGEST.fetch(), e.g. http://common-thread-ingest.internal/trigger */
   INGEST_WORKER_URL?: string;
+  /** Required when delegating ingest to the VPC container (wrangler secret put INGEST_SECRET). */
   INGEST_SECRET?: string;
   /** Workers VPC binding to the PDF/A renderer (common-thread-pdf / json-pdf). */
   VPC_PDF?: Fetcher;
