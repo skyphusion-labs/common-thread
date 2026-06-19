@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { env } from 'cloudflare:test';
 import worker from '../../implementation/workers/index';
+import pkg from '../../package.json';
 import {
   authorizeInvestigation,
   generateAccessToken,
@@ -56,6 +57,15 @@ describe('investigation access API', () => {
     };
     expect(body.contact).toBeUndefined();
     expect(body.hosted_api_notice).toBeUndefined();
+  });
+
+  it('GET / reports the package.json version, not a hardcoded literal (#43)', async () => {
+    const res = await worker.fetch(new Request('http://localhost/'), env);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { name?: string; version?: string };
+    expect(body.name).toBe('common-thread');
+    expect(body.version).toBe(pkg.version);
+    expect(body.version).toMatch(/^\d+\.\d+\.\d+/);
   });
 
   it('POST /investigations returns a one-time access_token', async () => {
