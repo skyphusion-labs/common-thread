@@ -32,7 +32,7 @@
     "keygen": "node scripts/keygen.mjs"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.888.0",
+    "@aws-sdk/client-s3": "^3.1072.0",
     "marked": "^15.0.12",
     "mysql2": "^3.22.5"
   },
