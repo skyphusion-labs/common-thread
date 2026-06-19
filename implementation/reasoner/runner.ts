@@ -124,7 +124,7 @@ export async function runAttribution(
   env: ReasonerRunnerEnv,
   options: RunAttributionOptions
 ): Promise<AttributionRunSummary[]> {
-  const manifest = new ManifestStore({ bucket: env.ARCHIVE });
+  const manifest = new ManifestStore({ bucket: env.ARCHIVE, investigationId: options.investigationId });
   const manifestHash = await manifest.manifestHash();
   if (!manifestHash) {
     throw new Error(

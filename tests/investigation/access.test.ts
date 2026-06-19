@@ -141,4 +141,51 @@ describe('investigation access API', () => {
     );
     expect(row.id).toBe(id);
   });
+
+  it('rejects archive routes without investigation scope or token', async () => {
+    const id = `api-archive-${Date.now()}`;
+    await createInvestigation(testDb(), { id });
+
+    const manifestMissing = await worker.fetch(new Request('http://localhost/manifest'), env);
+    expect(manifestMissing.status).toBe(400);
+
+    const manifestDenied = await worker.fetch(
+      new Request(`http://localhost/manifest?investigation=${encodeURIComponent(id)}`),
+      env
+    );
+    expect(manifestDenied.status).toBe(401);
+
+    const signaturesDenied = await worker.fetch(new Request('http://localhost/signatures'), env);
+    expect(signaturesDenied.status).toBe(400);
+
+    const verifyDenied = await worker.fetch(new Request('http://localhost/verify'), env);
+    expect(verifyDenied.status).toBe(400);
+  });
+
+  it('allows archive routes with a valid token scoped to one investigation', async () => {
+    const id = `api-archive-ok-${Date.now()}`;
+    const { accessToken } = await createInvestigation(testDb(), { id });
+    const headers = { Authorization: `Bearer ${accessToken}` };
+
+    const manifestRes = await worker.fetch(
+      new Request(`http://localhost/manifest?investigation=${encodeURIComponent(id)}`, { headers }),
+      env
+    );
+    expect(manifestRes.status).toBe(200);
+    const manifestBody = (await manifestRes.json()) as { investigationId?: string; entries?: unknown[] };
+    expect(manifestBody.investigationId).toBe(id);
+    expect(manifestBody.entries).toEqual([]);
+
+    const signaturesRes = await worker.fetch(
+      new Request(`http://localhost/signatures?investigation=${encodeURIComponent(id)}`, { headers }),
+      env
+    );
+    expect(signaturesRes.status).toBe(200);
+
+    const verifyRes = await worker.fetch(
+      new Request(`http://localhost/verify?investigation=${encodeURIComponent(id)}`, { headers }),
+      env
+    );
+    expect(verifyRes.status).toBe(200);
+  });
 });

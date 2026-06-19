@@ -59,7 +59,7 @@ export async function archiveAccountProfiles(
   }
 ): Promise<ArchiveProfilesResult> {
   const archive = new ArchiveStore({ bucket: env.ARCHIVE });
-  const manifest = new ManifestStore({ bucket: env.ARCHIVE });
+  const manifest = new ManifestStore({ bucket: env.ARCHIVE, investigationId: options.investigationId });
   const toolVersion = options.toolVersion ?? '1';
   const manifestHashes: string[] = [];
 

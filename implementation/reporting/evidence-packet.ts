@@ -414,11 +414,11 @@ export async function buildEvidencePacket(
     }
   }
 
-  const manifest = new ManifestStore({ bucket: archive });
-  const allEntries = await manifest.list({ investigationId });
+  const manifest = new ManifestStore({ bucket: archive, investigationId });
+  const allEntries = await manifest.list();
   const manifestExtract = allEntries.filter((e) => artifactHashes.has(e.hash));
 
-  const signer = new ManifestSigner({ bucket: archive });
+  const signer = new ManifestSigner({ bucket: archive, investigationId });
   const signatureResults = await signer.verifyAll();
 
   const narrative = {
