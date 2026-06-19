@@ -90,7 +90,7 @@ export async function runTwitterIngestPipeline(
   const parsedTweets = ctx.parsedTweets ?? parseApifyTwitterItems(ctx.payload);
   const handles = ctx.handles ?? extractAllHandlesFromApifyTwitter(ctx.payload);
 
-  const manifest = new ManifestStore({ bucket: env.archive });
+  const manifest = new ManifestStore({ bucket: env.archive, investigationId: ctx.investigationId });
 
   await manifest.append({
     hash: ctx.rawHash,

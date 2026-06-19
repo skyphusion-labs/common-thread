@@ -66,7 +66,7 @@ export async function runAccountExtractors(
   options: RunAccountExtractorsOptions
 ): Promise<ExtractorRunResult[]> {
   const archive = new ArchiveStore({ bucket: env.ARCHIVE });
-  const manifest = new ManifestStore({ bucket: env.ARCHIVE });
+  const manifest = new ManifestStore({ bucket: env.ARCHIVE, investigationId: options.investigationId });
 
   const manifestHash = await manifest.manifestHash();
   if (!manifestHash) {

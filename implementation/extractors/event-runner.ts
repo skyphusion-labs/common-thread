@@ -37,7 +37,7 @@ export async function runEventExtractors(
   options: RunEventExtractorsOptions
 ): Promise<EventExtractorRunResult[]> {
   const archive = new ArchiveStore({ bucket: env.ARCHIVE });
-  const manifest = new ManifestStore({ bucket: env.ARCHIVE });
+  const manifest = new ManifestStore({ bucket: env.ARCHIVE, investigationId: options.investigationId });
 
   const manifestHash = await manifest.manifestHash();
   if (!manifestHash) {

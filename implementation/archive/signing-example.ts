@@ -54,11 +54,12 @@ export async function generateInvestigationKeyPair(): Promise<void> {
  */
 export async function signCurrentManifest(
   bucket: R2BucketLike,
+  investigationId: string,
   privateKeyB64: string,
   signerId?: string,
   note?: string
 ): Promise<void> {
-  const signer = new ManifestSigner({ bucket });
+  const signer = new ManifestSigner({ bucket, investigationId });
   const signature = await signer.sign(privateKeyB64, { signerId, note });
   console.log(`Signed manifest hash: ${signature.manifestHash}`);
   console.log(`Signed at: ${signature.signedAt}`);
@@ -82,9 +83,10 @@ export async function signCurrentManifest(
  */
 export async function verifyExpectedSigner(
   bucket: R2BucketLike,
+  investigationId: string,
   expectedPublicKey: string
 ): Promise<boolean> {
-  const signer = new ManifestSigner({ bucket });
+  const signer = new ManifestSigner({ bucket, investigationId });
   const results = await signer.verifyBySigner(expectedPublicKey);
   return results.some(r => r.valid);
 }
@@ -95,7 +97,8 @@ export async function verifyExpectedSigner(
  * who has countersigned and whether the signatures still verify.
  */
 export async function reportSignatureStatus(
-  bucket: R2BucketLike
+  bucket: R2BucketLike,
+  investigationId: string
 ): Promise<{
   totalSignatures: number;
   validSignatures: number;
@@ -107,7 +110,7 @@ export async function reportSignatureStatus(
     reason?: string;
   }>;
 }> {
-  const signer = new ManifestSigner({ bucket });
+  const signer = new ManifestSigner({ bucket, investigationId });
   const results = await signer.verifyAll();
 
   return {

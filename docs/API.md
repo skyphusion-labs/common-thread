@@ -108,7 +108,8 @@ cannot be recovered later.
 ### Investigation access
 
 Pass the token on every request scoped to an investigation (`/investigations/:id/...`,
-and `GET /manifest?investigation=:id`).
+`GET /manifest?investigation=:id`, `GET /signatures?investigation=:id`, and
+`GET /verify?investigation=:id`).
 
 | Method | Header / query |
 |--------|----------------|
@@ -417,19 +418,27 @@ Markdown is the canonical signed source per §8.1.3; PDF is a derived view.
 
 ### `GET /manifest`
 
-List manifest entries.
+List manifest entries for one investigation. Requires capability token.
 
 | Query | Description |
 |-------|-------------|
-| `investigation` | Filter by investigation ID (**requires capability token** when set) |
+| `investigation` | Investigation ID (**required**) |
 
 ### `GET /signatures`
 
-List manifest signature records.
+List manifest signature records for one investigation. Requires capability token.
+
+| Query | Description |
+|-------|-------------|
+| `investigation` | Investigation ID (**required**) |
 
 ### `GET /verify`
 
-Verify all manifest signatures.
+Verify manifest signatures for one investigation. Requires capability token.
+
+| Query | Description |
+|-------|-------------|
+| `investigation` | Investigation ID (**required**) |
 
 ---
 

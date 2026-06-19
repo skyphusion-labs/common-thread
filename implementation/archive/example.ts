@@ -40,7 +40,7 @@ export async function collectArtifact(
   }
 ): Promise<ManifestEntry> {
   const archive = new ArchiveStore({ bucket: env.ARCHIVE });
-  const manifest = new ManifestStore({ bucket: env.ARCHIVE });
+  const manifest = new ManifestStore({ bucket: env.ARCHIVE, investigationId: meta.investigationId });
 
   // Step 1: write to the archive. Content-addressed; if the artifact is
   // already present (same bytes already collected before), this is a no-op.
@@ -94,7 +94,7 @@ export async function recordTombstone(
     toolVersion: string;
   }
 ): Promise<ManifestEntry> {
-  const manifest = new ManifestStore({ bucket: env.ARCHIVE });
+  const manifest = new ManifestStore({ bucket: env.ARCHIVE, investigationId: meta.investigationId });
 
   const entry: ManifestEntry = {
     // For a tombstone, the entry's own hash is its identity. We use the
@@ -145,6 +145,6 @@ export async function listInvestigationArtifacts(
   env: Env,
   investigationId: string
 ): Promise<ManifestEntry[]> {
-  const manifest = new ManifestStore({ bucket: env.ARCHIVE });
-  return manifest.list({ investigationId, status: 'present' });
+  const manifest = new ManifestStore({ bucket: env.ARCHIVE, investigationId });
+  return manifest.list({ status: 'present' });
 }

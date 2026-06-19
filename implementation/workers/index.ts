@@ -232,8 +232,8 @@ async function handle(request: Request, env: Env): Promise<Response> {
       [investigationId]
     );
 
-    const manifest = new ManifestStore({ bucket: env.ARCHIVE });
-    const artifacts = await manifest.list({ investigationId });
+    const manifest = new ManifestStore({ bucket: env.ARCHIVE, investigationId });
+    const artifacts = await manifest.list();
 
     return jsonResponse({
       investigationId,
@@ -242,31 +242,52 @@ async function handle(request: Request, env: Env): Promise<Response> {
     });
   }
 
-  // List manifest entries
+  // List manifest entries (requires capability token and investigation scope)
   if (method === 'GET' && path === '/manifest') {
     const investigationId = url.searchParams.get('investigation');
-    if (investigationId) {
-      const auth = await authorizeOrRespond(env, request, url, investigationId);
-      if (auth instanceof Response) return auth;
+    if (!investigationId) {
+      return jsonResponse({ error: 'Missing ?investigation= parameter' }, 400);
     }
-    const entries = await new ManifestStore({ bucket: env.ARCHIVE }).list(
-      investigationId ? { investigationId } : undefined
-    );
-    return jsonResponse({ entries, count: entries.length });
+    const auth = await authorizeOrRespond(env, request, url, investigationId);
+    if (auth instanceof Response) return auth;
+    const entries = await new ManifestStore({
+      bucket: env.ARCHIVE,
+      investigationId,
+    }).list();
+    return jsonResponse({ investigationId, entries, count: entries.length });
   }
 
-  // List signatures
+  // List signatures for one investigation's manifest
   if (method === 'GET' && path === '/signatures') {
-    const signatures = await new ManifestSigner({ bucket: env.ARCHIVE }).listSignatures();
-    return jsonResponse({ signatures, count: signatures.length });
+    const investigationId = url.searchParams.get('investigation');
+    if (!investigationId) {
+      return jsonResponse({ error: 'Missing ?investigation= parameter' }, 400);
+    }
+    const auth = await authorizeOrRespond(env, request, url, investigationId);
+    if (auth instanceof Response) return auth;
+    const signatures = await new ManifestSigner({
+      bucket: env.ARCHIVE,
+      investigationId,
+    }).listSignatures();
+    return jsonResponse({ investigationId, signatures, count: signatures.length });
   }
 
-  // Verify signatures
+  // Verify signatures for one investigation's manifest
   if (method === 'GET' && path === '/verify') {
-    const results = await new ManifestSigner({ bucket: env.ARCHIVE }).verifyAll();
+    const investigationId = url.searchParams.get('investigation');
+    if (!investigationId) {
+      return jsonResponse({ error: 'Missing ?investigation= parameter' }, 400);
+    }
+    const auth = await authorizeOrRespond(env, request, url, investigationId);
+    if (auth instanceof Response) return auth;
+    const results = await new ManifestSigner({
+      bucket: env.ARCHIVE,
+      investigationId,
+    }).verifyAll();
     const validCount = results.filter((r) => r.valid).length;
 
     return jsonResponse({
+      investigationId,
       totalSignatures: results.length,
       validSignatures: validCount,
       allValid: results.length > 0 && validCount === results.length,
@@ -280,8 +301,8 @@ async function handle(request: Request, env: Env): Promise<Response> {
     const auth = await authorizeOrRespond(env, request, url, investigationId);
     if (auth instanceof Response) return auth;
 
-    const manifest = new ManifestStore({ bucket: env.ARCHIVE });
-    const allEntries = await manifest.list({ investigationId });
+    const manifest = new ManifestStore({ bucket: env.ARCHIVE, investigationId });
+    const allEntries = await manifest.list();
     const entriesWithAccount = allEntries.filter((e) => e.account);
 
     const accountVisibility: Record<string, any> = {};
@@ -315,7 +336,10 @@ async function handle(request: Request, env: Env): Promise<Response> {
     const auth = await authorizeOrRespond(env, request, url, investigationId);
     if (auth instanceof Response) return auth;
 
-    const entries = await new ManifestStore({ bucket: env.ARCHIVE }).list({ investigationId });
+    const entries = await new ManifestStore({
+      bucket: env.ARCHIVE,
+      investigationId,
+    }).list();
     const withAccount = entries.filter((e) => e.account);
     const withoutAccount = entries.filter((e) => !e.account);
 
