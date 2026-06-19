@@ -30,6 +30,9 @@ import {
 } from '../features/query';
 import { buildEvidencePacket } from '../reporting/evidence-packet';
 import { packetDocumentTitle, packetMarkdownToHtml } from '../reporting/packet-html';
+// Single source of truth for the version (issue #43); resolveJsonModule inlines
+// this at build time, matching the evidence packet (#32).
+import pkg from '../../package.json';
 import { dispatchPdfRender, vpcPdfEnabled } from '../reporting/pdf-dispatch';
 import {
   assertBrowserOriginAllowed,
@@ -96,7 +99,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
   if (method === 'GET' && path === '/') {
     const body: Record<string, unknown> = {
       name: 'common-thread',
-      version: '0.1.0',
+      version: pkg.version,
       environment: env.ENVIRONMENT,
       status: 'ok',
     };
