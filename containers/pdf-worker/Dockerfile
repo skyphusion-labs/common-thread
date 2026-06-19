@@ -22,4 +22,9 @@ ENV CONTAINER_NAME=common-thread-pdf
 
 EXPOSE 8081
 
+# Run as the unprivileged `node` user (uid 1000, shipped by the base image)
+# rather than root (#33). wkhtmltopdf + ghostscript run fine non-root; they
+# write only under os.tmpdir() (/tmp), provided as a writable tmpfs at runtime.
+USER node
+
 CMD ["npx", "tsx", "containers/pdf-worker/server.ts"]

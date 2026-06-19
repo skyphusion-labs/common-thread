@@ -5,11 +5,12 @@
  * fetches the raw export from R2, runs the shared ingest pipeline, and
  * writes results to MySQL.
  *
- * Contract: POST /trigger — see implementation/ingest/handoff.ts
+ * Contract: POST /trigger -- see implementation/ingest/handoff.ts
  */
 
 import http from 'node:http';
 import { hostname } from 'node:os';
+import { timingSafeEqual } from 'node:crypto';
 import { ArchiveStore } from '../../implementation/archive/store';
 import {
   createR2BucketFromS3Config,
@@ -25,9 +26,26 @@ const INGEST_SECRET = process.env.INGEST_SECRET ?? '';
 const MYSQL_URL = process.env.MYSQL_URL ?? '';
 const CONTAINER_NAME = process.env.CONTAINER_NAME ?? hostname();
 
+// A handoff is three short ids; a few KB is generous. Cap the body so a crafted
+// request cannot buffer unbounded memory and OOM the container.
+const MAX_BODY_BYTES = 256 * 1024;
+
 if (!INGEST_SECRET) {
   console.error('[ingest] INGEST_SECRET is required');
   process.exit(1);
+}
+
+// Pre-compute the expected Authorization header once so the per-request compare
+// is constant-time against a fixed buffer.
+const EXPECTED_AUTH = Buffer.from(`Bearer ${INGEST_SECRET}`, 'utf8');
+
+// Constant-time bearer check. timingSafeEqual throws on length mismatch, so we
+// guard length first (the length may leak; the secret bytes must not). A plain
+// `===` leaks the secret a byte at a time via early-exit timing.
+function authorized(req: http.IncomingMessage): boolean {
+  const provided = Buffer.from(req.headers.authorization ?? '', 'utf8');
+  if (provided.length !== EXPECTED_AUTH.length) return false;
+  return timingSafeEqual(provided, EXPECTED_AUTH);
 }
 
 function unauthorized(res: http.ServerResponse) {
@@ -38,8 +56,21 @@ function unauthorized(res: http.ServerResponse) {
 function readJson(req: http.IncomingMessage): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
-    req.on('data', (c) => chunks.push(c));
+    let total = 0;
+    let aborted = false;
+    req.on('data', (c: Buffer) => {
+      if (aborted) return;
+      total += c.length;
+      if (total > MAX_BODY_BYTES) {
+        aborted = true;
+        reject(new Error('payload too large'));
+        req.destroy();
+        return;
+      }
+      chunks.push(c);
+    });
     req.on('end', () => {
+      if (aborted) return;
       try {
         resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')));
       } catch (err) {
@@ -78,8 +109,13 @@ async function processJob(handoff: IngestJobHandoff): Promise<void> {
     }
   );
 
+  // Pass the user-controlled ids as args, not inside the format string, so a
+  // crafted jobId cannot inject console format directives (CodeQL
+  // js/tainted-format-string).
   console.log(
-    `[ingest] completed job ${handoff.jobId} investigation=${handoff.investigationId}`
+    '[ingest] completed job %s investigation=%s',
+    handoff.jobId,
+    handoff.investigationId
   );
 }
 
@@ -96,8 +132,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  const auth = req.headers.authorization ?? '';
-  if (auth !== `Bearer ${INGEST_SECRET}`) {
+  if (!authorized(req)) {
     unauthorized(res);
     return;
   }
@@ -105,9 +140,10 @@ const server = http.createServer(async (req, res) => {
   let handoff: IngestJobHandoff;
   try {
     handoff = (await readJson(req)) as IngestJobHandoff;
-  } catch {
-    res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Invalid JSON' }) + '\n');
+  } catch (err) {
+    const tooLarge = err instanceof Error && err.message === 'payload too large';
+    res.writeHead(tooLarge ? 413 : 400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: tooLarge ? 'Payload too large' : 'Invalid JSON' }) + '\n');
     return;
   }
 
@@ -121,14 +157,14 @@ const server = http.createServer(async (req, res) => {
 
   processJob(handoff).catch(async (err) => {
     const message = err instanceof Error ? err.message : String(err);
-    console.error(`[ingest] job ${handoff.jobId} failed:`, err);
+    console.error('[ingest] job %s failed:', handoff.jobId, err);
     try {
       if (MYSQL_URL) {
         const db = createDatabaseClient(parseMysqlUrl(MYSQL_URL));
         await failIngestJob(db, handoff.jobId, message);
       }
     } catch (dbErr) {
-      console.error(`[ingest] failed to record job failure for ${handoff.jobId}:`, dbErr);
+      console.error('[ingest] failed to record job failure for %s:', handoff.jobId, dbErr);
     }
   });
 

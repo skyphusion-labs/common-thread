@@ -26,7 +26,12 @@ export async function renderHtmlToPdfA(html: string): Promise<Uint8Array> {
         '--quiet',
         '--encoding',
         'utf-8',
-        '--enable-local-file-access',
+        // Block wkhtmltopdf from reading local files / following file: and
+        // intranet references embedded in the (Worker-supplied) HTML. Without
+        // this, crafted packet HTML could exfiltrate container files or hit
+        // internal endpoints (SSRF). Evidence-packet HTML is self-contained, so
+        // disabling local-file access does not affect a normal render.
+        '--disable-local-file-access',
         '--print-media-type',
         '--page-size',
         'A4',
