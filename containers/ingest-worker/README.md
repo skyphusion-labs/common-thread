@@ -49,7 +49,7 @@ longer accepts a `runExtractors` flag.
 | `R2_ACCESS_KEY_ID` | yes | R2 API token access key |
 | `R2_SECRET_ACCESS_KEY` | yes | R2 API token secret |
 | `R2_BUCKET_NAME` | yes | Archive bucket (e.g. `common-thread-archive`) |
-| `INGEST_SECRET` | recommended | Bearer token shared with Worker |
+| `INGEST_SECRET` | yes | Bearer token shared with Worker |
 | `PORT` | no | Listen port (default `8080`) |
 | `CONTAINER_NAME` | no | Recorded on `ingest_jobs.container_name` |
 

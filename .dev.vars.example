@@ -19,6 +19,10 @@ INVESTIGATION_NAMESPACE=local-dev
 # AI_GATEWAY_URL=https://gateway.ai.cloudflare.com/v1/ACCOUNT/GATEWAY/anthropic
 # ANTHROPIC_API_KEY=sk-ant-...
 
+# Required for VPC ingest container delegation.
+# Must match INGEST_SECRET on the json-ingest container.
+INGEST_SECRET=
+
 # Required for evidence-packet PDF export (?format=pdf) via VPC PDF container.
 # Must match PDF_SECRET on the json-pdf container.
 PDF_SECRET=

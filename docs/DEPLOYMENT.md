@@ -74,8 +74,8 @@ browser API use).
 | `SIGNER_PUBLIC_KEY` | Manifest signing (recommended) |
 | `AI_GATEWAY_URL` | Server-side attribution (optional if users BYOK) |
 | `ANTHROPIC_API_KEY` | Server-side attribution (optional if users BYOK) |
-| `INGEST_SECRET` | VPC ingest container |
-| `PDF_SECRET` | VPC PDF container |
+| `INGEST_SECRET` | VPC ingest container (required with `VPC_INGEST`) |
+| `PDF_SECRET` | VPC PDF container (required for `?format=pdf`) |
 
 ```bash
 wrangler secret put SIGNER_PUBLIC_KEY
@@ -184,7 +184,7 @@ For large Apify exports and PDF evidence packets:
 1. Deploy `containers/ingest-worker/` and `containers/pdf-worker/` on your VPC fleet.
 2. Uncomment `[[vpc_services]]` blocks in `wrangler.toml` and set `service_id`.
 3. Set `INGEST_WORKER_URL` and `PDF_WORKER_URL` in `[vars]`.
-4. Set `INGEST_SECRET` and `PDF_SECRET`.
+4. Set `INGEST_SECRET` and `PDF_SECRET` (required for container auth).
 
 See `containers/ingest-worker/README.md` and `containers/pdf-worker/README.md`.
 
@@ -199,6 +199,7 @@ See `containers/ingest-worker/README.md` and `containers/pdf-worker/README.md`.
 - [ ] Seal investigation → ingest/attribute disabled; results still readable
 - [ ] Evidence packet: JSON and Markdown download from Results tab
 - [ ] PDF download works if `VPC_PDF` + `PDF_SECRET` are configured
+- [ ] VPC ingest delegation works if `VPC_INGEST` + `INGEST_SECRET` are configured
 
 ## 8. Local development
 

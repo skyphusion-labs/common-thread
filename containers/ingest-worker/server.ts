@@ -25,6 +25,11 @@ const INGEST_SECRET = process.env.INGEST_SECRET ?? '';
 const MYSQL_URL = process.env.MYSQL_URL ?? '';
 const CONTAINER_NAME = process.env.CONTAINER_NAME ?? hostname();
 
+if (!INGEST_SECRET) {
+  console.error('[ingest] INGEST_SECRET is required');
+  process.exit(1);
+}
+
 function unauthorized(res: http.ServerResponse) {
   res.writeHead(401, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ error: 'Unauthorized' }) + '\n');
@@ -91,12 +96,10 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (INGEST_SECRET) {
-    const auth = req.headers.authorization ?? '';
-    if (auth !== `Bearer ${INGEST_SECRET}`) {
-      unauthorized(res);
-      return;
-    }
+  const auth = req.headers.authorization ?? '';
+  if (auth !== `Bearer ${INGEST_SECRET}`) {
+    unauthorized(res);
+    return;
   }
 
   let handoff: IngestJobHandoff;
