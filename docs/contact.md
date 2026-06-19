@@ -8,6 +8,9 @@ This file specifies how to contact the project for different purposes. Most inqu
 
 - Bug reports against the reference implementation
 - Methodology questions and clarification requests
+- **Hosted API access:** you want to use https://common-thread-backend.skyphusion.org
+  in your own project (include project description, expected usage, and browser
+  origin URLs if applicable)
 - Feature suggestions and discussion of open problems from the paper's §11
 - Proposed extensions to the methodology
 - Documentation improvements
@@ -19,10 +22,12 @@ Public issues are visible to all readers of the repo and produce a record that o
 
 For inquiries that should not be public, use email:
 
-**common-thread@rockenhaus.net**
+**common-thread@skyphusion.org**
 
 Use this address for:
 
+- **Hosted API integration** (using https://common-thread-backend.skyphusion.org
+  in your application — include project summary and expected load)
 - Sensitive case consultation (whether a proposed application of the methodology meets the methodology's standards)
 - Coordination on methodology extensions before public discussion
 - Security disclosures regarding the reference implementation

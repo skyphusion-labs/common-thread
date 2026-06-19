@@ -3,6 +3,10 @@
 First-time setup for the Common Thread reference implementation. Skip
 ahead if you've already done a step.
 
+- **HTTP API:** [API.md](API.md)
+- **Deployment:** [DEPLOYMENT.md](DEPLOYMENT.md)
+- **Web UI + BYOK:** [README.md](../README.md#web-frontend)
+
 ## Prerequisites
 
 - Node.js 18 or later
@@ -37,6 +41,8 @@ GET requests).
 git clone https://github.com/SkyPhusion/common-thread
 cd common-thread
 npm install
+cp wrangler.toml.example wrangler.toml
+cp web/wrangler.toml.example web/wrangler.toml
 ```
 
 This installs Wrangler, TypeScript, and the Workers type definitions
@@ -84,7 +90,22 @@ Verify tables exist:
 
 ```bash
 mysql -h HOST -u USER -p common_thread -e "SHOW TABLES;"
+mysql -h HOST -u USER -p common_thread -e "SELECT value FROM schema_metadata WHERE \`key\` = 'schema_version';"
 ```
+
+Current schema version is **0008** (investigation capability tokens:
+`investigations.access_token_hash`). Fresh installs via `mysql-schema.sql` or
+`npm run db:migrate` on an empty database include this column.
+
+**Upgrading an existing database:** apply incremental migrations in order:
+
+```bash
+mysql -h HOST -u USER -p common_thread < mysql-migrations/0008_investigation_access_token.sql
+```
+
+Investigations created before migration 0008 have no recoverable token and
+cannot be accessed via the API. For dev databases, dropping and recreating is
+often simpler (see [Common issues](#common-issues)).
 
 ## 5. Generate a signer keypair
 
@@ -143,33 +164,61 @@ Expected response:
   "name": "common-thread",
   "version": "0.1.0",
   "environment": "development",
-  "status": "ok",
-  "bindings": {
-    "db": true,
-    "archive": true,
-    "signerPublicKey": true
-  }
+  "status": "ok"
 }
 ```
 
-If any binding shows as `false`, recheck the corresponding setup step.
+If the request fails, check Hyperdrive (`DB`), R2 (`ARCHIVE`), and MySQL connectivity.
 
-## 8. Create your first investigation
+## 8. Web frontend (optional)
+
+```bash
+cp web/wrangler.toml.example web/wrangler.toml
+npm run dev:web
+```
+
+Open the web Worker URL (Wrangler prints it). In **Setup**:
+
+1. Leave backend URL empty if the `BACKEND` service binding points at `npm run dev`.
+2. Or set backend URL to `http://127.0.0.1:8787` and uncomment `DEFAULT_BACKEND_URL` in `web/wrangler.toml`.
+3. Add **Anthropic API key** and **AI Gateway URL** (or `https://api.anthropic.com`) for attribution — see the "How to get API keys" section in the UI.
+
+Attribution credentials stay in your browser (BYOK); they are not stored on the server.
+
+## 9. Create your first investigation
 
 **bash / WSL:**
 
 ```bash
-curl -X POST http://localhost:8787/investigations \
+curl -s -X POST http://localhost:8787/investigations \
   -H "Content-Type: application/json" \
   -d '{"id": "test-001", "name": "Test investigation", "description": "Verifying setup"}'
 ```
 
+Save the `access_token` from the JSON response (shown only once). Then verify
+access with the token:
+
+```bash
+# Replace ct_… with the token from the create response
+export CT_TOKEN='ct_…'
+
+curl -s http://localhost:8787/investigations/test-001/summary \
+  -H "Authorization: Bearer $CT_TOKEN"
+```
+
+You should get seed and artifact counts. `GET /investigations` (listing) returns
+`404` — investigations are not enumerable.
+
 **PowerShell:**
 
 ```powershell
-Invoke-RestMethod -Method Post -Uri http://localhost:8787/investigations `
+$created = Invoke-RestMethod -Method Post -Uri http://localhost:8787/investigations `
   -ContentType "application/json" `
   -Body '{"id": "test-001", "name": "Test investigation", "description": "Verifying setup"}'
+$created.access_token
+
+Invoke-RestMethod -Uri http://localhost:8787/investigations/test-001/summary `
+  -Headers @{ Authorization = "Bearer $($created.access_token)" }
 ```
 
 **Windows cmd.exe:**
@@ -178,20 +227,20 @@ Invoke-RestMethod -Method Post -Uri http://localhost:8787/investigations `
 curl -X POST http://localhost:8787/investigations -H "Content-Type: application/json" -d "{\"id\": \"test-001\", \"name\": \"Test investigation\", \"description\": \"Verifying setup\"}"
 ```
 
-Then list (works the same in all three shells):
+Copy `access_token` from the response, then:
 
-```bash
-curl http://localhost:8787/investigations
+```cmd
+curl http://localhost:8787/investigations/test-001/summary -H "Authorization: Bearer ct_…"
 ```
 
-In PowerShell, use `curl.exe http://localhost:8787/investigations` to
-avoid the `Invoke-WebRequest` alias, or `Invoke-RestMethod
-http://localhost:8787/investigations` for the native cmdlet.
+If the summary request succeeds, the full stack (Worker + MySQL + schema) is
+working.
 
-If you get back the investigation you just created, the full stack
-(Worker + MySQL + schema) is working.
+**Web UI:** Creating an investigation shows the token once with copy/share-link
+buttons. The UI can save tokens in this browser's `localStorage`; see the
+honest security note on the Investigation tab.
 
-## 9. Production deployment
+## 10. Production deployment
 
 When you're ready to deploy:
 
@@ -218,7 +267,19 @@ echo "<your public key>" | npx wrangler secret put SIGNER_PUBLIC_KEY --env produ
 npm run deploy:prod
 ```
 
+For deployment, VPC containers, and secrets, see `docs/DEPLOYMENT.md`.
+
 ## Common issues
+
+### `401` / `missing_token` / `invalid_token` on investigation routes
+
+All `/investigations/:id` routes require the capability token returned at
+creation. Pass `Authorization: Bearer ct_…` or `X-Investigation-Token: ct_…`.
+
+If you upgraded an old database without migration **0008**, the
+`access_token_hash` column may be missing — re-apply schema or run
+`mysql-migrations/0008_investigation_access_token.sql`. Pre-migration
+investigations have no recoverable token.
 
 ### "Database not found" or connection errors
 
@@ -249,14 +310,16 @@ npm install --save-dev @cloudflare/workers-types@latest
 
 ## What's next
 
-You now have a working Worker that can manage investigations, serve
-manifest entries, and verify signatures. The next layers to build:
+You now have a working Worker with the full v1 HTTP API (see **`docs/API.md`**).
 
-- **Feature extractors** (`implementation/extractors/`): deterministic
-  modules that read artifacts from R2 and write feature rows to MySQL.
-- **Attribution reasoning** (`implementation/reasoner/`): LLM-assisted
-  module that reads features from MySQL and produces attribution outputs.
-- **HTTP API expansion**: routes for seed accounts, features, attribution
-  runs, evidence packets.
+Typical next steps:
 
-See the methodology paper for the specification of each layer.
+1. **Web UI or API** — create an investigation, **save the `access_token`**, upload Apify Twitter JSON.
+2. **Ingest** — `POST /investigations/:id/ingest/apify-twitter` (requires token; VPC container in production).
+3. **Attribution** — BYOK via web Setup tab, or set `AI_GATEWAY_URL` + `ANTHROPIC_API_KEY` secrets.
+4. **Evidence packet** — Results tab or `GET /investigations/:id/packet/:run_id` (`?format=pdf` with VPC PDF).
+5. **Seal** (optional) — `POST /investigations/:id/seal` when the investigation is complete (read-only thereafter).
+
+See **`docs/API.md`** for investigation access headers and error codes.
+
+For deployment, VPC containers, and secrets, see `docs/DEPLOYMENT.md`.

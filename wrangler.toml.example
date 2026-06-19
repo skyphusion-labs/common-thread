@@ -1,35 +1,43 @@
-# Common Thread Backend Worker configuration (EXAMPLE FILE)
+# Common Thread backend Worker (EXAMPLE)
 #
-# Copy this file to wrangler.toml and fill in the resource IDs.
+# Copy to wrangler.toml and fill in resource IDs:
+#   cp wrangler.toml.example wrangler.toml
 #
-# IMPORTANT BINDINGS (do not change these names):
-#   - Hyperdrive (MySQL) → binding = "DB"
-#   - R2 bucket          → binding = "ARCHIVE"
+# Required bindings (names must match code):
+#   DB       — Hyperdrive → MySQL
+#   ARCHIVE  — R2 bucket for content-addressed artifacts
+#
+# Optional (production ingest + PDF export):
+#   VPC_INGEST, VPC_PDF, INGEST_WORKER_URL, PDF_WORKER_URL
+#   Secrets: INGEST_SECRET, PDF_SECRET
+#
+# Attribution (server-side keys OR user BYOK from web UI):
+#   Secrets: AI_GATEWAY_URL, ANTHROPIC_API_KEY (optional if all users BYOK)
 
 name = "common-thread"
 main = "implementation/workers/index.ts"
 compatibility_date = "2025-09-01"
 compatibility_flags = ["nodejs_compat"]
+preview_urls = false
 
-# -----------------------------------------------------------------------------
-# Before first use
-# -----------------------------------------------------------------------------
-# 1. Copy this file: cp wrangler.toml.example wrangler.toml
-# 2. Create MySQL database and apply schema:
-#      MYSQL_URL='mysql://USER:PASS@HOST:3306/common_thread' npm run db:migrate
-# 3. Create Hyperdrive and paste the id below:
-#      npm run db:hyperdrive:create -- 'mysql://USER:PASS@HOST:3306/common_thread'
-# 4. Run: npm run r2:create
-# -----------------------------------------------------------------------------
+[observability]
+enabled = true
 
 # =============================================================================
-# Default / Local Development
+# Hyperdrive (MySQL)
 # =============================================================================
+# MYSQL_URL='mysql://USER:PASS@HOST:3306/common_thread' npm run db:migrate
+# npm run db:hyperdrive:create -- 'mysql://USER:PASS@HOST:3306/common_thread'
 
 [[hyperdrive]]
 binding = "DB"
 id = "YOUR_HYPERDRIVE_ID_HERE"
-# localConnectionString = "mysql://user:password@localhost:3306/common_thread"
+# localConnectionString = "mysql://user:password@127.0.0.1:3306/common_thread"
+
+# =============================================================================
+# R2 archive
+# =============================================================================
+# npm run r2:create
 
 [[r2_buckets]]
 binding = "ARCHIVE"
@@ -43,22 +51,38 @@ subrequests = 50000
 ENVIRONMENT = "development"
 TRIAGE_MODEL = "claude-haiku-4-5"
 REASONING_MODEL = "claude-opus-4-8"
+# Comma-separated browser origins allowed to call the API directly (empty = blocked).
+# CORS_ALLOWED_ORIGINS = "http://127.0.0.1:8787,http://localhost:8787"
+
+# Uncomment when Workers VPC containers are deployed (see docs/DEPLOYMENT.md):
+# INGEST_WORKER_URL = "http://json-ingest:8080/trigger"
+# PDF_WORKER_URL = "http://json-pdf:8081/render"
 
 # =============================================================================
-# Explicit Development Environment (env.dev)
+# Workers VPC (optional — ingest + PDF containers)
 # =============================================================================
+# [[vpc_services]]
+# binding = "VPC_INGEST"
+# service_id = "YOUR_VPC_INGEST_SERVICE_ID"
+# remote = true
+#
+# [[vpc_services]]
+# binding = "VPC_PDF"
+# service_id = "YOUR_VPC_PDF_SERVICE_ID"
+# remote = true
 
+# =============================================================================
+# Development (env.dev)
+# =============================================================================
 [env.dev]
 name = "common-thread-dev"
-
-[env.dev.limits]
-cpu_ms = 300000
-subrequests = 50000
 
 [env.dev.vars]
 ENVIRONMENT = "development"
 TRIAGE_MODEL = "claude-haiku-4-5"
 REASONING_MODEL = "claude-opus-4-8"
+# INGEST_WORKER_URL = "http://json-ingest:8080/trigger"
+# PDF_WORKER_URL = "http://json-pdf:8081/render"
 
 [[env.dev.hyperdrive]]
 binding = "DB"
@@ -68,21 +92,37 @@ id = "YOUR_DEV_HYPERDRIVE_ID_HERE"
 binding = "ARCHIVE"
 bucket_name = "common-thread-archive-dev"
 
-# =============================================================================
-# Production Environment
-# =============================================================================
+# [[env.dev.vpc_services]]
+# binding = "VPC_INGEST"
+# service_id = "YOUR_VPC_INGEST_SERVICE_ID"
+# remote = true
+#
+# [[env.dev.vpc_services]]
+# binding = "VPC_PDF"
+# service_id = "YOUR_VPC_PDF_SERVICE_ID"
+# remote = true
 
+# =============================================================================
+# Production (env.production)
+# =============================================================================
 [env.production]
 name = "common-thread-prod"
 
-[env.production.limits]
-cpu_ms = 300000
-subrequests = 50000
+# Optional when using a custom domain and you want to disable *.workers.dev:
+# workers_dev = false
+
+[[env.production.routes]]
+pattern = "common-thread-backend.skyphusion.org"
+custom_domain = true
 
 [env.production.vars]
 ENVIRONMENT = "production"
 TRIAGE_MODEL = "claude-haiku-4-5"
 REASONING_MODEL = "claude-opus-4-8"
+# Browser origins approved for direct API use (comma-separated). Empty blocks all.
+# CORS_ALLOWED_ORIGINS = "https://your-approved-app.example.com"
+# INGEST_WORKER_URL = "http://json-ingest:8080/trigger"
+# PDF_WORKER_URL = "http://json-pdf:8081/render"
 
 [[env.production.hyperdrive]]
 binding = "DB"
@@ -92,87 +132,28 @@ id = "YOUR_PROD_HYPERDRIVE_ID_HERE"
 binding = "ARCHIVE"
 bucket_name = "common-thread-archive-prod"
 
+# [[env.production.vpc_services]]
+# binding = "VPC_INGEST"
+# service_id = "YOUR_VPC_INGEST_SERVICE_ID"
+# remote = true
+#
+# [[env.production.vpc_services]]
+# binding = "VPC_PDF"
+# service_id = "YOUR_VPC_PDF_SERVICE_ID"
+# remote = true
+
 [observability.logs]
 enabled = true
 invocation_logs = true
 
-# =============================================================================
-# Service Bindings
-# =============================================================================
-
-[[services]]
-binding = "WEB"
-service = "common-thread-web"
-
-[[env.dev.services]]
-binding = "WEB"
-service = "common-thread-web-dev"
-
-[[env.production.services]]
-binding = "WEB"
-service = "common-thread-web-prod"
+[observability.traces]
+enabled = true
 
 # =============================================================================
-# Queues
+# Secrets (never commit — use .dev.vars locally, wrangler secret put in prod)
 # =============================================================================
-
-# --- Default / Local ---
-[[queues.producers]]
-binding = "INGEST_QUEUE"
-queue = "apify-ingest"
-
-[[queues.consumers]]
-queue = "apify-ingest"
-max_batch_size = 5
-max_batch_timeout = 30
-max_concurrency = 2
-
-# --- Development ---
-[[env.dev.queues.producers]]
-binding = "INGEST_QUEUE"
-queue = "apify-ingest-dev"
-
-[[env.dev.queues.consumers]]
-queue = "apify-ingest-dev"
-max_batch_size = 5
-max_batch_timeout = 30
-max_concurrency = 2
-
-# --- Production ---
-[[env.production.queues.producers]]
-binding = "INGEST_QUEUE"
-queue = "apify-ingest-prod"
-
-[[env.production.queues.consumers]]
-queue = "apify-ingest-prod"
-max_batch_size = 2
-max_batch_timeout = 10
-max_concurrency = 30
-max_retries = 3
-retry_delay = 10000
-
-# =============================================================================
-# Workers VPC — self-hosted extraction container
-# =============================================================================
-# [[vpc_services]]
-# binding = "VPC_INGEST"
-# service_id = "YOUR_VPC_SERVICE_ID"
-# remote = true
-#
-# [vars]
-# INGEST_WORKER_URL = "http://common-thread-ingest.internal/trigger"
-#
-# wrangler secret put INGEST_SECRET
-
-# =============================================================================
-# Reasoner Secrets
-# =============================================================================
-#
-# These should NOT be committed. Use .dev.vars locally and
-# `wrangler secret put` in production.
-#
-# Required secrets:
-#   AI_GATEWAY_URL
-#   ANTHROPIC_API_KEY
-#   INGEST_SECRET (when using VPC extraction container)
-# -----------------------------------------------------------------------------
+# AI_GATEWAY_URL      — optional if users BYOK via web UI
+# ANTHROPIC_API_KEY   — optional if users BYOK via web UI
+# SIGNER_PUBLIC_KEY   — manifest verification
+# INGEST_SECRET       — VPC ingest container auth
+# PDF_SECRET          — VPC PDF container auth (?format=pdf)

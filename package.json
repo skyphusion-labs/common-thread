@@ -16,8 +16,8 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "deploy:prod": "wrangler deploy --env production",
-    "deploy:backend:dev": "wrangler deploy",
-    "deploy:backend:prod": "wrangler deploy --env production",
+    "deploy:backend:dev": "node scripts/deploy-backend.js --env=dev",
+    "deploy:backend:prod": "node scripts/deploy-backend.js --env=production",
     "deploy:web:dev": "node scripts/deploy-web.js --env=dev",
     "deploy:web:prod": "node scripts/deploy-web.js --env=production",
     "deploy:all:dev": "npm run deploy:backend:dev && npm run deploy:web:dev",
@@ -33,6 +33,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.888.0",
+    "marked": "^15.0.12",
     "mysql2": "^3.22.5"
   },
   "devDependencies": {

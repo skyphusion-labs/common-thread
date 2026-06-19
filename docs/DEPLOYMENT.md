@@ -1,202 +1,266 @@
-# Common Thread – Integrated Deployment Guide
-This guide covers deploying both the backend Worker (core system) and the web frontend Worker (browser-based UI).
-The project uses a split structure:
-- Backend logic lives in `implementation/`
-- Web frontend lives in the `web/` subdirectory
-- Each has its own `wrangler.toml` configuration
+# Deployment guide
+
+Deploy the **backend Worker** (API, extractors, reasoner) and **web Worker**
+(browser UI). Each has its own `wrangler.toml`.
+
 ## Prerequisites
-- Node.js ≥ 18
-- Cloudflare account with Workers, R2, and Hyperdrive enabled
+
+- Node.js 18+
+- Cloudflare account (Workers, R2, Hyperdrive)
 - MySQL 8+ database
-- Wrangler CLI installed and logged in:
-  ```bash
-  npm install -g wrangler
-  wrangler login
+- `wrangler login`
 
-    Clone the repository and install dependencies:
-    bash
+```bash
+git clone https://github.com/skyphusion-labs/common-thread
+cd common-thread
+npm install
+```
 
-    git clone https://github.com/skyphusion-labs/common-thread
-    cd common-thread
-    npm install
+## 1. Configuration files
 
-1. Initial Configuration
-
-The repository provides example configuration files so you never commit real resource IDs.
-bash
-
-# Backend configuration
+```bash
 cp wrangler.toml.example wrangler.toml
-# Web frontend configuration
 cp web/wrangler.toml.example web/wrangler.toml
+```
 
-    Note: wrangler.toml and web/wrangler.toml are listed in .gitignore and should never be committed.
+`wrangler.toml` and `web/wrangler.toml` are gitignored. Never commit real
+resource IDs or secrets.
 
-2. Create Cloudflare Resources
+## 2. Create Cloudflare resources
 
-Run the creation commands. These commands use --binding and --update-config so the binding names (DB and ARCHIVE) stay exactly as the code expects.
-Development Resources
-bash
+**Development**
 
+```bash
 MYSQL_URL='mysql://USER:PASS@HOST:3306/common_thread' npm run db:migrate
 npm run r2:create
 npm run db:hyperdrive:create -- 'mysql://USER:PASS@HOST:3306/common_thread'
+```
 
-Production Resources
-bash
+Paste the printed Hyperdrive `id` into `wrangler.toml` under `[[hyperdrive]]`
+`binding = "DB"`. Confirm R2 `bucket_name` is `common-thread-archive` under
+`binding = "ARCHIVE"`.
 
-# Apply mysql-schema.sql to your production MySQL database, then:
+**Production**
+
+```bash
+# Apply mysql-schema.sql to production MySQL, then:
 npm run r2:create:prod
-# Create a separate Hyperdrive config for production and paste id into [env.production.hyperdrive]
+# Create a separate Hyperdrive config; paste id under [env.production.hyperdrive]
+```
 
-After running these commands, open wrangler.toml and verify the Hyperdrive `id` under `binding = "DB"` and the R2 `bucket_name` under `binding = "ARCHIVE"`.
-3. Backend Worker
+## 3. Binding reference
 
-The backend is configured in the root wrangler.toml.
+### Backend (`wrangler.toml`)
 
-Deploy Backend (Development)
-bash
+| Binding | Type | Required | Purpose |
+|---------|------|----------|---------|
+| `DB` | Hyperdrive | Yes | MySQL (investigations, features, runs) |
+| `ARCHIVE` | R2 | Yes | Content-addressed artifact store |
+| `VPC_INGEST` | Workers VPC | No* | Remote ingest container |
+| `VPC_PDF` | Workers VPC | No* | PDF/A evidence packets |
 
-npm run deploy:backend:dev
+\*Required for production-scale Apify ingest and `?format=pdf` packet export.
+Without VPC, local/small ingest runs inline in the Worker.
 
-Deploy Backend (Production)
-bash
+**Vars:** `ENVIRONMENT`, `TRIAGE_MODEL`, `REASONING_MODEL`,
+`INGEST_WORKER_URL`, `PDF_WORKER_URL` (when VPC is enabled),
+`CORS_ALLOWED_ORIGINS` (comma-separated browser origins; empty blocks direct
+browser API use).
 
-npm run deploy:backend:prod
+**Secrets (backend):**
 
-4. Web Frontend Worker
+| Secret | When |
+|--------|------|
+| `SIGNER_PUBLIC_KEY` | Manifest signing (recommended) |
+| `AI_GATEWAY_URL` | Server-side attribution (optional if users BYOK) |
+| `ANTHROPIC_API_KEY` | Server-side attribution (optional if users BYOK) |
+| `INGEST_SECRET` | VPC ingest container |
+| `PDF_SECRET` | VPC PDF container |
 
-The web frontend is a self-contained single-file worker located in the web/ directory.
+```bash
+wrangler secret put SIGNER_PUBLIC_KEY
+wrangler secret put INGEST_SECRET --env production
+wrangler secret put PDF_SECRET --env production
+# Optional if not using web BYOK:
+wrangler secret put AI_GATEWAY_URL --env production
+wrangler secret put ANTHROPIC_API_KEY --env production
+```
 
-Deploy Web Frontend (Development)
-bash
+### Web (`web/wrangler.toml`)
 
+| Binding | Type | Required | Purpose |
+|---------|------|----------|---------|
+| `BACKEND` | Service | Yes* | Routes `/api/proxy/*` to backend Worker |
+
+\*Or set `DEFAULT_BACKEND_URL` in `[vars]` for local dev without bindings.
+
+Service `name` must match the deployed backend Worker:
+
+| Environment | Backend Worker | Web Worker | `BACKEND` service | Public URLs |
+|-------------|----------------|------------|-------------------|-------------|
+| Default / local | `common-thread` | `common-thread-web` | `common-thread` | `workers.dev` or local |
+| Dev | `common-thread-dev` | `common-thread-web-dev` | `common-thread-dev` | `workers.dev` |
+| Production | `common-thread-prod` | `common-thread-web-prod` | `common-thread-prod` | API: https://common-thread-backend.skyphusion.org · UI: https://common-thread.skyphusion.org |
+
+## 4. Deploy
+
+**Backend**
+
+```bash
+npm run deploy:backend:dev    # → common-thread-dev
+npm run deploy:backend:prod   # → common-thread-prod
+```
+
+**Web** (deploy backend first)
+
+```bash
 npm run deploy:web:dev
-
-Deploy Web Frontend (Production)
-bash
-
 npm run deploy:web:prod
+```
 
-One-Command Deployment
+**Both**
 
-You can deploy both the backend and web frontend together:
-bash
-
-# Development
+```bash
 npm run deploy:all:dev
-# Production
 npm run deploy:all:prod
+```
 
-5. Service Binding (Recommended)
+`scripts/deploy-web.js` patches the `BACKEND` service name from root
+`wrangler.toml` when using `deploy:web:*`.
 
-The web frontend can communicate with the backend using a service binding. This is the preferred method in production because it avoids CORS issues and keeps traffic private.
-How to Configure
+## 5. Custom domains (production)
 
-    Deploy the backend first (so the worker name is known).
+Production uses two custom domains on the `skyphusion.org` zone (same
+Cloudflare account as the Workers):
 
-    In web/wrangler.toml, update the service binding:
-    toml
+| Hostname | Worker | Purpose |
+|----------|--------|---------|
+| `common-thread-backend.skyphusion.org` | Backend (`common-thread-prod`) | Hosted HTTP API (contact **common-thread@skyphusion.org** before third-party use; see [API.md](API.md#using-the-hosted-api)) |
+| `common-thread.skyphusion.org` | Web (`common-thread-web-prod`) | Browser UI |
 
-    services = [
-      { binding = "BACKEND", service = "common-thread" }           # development
-      # { binding = "BACKEND", service = "common-thread-prod" }    # production
-    ]
+**Backend API** — configured in root `wrangler.toml` under `[env.production]`:
 
-    Redeploy the web worker:
-    bash
+```toml
+[[env.production.routes]]
+pattern = "common-thread-backend.skyphusion.org"
+custom_domain = true
 
-    npm run deploy:web:dev
-    # or
-    npm run deploy:web:prod
+# Optional: disable the *.workers.dev URL when using a custom domain
+# workers_dev = false
+```
 
-You can also configure the binding through the Cloudflare dashboard:
+Deploy with `npm run deploy:backend:prod`. The first deploy creates the custom
+domain and SSL certificate.
 
-    Go to your web worker → Settings → Service Bindings → Add binding
-    Variable name: BACKEND
-    Service: select your backend worker
+**Web UI** — configured in `web/wrangler.toml` under `[env.production]`:
 
-6. Local Development
-bash
+```toml
+[[env.production.routes]]
+pattern = "common-thread.skyphusion.org"
+custom_domain = true
 
-# Terminal 1 – Backend
+# Optional: disable the *.workers.dev URL when using a custom domain
+# workers_dev = false
+```
+
+Deploy with `npm run deploy:web:prod`.
+
+The web UI still routes API calls through the **`BACKEND` service binding**
+(not the public API hostname). That keeps browser traffic on the internal
+Worker-to-Worker path and does not depend on the backend custom domain. API clients approved by the operator should use
+`https://common-thread-backend.skyphusion.org` (see
+[API.md](API.md#using-the-hosted-api)). The `GET /` health response includes
+`hosted_api_notice` and `contact` (`common-thread@skyphusion.org`) in production.
+
+The example `wrangler.toml.example` files leave `workers.dev` enabled so a
+first deploy works without a custom domain. For production on custom domains,
+set `workers_dev = false` under `[env.production]` in your local (gitignored)
+`wrangler.toml` and `web/wrangler.toml` to disable the `*.workers.dev` URLs.
+
+## 6. Workers VPC (optional)
+
+For large Apify exports and PDF evidence packets:
+
+1. Deploy `containers/ingest-worker/` and `containers/pdf-worker/` on your VPC fleet.
+2. Uncomment `[[vpc_services]]` blocks in `wrangler.toml` and set `service_id`.
+3. Set `INGEST_WORKER_URL` and `PDF_WORKER_URL` in `[vars]`.
+4. Set `INGEST_SECRET` and `PDF_SECRET`.
+
+See `containers/ingest-worker/README.md` and `containers/pdf-worker/README.md`.
+
+## 7. Post-deploy checklist
+
+- [ ] `GET /` on backend returns `"status": "ok"` at https://common-thread-backend.skyphusion.org (production also returns `contact`: `common-thread@skyphusion.org`)
+- [ ] Web UI loads at https://common-thread.skyphusion.org
+- [ ] (Optional) Neither production Worker is reachable at `*.workers.dev` if you set `workers_dev = false`
+- [ ] Create investigation → save `access_token` → reopen with token or share link
+- [ ] Upload Apify JSON → ingest completes (requires token on API calls)
+- [ ] Attribution works with BYOK keys in web Setup tab
+- [ ] Seal investigation → ingest/attribute disabled; results still readable
+- [ ] Evidence packet: JSON and Markdown download from Results tab
+- [ ] PDF download works if `VPC_PDF` + `PDF_SECRET` are configured
+
+## 8. Local development
+
+```bash
+# Terminal 1
+npm run dev                    # backend :8787
+
+# Terminal 2
+npm run dev:web                # web UI (uses BACKEND binding or DEFAULT_BACKEND_URL)
+```
+
+In `web/wrangler.toml`, uncomment for pure local HTTP without service binding:
+
+```toml
+[vars]
+DEFAULT_BACKEND_URL = "http://127.0.0.1:8787"
+```
+
+## 9. Troubleshooting
+
+**Custom domain not resolving**
+
+- Confirm `skyphusion.org` is on the same Cloudflare account as the Worker.
+- Redeploy backend: `npm run deploy:backend:prod`; web: `npm run deploy:web:prod`.
+- In the dashboard: Workers → `common-thread-prod` or `common-thread-web-prod` → Settings → Domains & Routes.
+
+**Service binding not working**
+
+- Deploy backend before web.
+- `service = "..."` in `web/wrangler.toml` must exactly match backend `name`.
+- Redeploy web after changing bindings.
+
+**Attribution 503**
+
+- Web BYOK: set AI Gateway URL + Anthropic key in Setup tab.
+- API: pass `X-AI-Gateway-Url` and `X-Anthropic-Api-Key`, or set server secrets.
+
+**PDF 503**
+
+- Backend needs `VPC_PDF`, `PDF_WORKER_URL`, and `PDF_SECRET`. PDF is rendered
+  on the VPC container, not in the browser.
+
+**Hyperdrive local dev**
+
+- Set `localConnectionString` on `[[hyperdrive]]` or export
+  `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_DB`.
+
+## Commands reference
+
+```bash
+npm run deploy:backend:dev
+npm run deploy:backend:prod
+npm run deploy:web:dev
+npm run deploy:web:prod
+npm run deploy:all:dev
+npm run deploy:all:prod
 npm run dev
-# Terminal 2 – Web Frontend
 npm run dev:web
-
-The web frontend will use the DEFAULT_BACKEND_URL in web/wrangler.toml unless a service binding is available.
-7. Environment Overview
-Environment	Command	Backend Worker Name	Web Worker Name
-Default / Local	npm run dev	common-thread	common-thread-web
-Explicit Dev	npm run deploy:backend:dev	common-thread-dev	common-thread-web-dev
-Production	npm run deploy:backend:prod	common-thread-prod	common-thread-web-prod
-8. Post-Deployment Checklist
-
-    Backend responds at its URL (GET / returns status information)
-    Web frontend loads and shows the UI
-    In the web UI, the “Backend Target” field points to your backend (or the service binding is configured)
-    Test uploading sample data and running extractors in the web UI
-
-    Set required secrets on the backend (especially for production):
-    bash
-
-    wrangler secret put AI_GATEWAY_URL --env production
-    wrangler secret put ANTHROPIC_API_KEY --env production
-
-    Verify that wrangler.toml and web/wrangler.toml are still in .gitignore
-
-9. Updating the Web Frontend
-
-Because the web frontend is a single self-contained file (web/worker.js), updates are simple:
-
-    Replace web/worker.js with the new version.
-
-    Redeploy:
-    bash
-
-    npm run deploy:web:dev
-    # or
-    npm run deploy:web:prod
-
-10. Troubleshooting
-
-Bindings are wrong (e.g. common_thread_prod instead of DB)
-
-    Re-run the create commands. They should now respect --binding DB and --binding ARCHIVE.
-
-Service binding not working
-
-    Make sure the backend was deployed before the web frontend.
-    The service name in web/wrangler.toml must exactly match the deployed backend worker name.
-    Redeploy the web worker after changing the binding.
-
-Secrets not set
-
-    The web UI runs most analysis client-side. The backend still needs AI_GATEWAY_URL and ANTHROPIC_API_KEY for the reasoning features.
-
-Local development with bindings
-
-    Service bindings work best when at least one of the workers is running with --remote, or when using the public DEFAULT_BACKEND_URL fallback during local development.
-
-Useful Commands Reference
-bash
-
-# Backend
-npm run deploy:backend:dev
-npm run deploy:backend:prod
-# Web Frontend
-npm run deploy:web:dev
-npm run deploy:web:prod
-npm run dev:web
-# Combined
-npm run deploy:all:dev
-npm run deploy:all:prod
-# Resources
 MYSQL_URL='mysql://...' npm run db:migrate
 npm run db:hyperdrive:create -- 'mysql://...'
 npm run r2:create
 npm run r2:create:prod
+```
 
-Need help?
-
-Open an issue on GitHub or refer to the methodology paper for architectural context.
+For HTTP routes see [API.md](API.md). For first-time setup see [SETUP.md](SETUP.md).

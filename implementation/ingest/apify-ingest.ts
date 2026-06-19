@@ -30,13 +30,12 @@ function vpcIngestEnabled(env: Env): boolean {
  * Production (VPC_INGEST configured): archive raw JSON once, enqueue job,
  * dispatch to the self-hosted extraction container, return immediately.
  *
- * Local dev fallback: pass ?runExtractors=true to run the pipeline inline.
+ * Local dev fallback: runs the full archive + extraction pipeline inline.
  */
 export async function ingestApifyTwitter(
   env: Env,
   investigationId: string,
-  payload: unknown,
-  runExtractors: boolean = false
+  payload: unknown
 ): Promise<ApifyIngestResult> {
   const parsedTweets = parseApifyTwitterItems(payload);
   const handles = extractAllHandlesFromApifyTwitter(payload);
@@ -58,7 +57,7 @@ export async function ingestApifyTwitter(
     [
       jobId,
       investigationId,
-      vpcIngestEnabled(env) ? 'queued' : runExtractors ? 'running' : 'completed',
+      vpcIngestEnabled(env) ? 'queued' : 'running',
       parsedTweets.length,
       JSON.stringify([]),
       JSON.stringify([rawHash]),
@@ -72,7 +71,6 @@ export async function ingestApifyTwitter(
       investigationId,
       provider: 'twitter',
       rawFileHash: rawHash,
-      runExtractors,
       itemCount: parsedTweets.length,
       accounts: handles,
     });
@@ -100,30 +98,6 @@ export async function ingestApifyTwitter(
     };
   }
 
-  if (!runExtractors) {
-    const { ManifestStore } = await import('../archive/manifest');
-    await new ManifestStore({ bucket: env.ARCHIVE }).append({
-      hash: rawHash,
-      source: 'apify-twitter',
-      collectedAt: now,
-      investigationId,
-      collectionMethod: { tool: 'apify', version: '1' },
-      mimeType: 'application/json',
-      status: 'present',
-    } as never);
-
-    return {
-      investigationId,
-      rawPayloadHash: rawHash,
-      tweetsProcessed: parsedTweets.length,
-      uniqueAccounts: handles.length,
-      artifactsCreated: 1,
-      seedsRegistered: 0,
-      jobId,
-      extractorsRan: false,
-    };
-  }
-
   const db = resolveDatabase(env.DB);
   const result = await runTwitterIngestPipeline(
     { db, archive: env.ARCHIVE },
@@ -132,7 +106,6 @@ export async function ingestApifyTwitter(
       payload,
       rawHash,
       jobId,
-      runExtractors: true,
       parsedTweets,
       handles,
       now,

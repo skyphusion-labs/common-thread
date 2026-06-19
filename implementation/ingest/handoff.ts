@@ -4,8 +4,6 @@ export interface IngestJobHandoff {
   investigationId: string;
   provider: 'twitter';
   rawFileHash: string;
-  /** Forwarded from ?runExtractors=true */
-  runExtractors: boolean;
   itemCount: number;
   accounts: string[];
 }

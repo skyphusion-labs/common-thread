@@ -17,6 +17,8 @@ export interface InvestigationRow {
   created_at: string;
   updated_at: string;
   metadata_json: string | null;
+  /** SHA-256 hex digest of the investigation capability token; never expose. */
+  access_token_hash: string;
 }
 
 // ---------------------------------------------------------------------------

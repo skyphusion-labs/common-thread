@@ -15,13 +15,14 @@ USE common_thread;
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE investigations (
-  id              VARCHAR(255) PRIMARY KEY,
-  name            TEXT NOT NULL,
-  description     TEXT,
-  status          VARCHAR(32) NOT NULL,
-  created_at      VARCHAR(64) NOT NULL,
-  updated_at      VARCHAR(64) NOT NULL,
-  metadata_json   TEXT,
+  id                  VARCHAR(255) PRIMARY KEY,
+  name                TEXT NOT NULL,
+  description         TEXT,
+  status              VARCHAR(32) NOT NULL,
+  created_at          VARCHAR(64) NOT NULL,
+  updated_at          VARCHAR(64) NOT NULL,
+  metadata_json       TEXT,
+  access_token_hash   VARCHAR(128) NOT NULL,
   CONSTRAINT chk_investigations_status
     CHECK (status IN ('active', 'archived', 'sealed'))
 ) ENGINE=InnoDB;
@@ -287,7 +288,7 @@ CREATE TABLE schema_metadata (
 ) ENGINE=InnoDB;
 
 INSERT INTO schema_metadata (`key`, value, updated_at) VALUES
-  ('schema_version', '0007', '1970-01-01T00:00:00.000Z'),
+  ('schema_version', '0008', '1970-01-01T00:00:00.000Z'),
   ('schema_initialized_at', '1970-01-01T00:00:00.000Z', '1970-01-01T00:00:00.000Z'),
   (
     'pair_features_same_identifier_cross_platform_limitation',

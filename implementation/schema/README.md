@@ -8,6 +8,12 @@ schema lives at the repository root:
 
 TypeScript row types: [`db-types.ts`](db-types.ts).
 
+## Investigations table
+
+`investigations.access_token_hash` stores a SHA-256 hex digest of the capability
+token issued at creation. The plaintext token is never persisted. Schema version
+`0008` added this column (`mysql-migrations/0008_investigation_access_token.sql`).
+
 ## Apply schema
 
 ```bash
@@ -28,4 +34,4 @@ Create Hyperdrive pointing at your MySQL instance and set `[[hyperdrive]]`
 
 Integration tests use a real MySQL database via `TEST_MYSQL_URL` (default
 `mysql://root@127.0.0.1:3306/common_thread_test`). Schema is applied once in
-`tests/setup.ts`.
+`tests/global-setup.ts`.

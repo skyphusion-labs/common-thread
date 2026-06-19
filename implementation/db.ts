@@ -4,17 +4,15 @@
  * Exposes a small prepare/bind API used by extractors, the reasoner,
  * and tests. Production connects via Hyperdrive; tests use the same
  * client with a direct mysql2 connection string (TEST_MYSQL_URL).
+ *
+ * Hyperdrive does not support COM_STMT_PREPARE — use query(), not execute().
  */
 
 import mysql from 'mysql2/promise';
 import type { ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 
 interface MysqlQueryable {
-  execute(
-    sql: string,
-    values?: unknown[]
-  ): Promise<[ResultSetHeader | RowDataPacket[], unknown]>;
-  query<T extends RowDataPacket[]>(
+  query<T extends RowDataPacket[] | ResultSetHeader>(
     sql: string,
     values?: unknown[]
   ): Promise<[T, unknown]>;
@@ -97,7 +95,7 @@ export async function createMysqlConnection(
 export async function execute(hyperdrive: Hyperdrive, sql: string, params: unknown[] = []) {
   const conn = await createMysqlConnection(hyperdriveToConfig(hyperdrive));
   try {
-    const [result] = await conn.execute(sql, params);
+    const [result] = await conn.query(sql, params);
     return result;
   } finally {
     await conn.end();
@@ -151,7 +149,7 @@ class MysqlPreparedStatement implements PreparedStatement {
   async run(): Promise<DbResult> {
     const conn = await createMysqlConnection(this.config);
     try {
-      const [result] = await conn.execute(this.sql, this.bindings);
+      const [result] = await conn.query(this.sql, this.bindings);
       const header = result as ResultSetHeader;
       return {
         success: true,

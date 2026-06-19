@@ -21,7 +21,6 @@ Body: `implementation/ingest/handoff.ts` (`IngestJobHandoff`).
   "investigationId": "inv-…",
   "provider": "twitter",
   "rawFileHash": "sha256…",
-  "runExtractors": true,
   "itemCount": 1200,
   "accounts": ["handle1", "handle2"]
 }
@@ -35,8 +34,11 @@ Header: `Authorization: Bearer $INGEST_SECRET` (must match Worker `INGEST_SECRET
 2. Fetches the raw export from R2 by content hash
 3. Archives per-account timelines, profiles, image corpora, network lists
 4. Registers seed accounts in MySQL
-5. When `runExtractors=true`, runs the full extractor pipeline
+5. Runs the full extractor pipeline
 6. Marks the job `completed` or `failed`
+
+Ingest always runs extractors. The Worker `POST …/ingest/apify-twitter` route no
+longer accepts a `runExtractors` flag.
 
 ## Environment
 
@@ -60,12 +62,15 @@ service_id = "<your-vpc-service-id>"
 remote = true
 
 [vars]
-INGEST_WORKER_URL = "http://<private-hostname>/trigger"
+INGEST_WORKER_URL = "http://json-ingest:8080/trigger"
 ```
 
 ```bash
 wrangler secret put INGEST_SECRET
 ```
+
+Public API: `POST /investigations/:id/ingest/apify-twitter` — requires the
+investigation capability token (see `docs/API.md`).
 
 ## Build and run
 
@@ -89,10 +94,14 @@ Worker's `VPC_INGEST` binding can reach it.
 
 ## Local dev without VPC
 
-Use the Worker inline path instead:
+The Worker runs the same pipeline inline (no container):
 
 ```bash
-curl -X POST 'http://localhost:8787/investigations/INV/ingest/apify-twitter?runExtractors=true' \
+curl -X POST 'http://localhost:8787/investigations/INV/ingest/apify-twitter' \
   -H 'Content-Type: application/json' \
   --data-binary @export.json
 ```
+
+Poll completion via `GET /investigations/INV/ingest-jobs/:job_id` (requires
+investigation capability token) when using
+VPC; inline ingest returns `200` when finished.

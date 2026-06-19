@@ -37,6 +37,15 @@ npm run r2:create          # create R2 bucket
 npm run keygen           # generate an Ed25519 signer keypair (scripts/keygen.mjs)
 ```
 
+Copy templates before first deploy:
+
+```bash
+cp wrangler.toml.example wrangler.toml
+cp web/wrangler.toml.example web/wrangler.toml
+```
+
+`wrangler.toml` and `web/wrangler.toml` are gitignored (local resource IDs).
+
 There is **no build step** and **no lint script**. `tsc` is not part of the test
 run, so type errors pass tests silently — run `npm run typecheck` before
 committing (an `investigationId`/`investigation_id` mismatch slipped past tests
@@ -46,14 +55,15 @@ once for exactly this reason; see `TODO.md`).
 
 Targets the **Cloudflare Workers runtime**, not Node. In `implementation/` use
 only Web/Workers APIs (Web Crypto, `fetch`, etc.); `node:*` imports appear only
-in `scripts/` and `vitest.config.ts`, which run on the host.
+in `scripts/` and `vitest.config.mts`, which run on the host.
 
-Bindings (`wrangler.toml`): `DB` (Hyperdrive → MySQL), `ARCHIVE` (R2). Vars: `ENVIRONMENT`,
+Bindings (`wrangler.toml`): `DB` (Hyperdrive → MySQL), `ARCHIVE` (R2). Optional:
+`VPC_INGEST`, `VPC_PDF` for VPC containers. Web Worker (`web/wrangler.toml`):
+`BACKEND` service binding → backend Worker. Vars: `ENVIRONMENT`,
 `TRIAGE_MODEL` (default `claude-haiku-4-5`), `REASONING_MODEL` (default
-`claude-opus-4-7`). Secrets (never committed; local via `.dev.vars`):
-`AI_GATEWAY_URL` (Cloudflare AI Gateway base ending in `/anthropic` — secret
-because it embeds the account ID) and `ANTHROPIC_API_KEY`. Note the LLM layer
-calls Anthropic **through the AI Gateway**, not Workers AI.
+`claude-opus-4-8`). Secrets (never committed; local via `.dev.vars`):
+`AI_GATEWAY_URL` and `ANTHROPIC_API_KEY` are **optional** when users BYOK via
+the web UI; otherwise required for server-side attribution.
 
 `wrangler.toml`'s `main` is `implementation/workers/index.ts`. Apply
 `mysql-schema.sql` to your MySQL instance and configure Hyperdrive `binding = "DB"`.
@@ -142,17 +152,27 @@ unit testing (`tests/reasoner/runner-internals.test.ts`).
 
 ### HTTP surface (`implementation/workers/index.ts`)
 
-Routes include `GET /` (health), investigations, seeds, manifest, signatures,
-`POST /investigations/:id/ingest/apify-twitter`, `GET …/ingest-jobs/:job_id`,
-`POST /investigations/:id/attribute`, and attribution run listing. When
-`VPC_INGEST` is configured, ingest archives raw JSON once and dispatches to the
-self-hosted extraction container (`containers/ingest-worker/`); otherwise pass
-`?runExtractors=true` for inline local dev. Planned routes are in `TODO.md`.
+Full route reference: **`docs/API.md`**.
+
+The Worker exposes health, capability-gated investigations (no public listing),
+seeds (including soft-delete), features, Apify Twitter ingest (+ job status),
+attribution, attribution runs, evidence packets (JSON / Markdown / PDF), seal,
+manifest/signature endpoints, and debug routes.
+
+Creating an investigation returns a one-time `access_token`; all
+`/investigations/:id` routes require it (`Authorization: Bearer`, `X-Investigation-Token`, or `?access_token=` on GET). `sealed` investigations are read-only.
+
+When `VPC_INGEST` is configured, ingest archives raw JSON once and dispatches
+to `containers/ingest-worker/`; PDF export (`?format=pdf`) uses `VPC_PDF` to
+reach `containers/pdf-worker/`. Without VPC, ingest runs the
+full pipeline inline in the Worker (local dev on small exports).
 
 ## Data model (`implementation/schema/`)
 
 MySQL schema in `mysql-schema.sql` at the repo root (incremental changes in
-`mysql-migrations/`). Core tables: `investigations`, `seed_accounts` (with
+`mysql-migrations/`). Core tables: `investigations` (with `access_token_hash`
+for capability tokens; `status` includes `sealed` for read-only),
+`seed_accounts` (with
 `basis_statement`, `is_control`, soft-deleted via `removed_at`),
 `account_features` / `pair_features` / `event_features` (each stores a value in
 exactly one of `feature_value_text|numeric|json`, enforced by CHECK), parallel

@@ -14,3 +14,11 @@ SIGNER_PUBLIC_KEY=
 
 # Optional: investigation-scoped identifier shown in API responses.
 INVESTIGATION_NAMESPACE=local-dev
+
+# Optional: server-side attribution (skip if all users BYOK via web UI)
+# AI_GATEWAY_URL=https://gateway.ai.cloudflare.com/v1/ACCOUNT/GATEWAY/anthropic
+# ANTHROPIC_API_KEY=sk-ant-...
+
+# Required for evidence-packet PDF export (?format=pdf) via VPC PDF container.
+# Must match PDF_SECRET on the json-pdf container.
+PDF_SECRET=

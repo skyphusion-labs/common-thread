@@ -10,7 +10,7 @@
  *     methodology_metadata) or a declination
  *   - Malformed responses for testing parse-failure paths
  *
- * The AI Gateway origin must match what's configured in vitest.config.ts
+ * The AI Gateway origin must match what's configured in vitest.config.mts
  * (https://gateway.test/anthropic). The intercept path is the /v1/messages
  * suffix that ai-gateway.ts appends.
  *
