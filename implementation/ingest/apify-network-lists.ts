@@ -162,7 +162,7 @@ export async function archiveNetworkLists(
   }
 ): Promise<ArchiveNetworkListsResult> {
   const archive = new ArchiveStore({ bucket: env.ARCHIVE });
-  const manifest = new ManifestStore({ bucket: env.ARCHIVE });
+  const manifest = new ManifestStore({ bucket: env.ARCHIVE, investigationId: options.investigationId });
   const manifestHashes: string[] = [];
   let artifactsCreated = 0;
 

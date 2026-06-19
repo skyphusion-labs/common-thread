@@ -110,8 +110,8 @@ describe('apify timeline ingest', () => {
     );
 
     const { ManifestStore } = await import('../../implementation/archive/manifest');
-    const manifest = new ManifestStore({ bucket: env.ARCHIVE });
-    const entries = await manifest.list({ investigationId, status: 'present' });
+    const manifest = new ManifestStore({ bucket: env.ARCHIVE, investigationId });
+    const entries = await manifest.list({ status: 'present' });
     const timelineEntry = entries.find(e => e.account === 'alice');
     expect(timelineEntry?.collectionMethod.tool).toBe(APIFY_TWITTER_TIMELINE_TOOL);
   });

@@ -49,7 +49,7 @@ export async function runResponseLatencyExtraction(
     return { featuresWritten: 0, extractorRunId: 0 };
   }
 
-  const manifest = new ManifestStore({ bucket: env.ARCHIVE });
+  const manifest = new ManifestStore({ bucket: env.ARCHIVE, investigationId: options.investigationId });
   const manifestHash = (await manifest.manifestHash()) ?? '';
   const startedAt = new Date().toISOString();
 

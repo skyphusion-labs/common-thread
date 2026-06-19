@@ -49,3 +49,35 @@ export function hashFromPath(path: string): string | null {
   const match = path.match(/^sha256\/[0-9a-f]{2}\/[0-9a-f]{2}\/([0-9a-f]{64})(?:\.[^/]*)?$/);
   return match ? match[1] : null;
 }
+
+/**
+ * Validate an investigation id for use in R2 object keys.
+ *
+ * @throws Error when the id is empty or would escape its prefix directory
+ */
+export function assertSafeInvestigationId(investigationId: string): void {
+  if (!investigationId || investigationId.trim().length === 0) {
+    throw new Error('investigationId is required');
+  }
+  if (
+    investigationId.includes('/') ||
+    investigationId.includes('\\') ||
+    investigationId.includes('..')
+  ) {
+    throw new Error(`Invalid investigationId for archive path: ${investigationId}`);
+  }
+}
+
+/**
+ * Per-investigation manifest path. Manifests are stored separately so
+ * collection metadata cannot leak across investigation boundaries.
+ */
+export function investigationManifestPath(investigationId: string): string {
+  assertSafeInvestigationId(investigationId);
+  return `investigations/${investigationId}/manifest.jsonl`;
+}
+
+/** Sidecar signature log for a per-investigation manifest. */
+export function investigationSignaturesPath(investigationId: string): string {
+  return `${investigationManifestPath(investigationId)}.sigs.jsonl`;
+}
