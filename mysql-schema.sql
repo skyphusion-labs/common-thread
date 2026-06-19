@@ -135,8 +135,15 @@ CREATE TABLE pair_features (
   extractor_version     VARCHAR(64) NOT NULL,
   extractor_run_id      INT,
   confidence_flag       VARCHAR(32),
+  -- This is a non-unique LOOKUP index, so prefix lengths only trade a little
+  -- index selectivity (190 chars is far longer than any real account id) and
+  -- weaken NO uniqueness/dedup guarantee. Without them the full composite is
+  -- 6 cols incl 3x VARCHAR(255) = 3828 bytes under utf8mb4, over InnoDB's
+  -- 3072-byte index limit, so the table (and a fresh MySQL 8 bootstrap) fails
+  -- with ER_TOO_LONG_KEY. The only UNIQUE keys in this schema (uniq_seed,
+  -- uniq_*_artifact) are all well under the limit and are left untouched.
   INDEX idx_pair_features_lookup
-    (investigation_id, platform_a, platform_b, account_a, account_b, feature_category),
+    (investigation_id(190), platform_a, platform_b, account_a(190), account_b(190), feature_category),
   INDEX idx_pair_features_by_account_a (investigation_id, account_a),
   INDEX idx_pair_features_by_account_b (investigation_id, account_b),
   INDEX idx_pair_features_by_extractor
