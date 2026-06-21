@@ -24,6 +24,8 @@
  *       layer using computeHistogram())
  *     - pair-level: ColorPaletteOverlapExtractor (JSD on aligned
  *       histograms plus cosine and top-K Jaccard)
+ *     - v1: extractors registered; dormant until the collection layer
+ *       builds color-palette corpus artifacts (paper §6.4.6).
  *
  *   §4.5.5 EXIF metadata leakage
  *     - parser: parseJpegExif() in exif-parser.ts (pure-TS, reusable
@@ -80,7 +82,7 @@ export const VISUAL_PAIR_EXTRACTORS: PairFeatureExtractor[] = [
   new ProfileImageOverlapExtractor(),    // §4.5.1
   new BannerImageOverlapExtractor(),     // §4.5.2
   new PostedImageOverlapExtractor(),     // §4.5.3
-  new ColorPaletteOverlapExtractor(),    // §4.5.4
+  new ColorPaletteOverlapExtractor(),    // §4.5.6 (dormant v1: no palette corpus)
   // §4.5.5 (ExifOverlapExtractor) is registered under
   // METADATA_LEAKAGE_PAIR_EXTRACTORS since the emitted features
   // are in that category.

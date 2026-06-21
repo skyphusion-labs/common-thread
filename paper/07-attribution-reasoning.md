@@ -57,7 +57,7 @@ The mapping rules are deliberately conservative. They are designed to err in the
 **Strongly consistent with common operator** requires:
 
 - Signals from at least four of the seven non-excluded categories from §4 (metadata, temporal, linguistic, network, visual, cross-platform, metadata leakage) show patterns consistent with a common operator
-- At least one of the signals is from §4.3 (linguistic) or §4.4 (network), the two categories with the strongest individual signal weight
+- At least one of the signals is from §4.3 (linguistic) or §4.4 (network), the two categories with the strongest individual signal weight. The reference implementation validates this rule against the category name `stylometric` for §4.3 (see §6.2.3).
 - No signal in any category shows a pattern strongly inconsistent with a common operator (a single strongly inconsistent signal moves the attribution to consistent at best, not strongly consistent)
 - The combined signal pattern is not better explained by an alternative explanation that the reasoning layer is required to articulate (see §7.4)
 - The collection meets the requirements of §5 and the feature extraction confidence flags from §6.4.1 are predominantly sufficient

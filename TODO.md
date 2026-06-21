@@ -42,11 +42,20 @@ Still queued:
 
 ### Paper §4.4.3 / §4.4.4 engagement signals
 
-Blocked on engagement-event collection (likes, retweets, replies as discrete events rather than account-level summaries). Pre-requisites:
+Implemented: event extractors derive reply/repost/quote engagements from
+per-account timeline artifacts; co-engagement and amplification pair
+extractors run on the default Apify Twitter ingest when ≥2 accounts are
+present. Likes/favorites are not collected in v1. See paper §6.4.6.
 
-- Collection pipeline that captures engagement events
-- Schema for `event_features` rows (table exists; signal extraction not implemented)
-- §4.4.3 (engagement-based follower-overlap) and §4.4.4 (engagement-graph clustering) extractors
+### Response latency (§4.2.2)
+
+Extractors implemented; dormant until `investigations.metadata_json`
+includes `triggering_events`. No v1 UI for configuring triggers.
+
+### Color palette (§4.5.6)
+
+Extractors registered; dormant until the collection layer builds
+`application/x-color-palette-corpus` artifacts.
 
 ### Optional schema migration 0003 (tuple CHECK)
 

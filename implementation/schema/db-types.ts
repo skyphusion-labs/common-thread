@@ -43,6 +43,12 @@ export interface SeedAccountRow {
 
 /**
  * Signal categories from §4 of the methodology paper.
+ *
+ * The paper taxonomy uses "linguistic" for §4.3; the reference
+ * implementation records those features as `stylometric` (see paper
+ * §4.3 terminology note and §6.2.3). Account-level posted-URL lists
+ * for §4.6.3 use `content_artifacts`; pair overlap is `cross_platform`.
+ *
  * The schema does not enforce this enum at the database level
  * (feature_category is just TEXT), but the application should use
  * these values when inserting.

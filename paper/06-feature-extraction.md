@@ -68,6 +68,8 @@ For burst correlation (§4.2.5), the extractor identifies burst periods using a 
 
 Linguistic extraction is the most algorithmically prescriptive of the categories, both because the prior literature provides clear guidance and because variations in algorithm choice produce meaningfully different results.
 
+The reference implementation records all §4.3 linguistic features under the signal-table category name `stylometric`, matching the stylometrics terminology used in §4.3.1 and the attribution-reasoning validation rules (§7.3.1). Paper text uses *linguistic* for the taxonomy category; implementation output and prompts use `stylometric` for the same category.
+
 For stylometric markers (§4.3.1), the methodology specifies Burrows' Delta as the baseline distance metric. The implementation follows the formulation in Burrows (2002): compute the frequency of each function word per author (here, per account), z-score the frequencies against the corpus of all authors in the seed set, and compute the mean absolute difference of z-scores between author pairs. The methodology specifies a function-word list of the top 150 most-frequent words in the language of the corpus, identified from a reference corpus appropriate to the language (the Corpus of Contemporary American English for English-language investigations is a defensible default).
 
 The choice of 150 words is the methodology's default and is not load-bearing; the literature supports values from 50 to 500. Practitioners can change the count; the signal table records the choice.
@@ -102,13 +104,15 @@ For image source tracing (§4.5.4), the extractor relies on reverse-image-search
 
 For AI-generated face detection (§4.5.5), the extractor applies a detector library. The detector is non-deterministic in the sense that different detectors disagree on edge cases, but for any specific detector and version, the output is deterministic. The signal table records the detector identifier, version, and output per profile image.
 
+For color palette overlap (§4.5.6), the collection layer aggregates per-account quantized RGB histograms into a corpus artifact. The account extractor computes histogram bins, top-color summaries, and image counts; the pair extractor computes Jensen-Shannon divergence, cosine similarity, and top-color Jaccard on aligned histograms. See §6.4.6 for v1 collection-layer availability.
+
 ### 6.2.6 Cross-platform extractors
 
 Cross-platform extraction operates on artifacts collected from multiple platforms.
 
 For handle reuse (§4.6.1), the extractor performs exact and near-exact string matching across handles. The methodology specifies a small set of variant rules (numeric suffix addition, underscore insertion, dot insertion, year-suffix addition) and computes match scores for each pair. The signal table records the match score and the variant rule that produced the highest score.
 
-For bio link patterns (§4.6.2) and external link corpus overlap (§4.6.3), the extractor normalizes URLs (resolving redirects, stripping tracking parameters) and computes pairwise overlap with rarity weighting. The signal table records normalized link sets per account and pairwise overlap statistics.
+For bio link patterns (§4.6.2) and external link corpus overlap (§4.6.3), the extractor normalizes URLs (resolving redirects, stripping tracking parameters) and computes pairwise overlap with rarity weighting. Per-account posted-URL lists are emitted by the platform stylometric extractors under the `content_artifacts` category (`posted_urls`, `posted_urls_unique_count`); pair-level Jaccard overlap is emitted under `cross_platform`.
 
 For cross-platform timing correlation (§4.6.4), the extractor operates analogously to the within-platform temporal extractors (§6.2.2) but across artifacts from different platforms. The signal table records cross-platform timing distributions.
 
@@ -192,6 +196,21 @@ The methodology specifies that extractors compute signals over the full collecti
 ### 6.4.5 Deleted content discovered during re-collection
 
 When re-collection (§5.5) discovers that content present in earlier collection is now absent, the extractor must handle the absence appropriately. The methodology specifies that signals computed from the earlier collection remain valid (the archive preserves the deleted content), but signals computed from the later collection are computed only against the still-present content. The signal table records collection windows per signal so the reasoning layer can identify which signals were computed against which versions of the network's behavior.
+
+### 6.4.6 Reference implementation v1 signal availability
+
+Extractors for the full §4 taxonomy are present in the reference implementation, but not every signal is populated on the default v1 ingest path. The table below states what practitioners should expect from a standard Apify Twitter ingest without additional configuration.
+
+| Signal | Paper | v1 default ingest | Notes |
+|--------|-------|-------------------|-------|
+| §4.1, §4.2.1, §4.2.3–§4.2.5, §4.3, §4.5.1–§4.5.3, §4.6, §4.7 (partial) | Active | Timeline and profile artifacts drive account and pair features. |
+| §4.4.1–§4.4.2 | Active when follower/following lists are in the ingest payload | Skipped when network lists are absent. |
+| §4.4.3–§4.4.4 | Active when ≥2 accounts ingested | Engagement events are derived from reply, repost, and quote posts in per-account timeline artifacts. Likes and other non-authored engagements are not collected in v1. |
+| §4.2.2 response latency | **Dormant** | Extractors run, but features are written only when the practitioner populates `triggering_events` in investigation metadata. v1 has no UI for this; default investigations produce no response-latency rows. |
+| §4.5.6 color palette | **Dormant** | Account and pair extractors are registered, but the v1 collection layer does not build `application/x-color-palette-corpus` artifacts (unlike image-hash corpora). No palette histograms are emitted until collection supplies decoded image bytes. |
+| §4.6.3 posted URLs | Active | Emitted as `content_artifacts` account features; pair overlap under `cross_platform`. |
+
+Practitioners auditing an investigation should treat the signal table as authoritative: a category listed in §4 but absent from the table for a given run was either not collected, not configured, or not applicable to that payload.
 
 ## 6.5 Performance considerations
 

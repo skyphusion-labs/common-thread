@@ -325,7 +325,7 @@ export class TwitterStylometricExtractor implements AccountFeatureExtractor {
       value: { kind: 'numeric', value: urlCounts.reduce((s, x) => s + x, 0) / postCount },
     });
 
-    // ----- Posted URLs (content_artifacts category per paper §4.7) -----
+    // ----- Posted URLs (content_artifacts category per paper §4.6.3) -----
     //
     // The URL list is emitted regardless of count (including the empty
     // case) so the pair extractor (external_link_overlap_cross_platform)

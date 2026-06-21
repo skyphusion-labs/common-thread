@@ -52,6 +52,18 @@ The forensic-image-analysis literature is mature. Practitioners working with vis
 
 **Extraction.** Apply at least one current detector. Treat positive detection as a strong signal, but treat negative detection as inconclusive given the arms-race dynamics. The signal is most useful in combination with other signals; an AI-generated face plus a templated bio plus a creationdate cluster is a much stronger combination than any of the three alone.
 
+### 4.5.6 Color palette overlap
+
+**What it detects.** Accounts that share a distinctive color palette across posted images. Operators who reuse the same image-editing workflow, filter stack, or source material often produce images whose dominant colors cluster similarly even when the images are not perceptual-hash matches. Color palette overlap is weaker than perceptual hashing (§4.5.1 through §4.5.3) but can corroborate those signals when images have been edited enough to defeat hash comparison.
+
+**What it does not detect.** Accounts that post mostly text or that draw images from diverse unrelated sources without a shared editing pipeline.
+
+**False-positive modes.** Platform-wide aesthetic trends (filters, meme templates, stock imagery from the same provider) can produce palette similarity without operator coordination.
+
+**False-negative modes.** Operators who deliberately vary color treatment per persona, or who post images stripped of color information.
+
+**Extraction.** For each account, aggregate a quantized RGB histogram over posted (and optionally profile or banner) images. Compare pairwise using Jensen-Shannon divergence on aligned histogram bins, with cosine similarity and top-color Jaccard as auxiliary metrics. The reference implementation emits pair-level features in the `visual` category; account-level histograms are recorded under `visual` feature names prefixed by image surface (`posted_color_palette_*`, etc.).
+
 ## 4.6 Cross-platform signals
 
 Cross-platform signals are observable when accounts under investigation extend beyond a single platform. They are powerful because operators who maintain a network across multiple platforms have to handle each platform consistently with the persona's claimed identity, and consistency is hard to maintain at scale.
@@ -87,6 +99,8 @@ The Bellingcat investigator's guide is the standard practitioner reference for c
 **False-negative modes.** Operators who diversify link sources across personas.
 
 **Extraction.** Build per-account link corpus (every external URL shared by the account). Normalize. Compute pairwise overlap weighted by rarity of the destination in the broader community corpus.
+
+The reference implementation emits the per-account link corpus as a sorted list of normalized URLs (`posted_urls`) and a count feature (`posted_urls_unique_count`). These account-level rows use the feature category `content_artifacts` because they describe shared content destinations rather than profile metadata or linguistic style; the pair-level overlap features are emitted under `cross_platform` (§6.2.6).
 
 ### 4.6.4 Crossplatform posting timing correlation
 

@@ -195,6 +195,7 @@ export async function runTwitterIngestPipeline(
   });
 
   await runResponseLatencyExtraction(runnerEnv, {
+    // §4.2.2: no-op when metadata_json.triggering_events is empty (§6.4.6)
     investigationId: ctx.investigationId,
     accountFilter: handles.length > 0 ? handles : undefined,
   });

@@ -4,6 +4,11 @@
  * Reads practitioner-supplied triggering_events from investigation
  * metadata and timeline artifacts, emitting per-account latency
  * records and per-pair correlation features.
+ *
+ * v1 availability: extractors are registered and the ingest pipeline
+ * invokes this pass, but no features are written until
+ * metadata_json.triggering_events is populated (see paper §6.4.6).
+ * Default investigations are dormant for this signal.
  */
 
 import { ArchiveStore } from '../../archive/store';
