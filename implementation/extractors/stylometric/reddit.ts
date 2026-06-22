@@ -59,10 +59,6 @@
  * the markdown_density feature separately preserves the formatting-
  * intensity signal so it isn't lost.
  *
- * Artifact parsing: shared reddit-listing-parser accepts native API
- * Listings, Pushshift-style bare objects (created_utc), and Apify
- * scraper rows (createdAt + title/selftext/body).
- *
  * Determinism: same input bytes produce the same output.
  */
 
@@ -88,10 +84,33 @@ import {
   extractAndNormalizeUrls,
 } from './text-helpers';
 
-import { parseRedditListingBytes } from '../../ingest/reddit-listing-parser';
-
 const NAME = 'stylometric_reddit';
-const VERSION = '1.2.0';
+const VERSION = '1.0.0';
+
+interface RedditPostData {
+  // Common
+  created_utc?: number;
+  // Submission fields
+  title?: string;
+  selftext?: string;
+  // Comment fields
+  body?: string;
+}
+
+interface RedditChild {
+  kind?: string; // 't1' = comment, 't3' = submission
+  data?: RedditPostData;
+}
+
+/**
+ * Internal normalized post: a single piece of text plus its kind
+ * classification. For submissions we concatenate title and selftext
+ * (when both are present), since the stylometric signal lives in both.
+ */
+interface NormalizedRedditText {
+  text: string;
+  isComment: boolean;
+}
 
 export class RedditStylometricExtractor implements AccountFeatureExtractor {
   readonly name = NAME;
@@ -112,7 +131,7 @@ export class RedditStylometricExtractor implements AccountFeatureExtractor {
   }
 
   extract(input: ExtractorInput): ExtractedFeature[] {
-    const items = parseRedditListingBytes(input.bytes);
+    const items = tryParseListing(input.bytes);
     if (!items || items.length === 0) return [];
 
     // Per-post counts for Reddit aggregates
@@ -375,6 +394,108 @@ export class RedditStylometricExtractor implements AccountFeatureExtractor {
 
     return features;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Reddit-specific parsing
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse a Reddit listing artifact into normalized text items.
+ *
+ * Accepts the same shape variants as the temporal extractor:
+ *   - { kind: 'Listing', data: { children: [...] } }
+ *   - An array of Listings (user/overview endpoint)
+ *   - An array of { kind: 't1' | 't3', data: {...} } items
+ *   - A flat array of bare post objects (Pushshift-style)
+ *   - Wrapper objects with posts/comments/submissions/children arrays
+ */
+function tryParseListing(bytes: Uint8Array): NormalizedRedditText[] | null {
+  try {
+    const text = new TextDecoder().decode(bytes);
+    const parsed = JSON.parse(text);
+    const collected: NormalizedRedditText[] = [];
+    collectFrom(parsed, collected);
+    return collected.length > 0 ? collected : null;
+  } catch {
+    return null;
+  }
+}
+
+function collectFrom(value: unknown, out: NormalizedRedditText[]): void {
+  if (!value) return;
+
+  if (Array.isArray(value)) {
+    for (const item of value) collectFrom(item, out);
+    return;
+  }
+
+  if (typeof value !== 'object') return;
+  const obj = value as Record<string, unknown>;
+
+  // Listing envelope: { kind: 'Listing', data: { children: [...] } }
+  if (obj.kind === 'Listing' && obj.data && typeof obj.data === 'object') {
+    const data = obj.data as Record<string, unknown>;
+    if (Array.isArray(data.children)) {
+      for (const child of data.children) collectFrom(child, out);
+    }
+    return;
+  }
+
+  // Wrapped item: { kind: 't1' | 't3', data: {...} }
+  if (typeof obj.kind === 'string' && obj.data && typeof obj.data === 'object') {
+    const normalized = normalizeItem(obj.kind, obj.data as RedditPostData);
+    if (normalized) out.push(normalized);
+    return;
+  }
+
+  // Bare post object (no envelope; archival exports)
+  if (looksLikeBarePost(obj)) {
+    const normalized = normalizeItem(inferKind(obj), obj as RedditPostData);
+    if (normalized) out.push(normalized);
+    return;
+  }
+
+  // Wrapper around children arrays
+  for (const key of ['posts', 'comments', 'submissions', 'children']) {
+    const candidate = obj[key];
+    if (Array.isArray(candidate)) {
+      for (const c of candidate) collectFrom(c, out);
+    }
+  }
+}
+
+function normalizeItem(
+  kind: string | undefined,
+  data: RedditPostData
+): NormalizedRedditText | null {
+  // Concatenate title + selftext for submissions; body alone for comments.
+  // For link-only submissions, selftext is empty and title carries the
+  // entire textual content. Both signals matter for stylometry.
+  const parts: string[] = [];
+  if (typeof data.title === 'string' && data.title.length > 0) parts.push(data.title);
+  if (typeof data.selftext === 'string' && data.selftext.length > 0) parts.push(data.selftext);
+  if (typeof data.body === 'string' && data.body.length > 0) parts.push(data.body);
+
+  const text = parts.join(' ').trim();
+  if (text.length === 0) return null;
+
+  const isComment = kind === 't1' || (kind === undefined && typeof data.body === 'string');
+  return { text, isComment };
+}
+
+function looksLikeBarePost(obj: Record<string, unknown>): boolean {
+  return (
+    typeof obj.body === 'string' ||
+    typeof obj.title === 'string' ||
+    typeof obj.selftext === 'string'
+  );
+}
+
+function inferKind(obj: Record<string, unknown>): string | undefined {
+  if (typeof obj.body === 'string') return 't1';
+  if (typeof obj.title === 'string') return 't3';
+  return undefined;
 }
 
 // ---------------------------------------------------------------------------

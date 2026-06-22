@@ -4,7 +4,6 @@
 
 import { TwitterAccountMetadataExtractor } from './twitter';
 import { RedditAccountMetadataExtractor } from './reddit';
-import { InstagramAccountMetadataExtractor } from './instagram';
 import { CreationDateClusterExtractor } from './creation-date-pair';
 import { DisplayNameBioSimilarityExtractor } from './display-name-bio-pair';
 import { BioTemplateOverlapExtractor } from './bio-template-pair';
@@ -17,7 +16,6 @@ import type { PairFeatureExtractor } from '../pair-types';
 export const ACCOUNT_METADATA_EXTRACTORS: AccountFeatureExtractor[] = [
   new TwitterAccountMetadataExtractor(),
   new RedditAccountMetadataExtractor(),
-  new InstagramAccountMetadataExtractor(),
 ];
 
 /** Pair extractors for §4.1 account metadata signals. */
@@ -32,7 +30,6 @@ export const ACCOUNT_METADATA_PAIR_EXTRACTORS: PairFeatureExtractor[] = [
 
 export { TwitterAccountMetadataExtractor } from './twitter';
 export { RedditAccountMetadataExtractor } from './reddit';
-export { InstagramAccountMetadataExtractor } from './instagram';
 export { CreationDateClusterExtractor } from './creation-date-pair';
 export { DisplayNameBioSimilarityExtractor } from './display-name-bio-pair';
 export { BioTemplateOverlapExtractor } from './bio-template-pair';

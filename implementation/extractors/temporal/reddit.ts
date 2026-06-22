@@ -66,10 +66,6 @@
  * client_app_count. Reddit's API does not expose the client application
  * used to make a post. The subreddit_* features are the platform's
  * closest behavioral analog.
- *
- * Artifact parsing: shared reddit-listing-parser accepts native API
- * Listings, Pushshift-style bare objects (created_utc), and Apify
- * scraper rows (createdAt + title/selftext/body).
  */
 
 import type {
@@ -87,10 +83,37 @@ import {
   parseTimestamp,
 } from './helpers';
 
-import { parseRedditListingBytes } from '../../ingest/reddit-listing-parser';
-
 const NAME = 'temporal_reddit';
-const VERSION = '1.2.0';
+const VERSION = '1.0.0';
+
+interface RedditPostData {
+  created_utc?: number;
+  subreddit?: string;
+  subreddit_name_prefixed?: string;
+  parent_id?: string;
+  // Submission-specific fields
+  title?: string;
+  selftext?: string;
+  // Comment-specific fields
+  body?: string;
+}
+
+interface RedditChild {
+  kind?: string; // 't1' = comment, 't3' = submission
+  data?: RedditPostData;
+}
+
+/**
+ * Normalized internal representation of a Reddit post or comment after
+ * envelope-stripping. The kind field is preserved when known so we can
+ * correctly classify replies; isComment is the canonical reply flag
+ * after parsing.
+ */
+interface NormalizedRedditPost {
+  createdUtc: number;
+  subreddit?: string;
+  isComment: boolean;
+}
 
 export class RedditTemporalExtractor implements AccountFeatureExtractor {
   readonly name = NAME;
@@ -111,7 +134,7 @@ export class RedditTemporalExtractor implements AccountFeatureExtractor {
   }
 
   extract(input: ExtractorInput): ExtractedFeature[] {
-    const posts = parseRedditListingBytes(input.bytes);
+    const posts = tryParseListing(input.bytes);
     if (!posts || posts.length === 0) return [];
 
     const timestamps: number[] = []; // Unix ms
@@ -122,7 +145,7 @@ export class RedditTemporalExtractor implements AccountFeatureExtractor {
     let replyCount = 0;
 
     for (const post of posts) {
-      const ts = parseTimestamp(post.createdAt);
+      const ts = parseTimestamp(post.createdUtc);
       if (ts === null) continue;
 
       timestamps.push(ts);
@@ -327,3 +350,136 @@ export class RedditTemporalExtractor implements AccountFeatureExtractor {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Reddit-specific parsing helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse a Reddit listing artifact into a flat array of normalized posts.
+ *
+ * Accepts the following shapes:
+ *   - { kind: 'Listing', data: { children: [...] } }
+ *   - An array of Listings (Reddit's user/overview endpoint returns
+ *     [submissionsListing, commentsListing])
+ *   - An array of { kind: 't1' | 't3', data: {...} } items at top level
+ *   - A flat array of bare post objects (Pushshift-style exports)
+ *
+ * Returns null for any shape that doesn't yield at least one parsable
+ * post-like object.
+ */
+function tryParseListing(bytes: Uint8Array): NormalizedRedditPost[] | null {
+  try {
+    const text = new TextDecoder().decode(bytes);
+    const parsed = JSON.parse(text);
+    const collected: NormalizedRedditPost[] = [];
+    collectFrom(parsed, collected);
+    return collected.length > 0 ? collected : null;
+  } catch {
+    return null;
+  }
+}
+
+function collectFrom(value: unknown, out: NormalizedRedditPost[]): void {
+  if (!value) return;
+
+  if (Array.isArray(value)) {
+    for (const item of value) collectFrom(item, out);
+    return;
+  }
+
+  if (typeof value !== 'object') return;
+  const obj = value as Record<string, unknown>;
+
+  // Listing envelope: { kind: 'Listing', data: { children: [...] } }
+  if (obj.kind === 'Listing' && obj.data && typeof obj.data === 'object') {
+    const data = obj.data as Record<string, unknown>;
+    if (Array.isArray(data.children)) {
+      for (const child of data.children) collectFrom(child, out);
+    }
+    return;
+  }
+
+  // Wrapped item: { kind: 't1' | 't3', data: {...} }
+  if (typeof obj.kind === 'string' && obj.data && typeof obj.data === 'object') {
+    const normalized = normalizeItem(obj.kind, obj.data as RedditPostData);
+    if (normalized) out.push(normalized);
+    return;
+  }
+
+  // Bare post object (no envelope). Common in archival exports.
+  if (looksLikeBarePost(obj)) {
+    const normalized = normalizeItem(inferKind(obj), obj as RedditPostData);
+    if (normalized) out.push(normalized);
+    return;
+  }
+
+  // Wrapper around children (some endpoints use { posts: [...] } style)
+  for (const key of ['posts', 'comments', 'submissions', 'children']) {
+    const candidate = obj[key];
+    if (Array.isArray(candidate)) {
+      for (const c of candidate) collectFrom(c, out);
+    }
+  }
+}
+
+function normalizeItem(
+  kind: string | undefined,
+  data: RedditPostData
+): NormalizedRedditPost | null {
+  if (typeof data.created_utc !== 'number' || !Number.isFinite(data.created_utc)) {
+    return null;
+  }
+
+  // Subreddit normalization: prefer the unprefixed name for tighter set
+  // dedup ("news" not "r/news"); strip the "r/" prefix when present.
+  let subreddit: string | undefined;
+  if (typeof data.subreddit === 'string' && data.subreddit.length > 0) {
+    subreddit = data.subreddit;
+  } else if (
+    typeof data.subreddit_name_prefixed === 'string' &&
+    data.subreddit_name_prefixed.startsWith('r/')
+  ) {
+    subreddit = data.subreddit_name_prefixed.slice(2);
+  }
+
+  // Reply detection priority: t1 kind beats everything else (Reddit
+  // comments are by construction replies). For bare-post artifacts
+  // without an explicit kind, fall back to parent_id presence.
+  const isComment =
+    kind === 't1' ||
+    (kind === undefined && typeof data.parent_id === 'string');
+
+  return {
+    createdUtc: data.created_utc,
+    subreddit,
+    isComment,
+  };
+}
+
+/**
+ * Heuristic: an object is post-like if it has a created_utc and at
+ * least one of the post-type-discriminating fields. Used for archival
+ * exports that strip the kind envelope.
+ */
+function looksLikeBarePost(obj: Record<string, unknown>): boolean {
+  if (typeof obj.created_utc !== 'number') return false;
+  return (
+    'body' in obj ||      // comment
+    'title' in obj ||     // submission
+    'selftext' in obj ||  // submission
+    'subreddit' in obj ||
+    'subreddit_name_prefixed' in obj ||
+    'parent_id' in obj
+  );
+}
+
+/**
+ * Infer Reddit kind from bare-post field presence when no kind envelope
+ * is available. Comments have body; submissions have title.
+ */
+function inferKind(obj: Record<string, unknown>): string | undefined {
+  if (typeof obj.body === 'string') return 't1';
+  if (typeof obj.title === 'string') return 't3';
+  if (typeof obj.parent_id === 'string') return 't1';
+  return undefined;
+}
