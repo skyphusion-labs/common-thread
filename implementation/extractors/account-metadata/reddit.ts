@@ -22,11 +22,7 @@
  *                       bio_mention_count, bio_link_count,
  *                       subreddit_title, subreddit_display_name,
  *                       subreddit_subscribers, subreddit_over_18
- *   Profile images:     icon_url, banner_url, default_profile_image
- *
- * Artifact parsing: shared reddit-profile-fields accepts native API
- * envelopes, nested subreddit objects, Apify basic-profile flat keys
- * (subreddit.public_description), and array wrappers.
+ *   Profile images:     icon_url, banner_url
  */
 
 import type {
@@ -35,15 +31,39 @@ import type {
   ExtractedFeature,
 } from '../types';
 import type { ManifestEntry } from '../../archive/types';
-import {
-  isDefaultRedditAvatar,
-  parseRedditProfileBytes,
-  redditProfileBio,
-  type RedditProfileLike,
-} from '../../ingest/reddit-profile-fields';
 
 const NAME = 'account_metadata_reddit';
-const VERSION = '1.1.0';
+const VERSION = '1.0.0';
+
+interface RedditProfile {
+  id?: string;
+  name?: string; // username
+  created_utc?: number;
+  link_karma?: number;
+  comment_karma?: number;
+  total_karma?: number;
+  awardee_karma?: number;
+  awarder_karma?: number;
+  has_verified_email?: boolean;
+  is_gold?: boolean;
+  is_mod?: boolean;
+  is_employee?: boolean;
+  is_suspended?: boolean;
+  icon_img?: string;
+  snoovatar_img?: string;
+  subreddit?: {
+    title?: string;
+    display_name?: string;
+    display_name_prefixed?: string;
+    public_description?: string;
+    description?: string;
+    subscribers?: number;
+    over_18?: boolean;
+    banner_img?: string;
+    banner_background_image?: string;
+    icon_img?: string;
+  };
+}
 
 export class RedditAccountMetadataExtractor implements AccountFeatureExtractor {
   readonly name = NAME;
@@ -53,39 +73,29 @@ export class RedditAccountMetadataExtractor implements AccountFeatureExtractor {
     const tool = entry.collectionMethod.tool.toLowerCase();
     const source = entry.source.toLowerCase();
 
-    if (tool.includes('twitter') || tool.includes('x-com')) return false;
-    if (source.includes('twitter.com') || source.includes('x.com')) return false;
-    if (tool.includes('instagram')) return false;
-    if (source.includes('instagram.com')) return false;
-
-    const looksLikeActivity =
-      tool.includes('search-fast') ||
-      tool.includes('posts-scraper') ||
-      tool.includes('timeline') ||
-      tool.includes('comments') ||
-      tool.includes('submitted') ||
-      source.includes('/comments/');
-
-    if (looksLikeActivity) return false;
-
-    if (tool.includes('profile') || tool.includes('basic-profile')) return true;
-    if (source.includes('/user/')) return true;
-
     if (tool.includes('reddit')) return true;
     if (source.includes('reddit.com') || source.includes('redd.it')) return true;
 
-    return false;
+    // Don't process artifacts that obviously belong to other platforms.
+    if (tool.includes('twitter') || tool.includes('x-com')) return false;
+    if (source.includes('twitter.com') || source.includes('x.com')) return false;
+
+    // Otherwise let it through and rely on extract() to discriminate.
+    return true;
   }
 
   extract(input: ExtractorInput): ExtractedFeature[] {
-    const profile = parseRedditProfileBytes(input.bytes, input.entry.account);
+    const profile = tryParseProfile(input.bytes);
     if (!profile) return [];
+    if (!looksLikeReddit(profile)) return [];
 
     const features: ExtractedFeature[] = [];
 
+    // Identity
     pushText(features, 'username', profile.name);
     pushText(features, 'platform_id', profile.id);
 
+    // Karma
     pushNumeric(features, 'link_karma', profile.link_karma);
     pushNumeric(features, 'comment_karma', profile.comment_karma);
     pushNumeric(features, 'awardee_karma', profile.awardee_karma);
@@ -102,6 +112,8 @@ export class RedditAccountMetadataExtractor implements AccountFeatureExtractor {
       }
     }
 
+    // Karma ratio (link vs comment): tells you whether they're poster-shaped
+    // or commenter-shaped. Highly skewed values can be diagnostic.
     if (
       typeof profile.link_karma === 'number' &&
       typeof profile.comment_karma === 'number' &&
@@ -114,43 +126,83 @@ export class RedditAccountMetadataExtractor implements AccountFeatureExtractor {
       );
     }
 
+    // Status flags
     pushBool(features, 'has_verified_email', profile.has_verified_email);
     pushBool(features, 'is_gold', profile.is_gold);
     pushBool(features, 'is_mod', profile.is_mod);
     pushBool(features, 'is_employee', profile.is_employee);
     pushBool(features, 'is_suspended', profile.is_suspended);
 
+    // Creation date (Reddit uses Unix epoch seconds)
     if (typeof profile.created_utc === 'number' && Number.isFinite(profile.created_utc)) {
       const iso = new Date(profile.created_utc * 1000).toISOString();
       pushText(features, 'creation_date', iso);
       pushNumeric(features, 'creation_year', new Date(iso).getUTCFullYear());
     }
 
+    // Personal subreddit (bio-equivalent)
     const sub = profile.subreddit;
-    const bio = redditProfileBio(profile);
-    pushText(features, 'bio', bio);
-    if (typeof bio === 'string') {
-      pushNumeric(features, 'bio_length', bio.length);
-      pushNumeric(features, 'bio_hashtag_count', countMatches(bio, /#[\w\u00C0-\uFFFF]+/g));
-      pushNumeric(features, 'bio_mention_count', countMatches(bio, /\bu\/\w+|\br\/\w+/g));
-      pushNumeric(features, 'bio_link_count', countMatches(bio, /https?:\/\/\S+/gi));
-    }
-
     if (sub) {
+      const bio = sub.public_description ?? sub.description;
+      pushText(features, 'bio', bio);
+      if (typeof bio === 'string') {
+        pushNumeric(features, 'bio_length', bio.length);
+        pushNumeric(features, 'bio_hashtag_count', countMatches(bio, /#[\w\u00C0-\uFFFF]+/g));
+        pushNumeric(features, 'bio_mention_count', countMatches(bio, /\bu\/\w+|\br\/\w+/g));
+        pushNumeric(features, 'bio_link_count', countMatches(bio, /https?:\/\/\S+/gi));
+      }
+
       pushText(features, 'subreddit_title', sub.title);
       pushText(features, 'subreddit_display_name', sub.display_name);
       pushNumeric(features, 'subreddit_subscribers', sub.subscribers);
       pushBool(features, 'subreddit_over_18', sub.over_18);
+
       pushText(features, 'banner_image_url', sub.banner_img ?? sub.banner_background_image);
     }
 
-    const iconUrl = profile.icon_img ?? profile.snoovatar_img ?? sub?.icon_img;
-    pushText(features, 'icon_url', iconUrl);
-    pushText(features, 'profile_image_url', iconUrl);
-    pushBool(features, 'default_profile_image', isDefaultRedditAvatar(iconUrl));
+    // Profile images
+    pushText(features, 'icon_url', profile.icon_img ?? profile.snoovatar_img);
 
     return features;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function tryParseProfile(bytes: Uint8Array): RedditProfile | null {
+  try {
+    const text = new TextDecoder().decode(bytes);
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed === 'object') {
+      // Reddit API often returns { kind: 't2', data: {...} }
+      if (parsed.kind === 't2' && parsed.data && typeof parsed.data === 'object') {
+        return parsed.data as RedditProfile;
+      }
+      if (parsed.data && typeof parsed.data === 'object' && !parsed.kind) {
+        return parsed.data as RedditProfile;
+      }
+      return parsed as RedditProfile;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function looksLikeReddit(profile: RedditProfile): boolean {
+  // Distinctive Reddit fields: created_utc (number), link_karma, comment_karma,
+  // is_employee, snoovatar_img, the subreddit object's display_name_prefixed
+  return (
+    typeof profile.link_karma === 'number' ||
+    typeof profile.comment_karma === 'number' ||
+    typeof profile.created_utc === 'number' ||
+    profile.is_employee !== undefined ||
+    typeof profile.snoovatar_img === 'string' ||
+    (profile.subreddit !== undefined &&
+      typeof profile.subreddit.display_name_prefixed === 'string')
+  );
 }
 
 function pushText(out: ExtractedFeature[], name: string, value: string | undefined | null): void {
@@ -178,5 +230,3 @@ function pushBool(out: ExtractedFeature[], name: string, value: boolean | undefi
 function countMatches(str: string, re: RegExp): number {
   return (str.match(re) ?? []).length;
 }
-
-export type { RedditProfileLike };
