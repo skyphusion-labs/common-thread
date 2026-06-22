@@ -260,13 +260,11 @@ function inferPlatform(entry: ManifestEntry): string {
 
   if (tool.includes('twitter') || tool.includes('x-com')) return 'twitter';
   if (tool.includes('reddit')) return 'reddit';
-  if (tool.includes('instagram')) return 'instagram';
   if (tool.includes('bluesky') || tool.includes('atproto')) return 'bluesky';
   if (tool.includes('mastodon')) return 'mastodon';
 
   if (source.includes('twitter.com') || source.includes('x.com')) return 'twitter';
   if (source.includes('reddit.com')) return 'reddit';
-  if (source.includes('instagram.com')) return 'instagram';
   if (source.includes('bsky.app') || source.includes('bsky.social')) return 'bluesky';
 
   return 'unknown';

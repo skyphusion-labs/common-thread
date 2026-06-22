@@ -209,11 +209,9 @@ function inferPlatform(entry: ManifestEntry): string {
     return 'twitter';
   }
   if (tool.includes('reddit')) return 'reddit';
-  if (tool.includes('instagram')) return 'instagram';
 
   if (source.includes('twitter.com') || source.includes('x.com')) return 'twitter';
   if (source.includes('reddit.com')) return 'reddit';
-  if (source.includes('instagram.com')) return 'instagram';
 
   return 'unknown';
 }
