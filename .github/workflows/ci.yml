@@ -26,7 +26,7 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
@@ -60,7 +60,7 @@ jobs:
     env:
       TEST_MYSQL_URL: mysql://root@127.0.0.1:3306/common_thread_test
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
