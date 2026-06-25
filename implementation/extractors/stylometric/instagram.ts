@@ -15,7 +15,6 @@ import type {
 } from '../types';
 import type { ManifestEntry } from '../../archive/types';
 import {
-  FUNCTION_WORDS_150,
   FUNCTION_WORD_INDEX,
   FUNCTION_WORD_VECTOR_LENGTH,
 } from './function-words';
