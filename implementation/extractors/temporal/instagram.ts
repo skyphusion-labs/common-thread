@@ -26,6 +26,15 @@ import { parseInstagramListingBytes } from '../../ingest/instagram-listing-parse
 const NAME = 'temporal_instagram';
 const VERSION = '1.0.0';
 
+function isInstagramSourceUrl(source: string): boolean {
+  try {
+    const hostname = new URL(source).hostname.toLowerCase();
+    return hostname === 'instagram.com' || hostname.endsWith('.instagram.com');
+  } catch {
+    return false;
+  }
+}
+
 export class InstagramTemporalExtractor implements AccountFeatureExtractor {
   readonly name = NAME;
   readonly version = VERSION;
@@ -64,7 +73,7 @@ export class InstagramTemporalExtractor implements AccountFeatureExtractor {
     }
 
     if (tool.includes('instagram')) return true;
-    if (source.includes('instagram.com')) return true;
+    if (isInstagramSourceUrl(source)) return true;
 
     if (tool.includes('twitter') || tool.includes('x-com')) return false;
     if (tool.includes('reddit')) return false;
