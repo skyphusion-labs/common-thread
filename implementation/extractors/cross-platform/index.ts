@@ -19,12 +19,10 @@
  *   external-link-overlap: posted_urls (content_artifacts, emitted
  *     by the stylometric extractors as a derived per-account URL set)
  *
- * Cross-platform runner note: the pair runner currently hardcodes
- * platform = 'twitter' when writing pair_features rows (see TODO in
- * pair-runner.ts). For pairs that span Twitter and Reddit accounts,
- * this is incorrect at the schema level. The pair extractors here
- * produce correct features regardless; fixing the platform-field
- * handling is a runner-layer concern.
+ * Cross-platform runner note: pair_features rows record platform_a
+ * and platform_b from seed_accounts (or account_features fallback).
+ * Same-identifier-cross-platform pairs remain unsupported at the
+ * schema level (see canonicalPlatformedPair in db-types.ts).
  */
 
 import { HandleReuseExtractor } from './handle-reuse';
