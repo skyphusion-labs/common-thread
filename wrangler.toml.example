@@ -29,6 +29,12 @@ enabled = true
 # =============================================================================
 # MYSQL_URL='mysql://USER:PASS@HOST:3306/common_thread' npm run db:migrate
 # npm run db:hyperdrive:create -- 'mysql://USER:PASS@HOST:3306/common_thread'
+#
+# Workers VPC origin: if Hyperdrive points at MySQL through a Workers VPC service
+# (Type TCP, e.g. host `mysql` port 3306), that VPC service's TLS cert-verification
+# mode MUST be DISABLED. Workers VPC defaults to FULL verification, which rejects the
+# MySQL container's cert and breaks Hyperdrive -> MySQL SILENTLY on (re)create. The
+# toggle lives on the VPC service, not in mysql2/db.ts. See docs/SETUP.md section 2.
 
 [[hyperdrive]]
 binding = "DB"
