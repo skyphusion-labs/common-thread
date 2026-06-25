@@ -30,9 +30,26 @@ export class InstagramTemporalExtractor implements AccountFeatureExtractor {
   readonly name = NAME;
   readonly version = VERSION;
 
+  private parseHostname(raw: string): string | null {
+    try {
+      const value = raw.trim();
+      const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(value)
+        ? value
+        : `https://${value}`;
+      return new URL(withScheme).hostname.toLowerCase();
+    } catch {
+      return null;
+    }
+  }
+
+  private isHostOrSubdomain(host: string | null, domain: string): boolean {
+    return host === domain || (host !== null && host.endsWith(`.${domain}`));
+  }
+
   filterEntry(entry: ManifestEntry): boolean {
     const tool = entry.collectionMethod.tool.toLowerCase();
     const source = entry.source.toLowerCase();
+    const host = this.parseHostname(source);
 
     if (tool.includes('instagram-profile')) return false;
     if (source.includes('/p/') || source.includes('/reel/')) return true;
@@ -51,8 +68,16 @@ export class InstagramTemporalExtractor implements AccountFeatureExtractor {
 
     if (tool.includes('twitter') || tool.includes('x-com')) return false;
     if (tool.includes('reddit')) return false;
-    if (source.includes('twitter.com') || source.includes('x.com')) return false;
-    if (source.includes('reddit.com') || source.includes('redd.it')) return false;
+    if (
+      this.isHostOrSubdomain(host, 'twitter.com') ||
+      this.isHostOrSubdomain(host, 'x.com') ||
+      (host === null && (source.includes('twitter.com') || source.includes('x.com')))
+    ) return false;
+    if (
+      this.isHostOrSubdomain(host, 'reddit.com') ||
+      host === 'redd.it' ||
+      (host === null && (source.includes('reddit.com') || source.includes('redd.it')))
+    ) return false;
 
     return false;
   }
