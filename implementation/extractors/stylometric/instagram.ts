@@ -54,7 +54,12 @@ export class InstagramStylometricExtractor implements AccountFeatureExtractor {
     }
 
     if (tool.includes('instagram')) return true;
-    if (source.includes('instagram.com')) return true;
+    try {
+      const hostname = new URL(source).hostname.toLowerCase();
+      if (hostname === 'instagram.com' || hostname.endsWith('.instagram.com')) return true;
+    } catch {
+      // Ignore invalid/non-URL source values and continue with other heuristics.
+    }
 
     if (tool.includes('twitter') || tool.includes('x-com')) return false;
     if (tool.includes('reddit')) return false;
