@@ -68,6 +68,17 @@ Paste the printed Hyperdrive `id` into `wrangler.toml` under `[[hyperdrive]] bin
 For local `wrangler dev`, set `localConnectionString` on the Hyperdrive binding or export
 `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_DB`.
 
+> **Production over Workers VPC: disable TLS cert verification on the MySQL service.**
+> When the production MySQL backend is reached through a **Workers VPC** service (Type TCP,
+> e.g. host `mysql`, port 3306) that Hyperdrive points at, that VPC service's TLS
+> certificate-verification mode **must be DISABLED**. Workers VPC defaults to FULL
+> verification, which rejects the MySQL container's certificate and breaks the
+> Hyperdrive -> MySQL path **silently** (the failure surfaces only as connection errors at
+> query time, not at deploy). Disable verification explicitly on the TCP/MySQL VPC service
+> when you (re)create it. This is a property of the VPC service, not the `mysql2` client:
+> `implementation/db.ts` sets no `ssl` option and must not -- the verification toggle lives
+> on the VPC service config. Not required for the default direct-MySQL setup above (no VPC).
+
 ## 3. Create the R2 bucket
 
 ```bash
