@@ -79,13 +79,11 @@ export class InstagramTemporalExtractor implements AccountFeatureExtractor {
     if (tool.includes('reddit')) return false;
     if (
       this.isHostOrSubdomain(host, 'twitter.com') ||
-      this.isHostOrSubdomain(host, 'x.com') ||
-      (host === null && (source.includes('twitter.com') || source.includes('x.com')))
+      this.isHostOrSubdomain(host, 'x.com')
     ) return false;
     if (
       this.isHostOrSubdomain(host, 'reddit.com') ||
-      host === 'redd.it' ||
-      (host === null && (source.includes('reddit.com') || source.includes('redd.it')))
+      host === 'redd.it'
     ) return false;
 
     return false;
