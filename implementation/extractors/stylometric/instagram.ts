@@ -54,17 +54,40 @@ export class InstagramStylometricExtractor implements AccountFeatureExtractor {
     }
 
     if (tool.includes('instagram')) return true;
+
+    let sourceHostname: string | null = null;
     try {
-      const hostname = new URL(source).hostname.toLowerCase();
-      if (hostname === 'instagram.com' || hostname.endsWith('.instagram.com')) return true;
+      sourceHostname = new URL(source).hostname.toLowerCase();
+      if (
+        sourceHostname === 'instagram.com' ||
+        sourceHostname.endsWith('.instagram.com')
+      ) {
+        return true;
+      }
     } catch {
       // Ignore invalid/non-URL source values and continue with other heuristics.
     }
 
     if (tool.includes('twitter') || tool.includes('x-com')) return false;
     if (tool.includes('reddit')) return false;
-    if (source.includes('twitter.com') || source.includes('x.com')) return false;
-    if (source.includes('reddit.com') || source.includes('redd.it')) return false;
+    if (
+      sourceHostname &&
+      (sourceHostname === 'twitter.com' ||
+        sourceHostname.endsWith('.twitter.com') ||
+        sourceHostname === 'x.com' ||
+        sourceHostname.endsWith('.x.com'))
+    ) {
+      return false;
+    }
+    if (
+      sourceHostname &&
+      (sourceHostname === 'reddit.com' ||
+        sourceHostname.endsWith('.reddit.com') ||
+        sourceHostname === 'redd.it' ||
+        sourceHostname.endsWith('.redd.it'))
+    ) {
+      return false;
+    }
 
     return false;
   }
