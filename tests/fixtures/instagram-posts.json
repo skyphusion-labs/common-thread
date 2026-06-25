@@ -1,0 +1,31 @@
+[
+  {
+    "caption": "Morning coffee and #sunrise vibes @bestfriend",
+    "timestamp": "2025-03-01T14:00:00.000Z",
+    "ownerUsername": "brandiprant",
+    "type": "Image",
+    "hashtags": ["sunrise"],
+    "mentions": ["bestfriend"],
+    "url": "https://www.instagram.com/p/abc123/"
+  },
+  {
+    "caption": "Another day another post about the weather and life",
+    "timestamp": "2025-03-02T15:30:00.000Z",
+    "ownerUsername": "brandiprant",
+    "type": "Video",
+    "url": "https://www.instagram.com/p/def456/"
+  },
+  {
+    "caption": "Weekend hike with friends #nature #hiking",
+    "timestamp": "2025-03-08T16:00:00.000Z",
+    "ownerUsername": "annie.woodman",
+    "type": "Sidecar",
+    "hashtags": ["nature", "hiking"]
+  },
+  {
+    "caption": "Quiet Sunday reading and tea",
+    "timestamp": "2025-03-09T10:00:00.000Z",
+    "ownerUsername": "annie.woodman",
+    "type": "Image"
+  }
+]

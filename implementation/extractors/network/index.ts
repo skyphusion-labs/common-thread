@@ -33,12 +33,9 @@
  *
  *   Reddit: not implemented. Reddit does not expose follower lists
  *     publicly; the social paradigm is community subscription rather
- *     than account-to-account graph edges. The existing Reddit
- *     account-metadata extractor explicitly notes this. Subreddit
- *     overlap (which subreddits two accounts both post in) is a
- *     reasonable Reddit-native network signal but would live under
- *     a different feature schema (post-distribution rather than
- *     account-graph).
+ *     than account-to-account graph edges. Subreddit overlap
+ *     (SubredditOverlapExtractor) is the Reddit-native network signal,
+ *     consuming subreddit_distribution from temporal_reddit.
  *
  * Collection-layer prerequisite: the account-level extractor in this
  * directory is a no-op on archives that don't contain follower-list
@@ -52,6 +49,7 @@
 import { TwitterNetworkExtractor } from './twitter';
 import { TwitterEngagementEventExtractor } from './engagement-events';
 import { FollowerOverlapExtractor } from './follower-overlap';
+import { SubredditOverlapExtractor } from './subreddit-overlap';
 import { MutualFollowExtractor } from './mutual-follow';
 import { CoEngagementTimingExtractor } from './co-engagement-timing';
 import { AmplificationExtractor } from './amplification';
@@ -71,6 +69,7 @@ export const NETWORK_EVENT_EXTRACTORS: EventFeatureExtractor[] = [
 
 export const NETWORK_PAIR_EXTRACTORS: PairFeatureExtractor[] = [
   new FollowerOverlapExtractor(), // §4.4.1
+  new SubredditOverlapExtractor(),  // Reddit-native community overlap
   new MutualFollowExtractor(),    // §4.4.2
 ];
 
@@ -82,6 +81,7 @@ export const NETWORK_ENGAGEMENT_PAIR_EXTRACTORS: EngagementPairFeatureExtractor[
 export { TwitterNetworkExtractor } from './twitter';
 export { TwitterEngagementEventExtractor } from './engagement-events';
 export { FollowerOverlapExtractor } from './follower-overlap';
+export { SubredditOverlapExtractor } from './subreddit-overlap';
 export { MutualFollowExtractor } from './mutual-follow';
 export { CoEngagementTimingExtractor } from './co-engagement-timing';
 export { AmplificationExtractor } from './amplification';

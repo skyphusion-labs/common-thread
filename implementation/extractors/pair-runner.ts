@@ -63,12 +63,22 @@ export interface PairExtractorRunResult {
 }
 
 interface AccountFeatureRow {
+  platform: string;
   account_identifier: string;
   feature_name: string;
   feature_value_text: string | null;
   feature_value_numeric: number | null;
   feature_value_json: string | null;
   account_feature_id: number;
+}
+
+interface PlatformedAccount {
+  account: string;
+  platform: string;
+}
+
+function candidateKey(candidate: PlatformedAccount): string {
+  return `${candidate.platform}\0${candidate.account}`;
 }
 
 export async function runPairExtractors(
@@ -86,7 +96,7 @@ export async function runPairExtractors(
   // Determine the candidate account set, resolving platforms for each.
   // accountFilter takes the filter path (resolveAccountPlatforms); seed
   // path loads from seed_accounts directly.
-  const candidatesWithPlatforms: Array<{ account: string; platform: string }> =
+  const candidatesWithPlatforms: PlatformedAccount[] =
     options.accountFilter && options.accountFilter.length > 0
       ? await resolveAccountPlatforms(
           env.DB,
@@ -100,12 +110,6 @@ export async function runPairExtractors(
       `Pair extractors require at least 2 accounts; got ${candidatesWithPlatforms.length}`
     );
   }
-
-  const accountPlatformMap = new Map<string, string>();
-  for (const cp of candidatesWithPlatforms) {
-    accountPlatformMap.set(cp.account, cp.platform);
-  }
-  const candidates: string[] = candidatesWithPlatforms.map(cp => cp.account);
 
   const results: PairExtractorRunResult[] = [];
 
@@ -138,40 +142,43 @@ export async function runPairExtractors(
       const featureRows = await loadAccountFeatures(
         env.DB,
         options.investigationId,
-        candidates,
+        candidatesWithPlatforms,
         extractor.requiredAccountFeatures
       );
 
-      // Group by account: account → Map<feature_name, FeatureValue>
-      // and account → Map<feature_name, account_feature_id>
+      // Group by platform+account: key → Map<feature_name, FeatureValue>
       const accountFeatures = new Map<string, AccountFeatureMap>();
       const accountFeatureIds = new Map<string, Map<string, number>>();
 
       for (const row of featureRows) {
+        const key = candidateKey({
+          platform: row.platform,
+          account: row.account_identifier,
+        });
         const fv = readFeatureValue({
           feature_value_text: row.feature_value_text,
           feature_value_numeric: row.feature_value_numeric,
           feature_value_json: row.feature_value_json,
         });
 
-        let acctMap = accountFeatures.get(row.account_identifier);
+        let acctMap = accountFeatures.get(key);
         if (!acctMap) {
           acctMap = new Map();
-          accountFeatures.set(row.account_identifier, acctMap);
+          accountFeatures.set(key, acctMap);
         }
         acctMap.set(row.feature_name, fv);
 
-        let idMap = accountFeatureIds.get(row.account_identifier);
+        let idMap = accountFeatureIds.get(key);
         if (!idMap) {
           idMap = new Map();
-          accountFeatureIds.set(row.account_identifier, idMap);
+          accountFeatureIds.set(key, idMap);
         }
         idMap.set(row.feature_name, row.account_feature_id);
       }
 
-      // Filter to accounts that have all required features.
-      const ready = candidates.filter(acct => {
-        const features = accountFeatures.get(acct);
+      const ready = candidatesWithPlatforms.filter(candidate => {
+        const key = candidateKey(candidate);
+        const features = accountFeatures.get(key);
         if (!features) return false;
         return extractor.requiredAccountFeatures.every(name => features.has(name));
       });
@@ -195,12 +202,12 @@ export async function runPairExtractors(
       const controlFlags = await loadSeedControlFlags(
         env.DB,
         options.investigationId,
-        ready
+        ready.map(c => c.account)
       );
-      const seedAccountInputs = ready.map(acct => ({
-        account: acct,
-        features: accountFeatures.get(acct)!,
-        isControl: controlFlags.get(acct) ?? false,
+      const seedAccountInputs = ready.map(candidate => ({
+        account: candidate.account,
+        features: accountFeatures.get(candidateKey(candidate))!,
+        isControl: controlFlags.get(candidate.account) ?? false,
       }));
       const context = extractor.buildContext
         ? extractor.buildContext(seedAccountInputs)
@@ -209,15 +216,15 @@ export async function runPairExtractors(
       // Iterate canonical pairs (account + platform travel together).
       for (let i = 0; i < ready.length - 1; i++) {
         for (let j = i + 1; j < ready.length; j++) {
-          const left = { account: ready[i], platform: accountPlatformMap.get(ready[i])! };
-          const right = { account: ready[j], platform: accountPlatformMap.get(ready[j])! };
+          const left = ready[i];
+          const right = ready[j];
           const [canonLeft, canonRight] = canonicalPlatformedPair(left, right);
           const a = canonLeft.account;
           const b = canonRight.account;
           const platformA = canonLeft.platform;
           const platformB = canonRight.platform;
-          const featuresA = accountFeatures.get(a)!;
-          const featuresB = accountFeatures.get(b)!;
+          const featuresA = accountFeatures.get(candidateKey(canonLeft))!;
+          const featuresB = accountFeatures.get(candidateKey(canonRight))!;
 
           const pairFeatures = extractor.extract(a, b, featuresA, featuresB, context);
           if (pairFeatures.length === 0) {
@@ -228,8 +235,8 @@ export async function runPairExtractors(
           // Collect contributing account_feature_ids for provenance.
           const contributingIds: number[] = [];
           for (const fname of extractor.requiredAccountFeatures) {
-            const idA = accountFeatureIds.get(a)?.get(fname);
-            const idB = accountFeatureIds.get(b)?.get(fname);
+            const idA = accountFeatureIds.get(candidateKey(canonLeft))?.get(fname);
+            const idB = accountFeatureIds.get(candidateKey(canonRight))?.get(fname);
             if (idA !== undefined) contributingIds.push(idA);
             if (idB !== undefined) contributingIds.push(idB);
           }
@@ -292,24 +299,20 @@ export async function runPairExtractors(
 // ---------------------------------------------------------------------------
 
 /**
- * Load active seed accounts for the investigation, one row per
- * account_identifier. If the same identifier exists on multiple
- * platforms in seed_accounts (rare), MIN(platform) selects one
- * deterministically. This preserves the runner's prior "one platform
- * per identifier" assumption (which the cross-platform plumbing in
- * migration 0002 does not yet change at the runner level).
+ * Load active seed accounts for the investigation. Returns one row per
+ * (platform, account_identifier) pair so cross-platform seeds with
+ * distinct handles are all included.
  */
 async function loadSeedAccounts(
   db: DatabaseClient,
   investigationId: string
-): Promise<Array<{ account: string; platform: string }>> {
+): Promise<PlatformedAccount[]> {
   const res = await db
     .prepare(
-      `SELECT account_identifier, MIN(platform) AS platform
+      `SELECT account_identifier, platform
        FROM seed_accounts
        WHERE investigation_id = ? AND removed_at IS NULL
-       GROUP BY account_identifier
-       ORDER BY account_identifier ASC`
+       ORDER BY account_identifier ASC, platform ASC`
     )
     .bind(investigationId)
     .all<{ account_identifier: string; platform: string }>();
@@ -337,7 +340,7 @@ async function resolveAccountPlatforms(
   db: DatabaseClient,
   investigationId: string,
   accounts: string[]
-): Promise<Array<{ account: string; platform: string }>> {
+): Promise<PlatformedAccount[]> {
   if (accounts.length === 0) return [];
 
   const placeholders = accounts.map(() => '?').join(', ');
@@ -396,17 +399,17 @@ async function resolveAccountPlatforms(
 async function loadAccountFeatures(
   db: DatabaseClient,
   investigationId: string,
-  accounts: string[],
+  candidates: PlatformedAccount[],
   featureNames: ReadonlyArray<string>
 ): Promise<AccountFeatureRow[]> {
-  if (accounts.length === 0 || featureNames.length === 0) return [];
+  if (candidates.length === 0 || featureNames.length === 0) return [];
 
-  // Build IN placeholders for accounts and feature names.
-  const acctPh = accounts.map(() => '?').join(', ');
+  const tuplePh = candidates.map(() => '(?, ?)').join(', ');
   const namePh = featureNames.map(() => '?').join(', ');
 
   const sql = `
     SELECT
+      platform,
       account_identifier,
       feature_name,
       feature_value_text,
@@ -415,20 +418,22 @@ async function loadAccountFeatures(
       id AS account_feature_id
     FROM account_features
     WHERE investigation_id = ?
-      AND account_identifier IN (${acctPh})
+      AND (platform, account_identifier) IN (${tuplePh})
       AND feature_name IN (${namePh})
-    ORDER BY account_identifier, feature_name, extracted_at DESC
+    ORDER BY platform, account_identifier, feature_name, extracted_at DESC
   `;
 
-  const bindings: unknown[] = [investigationId, ...accounts, ...featureNames];
+  const bindings: unknown[] = [
+    investigationId,
+    ...candidates.flatMap(c => [c.platform, c.account]),
+    ...featureNames,
+  ];
   const res = await db.prepare(sql).bind(...bindings).all<AccountFeatureRow>();
 
-  // Deduplicate: take the most recent row per (account, feature_name).
-  // The ORDER BY above puts the newest first, so the first occurrence wins.
   const seen = new Set<string>();
   const deduped: AccountFeatureRow[] = [];
   for (const row of res.results ?? []) {
-    const key = `${row.account_identifier}|${row.feature_name}`;
+    const key = `${row.platform}|${row.account_identifier}|${row.feature_name}`;
     if (seen.has(key)) continue;
     seen.add(key);
     deduped.push(row);

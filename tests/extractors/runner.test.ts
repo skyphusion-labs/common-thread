@@ -15,7 +15,11 @@ import { HandleReuseExtractor } from '../../implementation/extractors/cross-plat
 import { runAccountExtractors } from '../../implementation/extractors/runner';
 import { runPairExtractors } from '../../implementation/extractors/pair-runner';
 import { dhash, dhashToHex } from '../../implementation/extractors/visual/dhash';
-import { addSeedAccount, createInvestigation } from '../helpers/db';
+import {
+  addSeedAccount,
+  createInvestigation,
+  insertAccountFeature,
+} from '../helpers/db';
 import { testDb } from '../helpers/test-env';
 
 const SAMPLE_PROFILE = {
@@ -248,5 +252,70 @@ describe('runPairExtractors', () => {
     expect(pairRow!.platform_a).toBe('twitter');
     expect(pairRow!.platform_b).toBe('twitter');
     expect(pairRow!.feature_value_text).toBe('year_suffix');
+  });
+
+  it('writes platform columns for cross-platform pairs', async () => {
+    const investigationId = `extractor-pair-cross-${Date.now()}`;
+    await createInvestigation(testDb(), { id: investigationId });
+
+    await addSeedAccount(testDb(), {
+      investigationId,
+      platform: 'twitter',
+      account: 'alice',
+    });
+    await addSeedAccount(testDb(), {
+      investigationId,
+      platform: 'reddit',
+      account: 'bob',
+    });
+
+    await collectArtifact(env, new TextEncoder().encode('{}'), {
+      source: 'https://example.com/manifest-seed',
+      investigationId,
+      account: 'manifest-seed',
+      tool: 'test',
+      toolVersion: '1.0.0',
+      mimeType: 'application/json',
+    });
+
+    await insertAccountFeature(testDb(), {
+      investigationId,
+      platform: 'twitter',
+      account: 'alice',
+      category: 'account_metadata',
+      name: 'username',
+      value: { kind: 'text', value: 'operator2024' },
+    });
+    await insertAccountFeature(testDb(), {
+      investigationId,
+      platform: 'reddit',
+      account: 'bob',
+      category: 'account_metadata',
+      name: 'username',
+      value: { kind: 'text', value: 'operator2025' },
+    });
+
+    const pairResults = await runPairExtractors(
+      { DB: testDb(), ARCHIVE: env.ARCHIVE },
+      {
+        investigationId,
+        extractors: [new HandleReuseExtractor()],
+      }
+    );
+
+    expect(pairResults[0].pairCount).toBe(1);
+
+    const pairRow = await testDb()
+      .prepare(
+        `SELECT platform_a, platform_b
+         FROM pair_features
+         WHERE investigation_id = ?
+         LIMIT 1`
+      )
+      .bind(investigationId)
+      .first<{ platform_a: string; platform_b: string }>();
+
+    expect(pairRow!.platform_a).toBe('twitter');
+    expect(pairRow!.platform_b).toBe('reddit');
   });
 });
