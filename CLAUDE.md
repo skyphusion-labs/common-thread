@@ -103,7 +103,8 @@ Two extractor kinds, two runners:
 
 Both log an `extractor_runs` row (manifest hash, status, counts; partial work is
 preserved on failure). Extractors are registered by signal category in
-subdirectories under `extractors/` — `stylometric`, `temporal`, `network`,
+subdirectories under `extractors/` — `stylometric` (paper §4.3
+"linguistic"), `temporal`, `network`,
 `visual`, `metadata-leakage`, `cross-platform`, `account-metadata` — and
 aggregated in `index.ts` (`ALL_ACCOUNT_EXTRACTORS`, `ALL_PAIR_EXTRACTORS`, and
 `*_BY_CATEGORY` maps). Each extractor carries a `name` + `version`; the version
@@ -111,8 +112,11 @@ is recorded per run and is part of the reproducibility contract. Concrete
 examples: stylometric `burrows-delta` / `jsd-bigrams`, visual `dhash` /
 `color-palette`, cross-platform `handle-reuse`.
 
-`event_features` exist in the schema and `SignalId` taxonomy (`event:N`) but are
-**not populated in v1** — engagement-event collection is not built yet.
+`event_features` are populated by engagement event extractors (§4.4.3,
+§4.4.4) when the ingest pipeline archives per-account timelines with
+reply/repost/quote posts. Response-latency features (§4.2.2) and color-
+palette features (§4.5.6) are dormant on the default v1 path; see paper
+§6.4.6.
 
 ### 3. Reason (`implementation/reasoner/`) — LLM, citation-required
 

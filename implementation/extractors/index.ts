@@ -1,13 +1,21 @@
 /**
  * Top-level extractor registry.
  *
+ * v1 signal availability (paper §6.4.6): most extractors populate on
+ * default Apify Twitter ingest. Dormant unless configured or collected:
+ *   - §4.2.2 response latency (needs metadata_json.triggering_events)
+ *   - §4.5.6 color palette (needs color-palette corpus artifacts)
+ * Active with v1 timeline data when ≥2 accounts:
+ *   - §4.4.3 co-engagement, §4.4.4 amplification (reply/repost/quote
+ *     from timeline artifacts; not likes)
+ *
  * Two parallel hierarchies:
  *
  *   Account-level extractors: read artifact bytes via the account
  *   runner, produce account_features rows. Categories:
  *   account_metadata (Twitter, Reddit), temporal (Twitter, Reddit),
- *   stylometric (Twitter, Reddit), network (Twitter follower/
- *   following lists), visual (image-hash, posted-image-corpus,
+ *   stylometric (Twitter, Reddit; paper §4.3 "linguistic" category),
+ *   network (Twitter follower/following lists), visual (image-hash,
  *   exif-corpus, color-palette-corpus), metadata_leakage (Twitter
  *   tweet-timeline source/lang aggregation).
  *

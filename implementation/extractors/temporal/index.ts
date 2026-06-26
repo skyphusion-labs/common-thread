@@ -12,7 +12,9 @@
  * temporal features: burst-overlap (§4.2.5), cadence JSD on hour-dow
  * joint (§4.2.1), active-hour JSD on hour marginal (§4.2.3), and
  * quiet-period overlap (§4.2.4). Response-latency correlation (§4.2.2)
- * uses practitioner-supplied triggering_events in investigation metadata.
+ * uses practitioner-supplied triggering_events in investigation metadata;
+ * dormant on the default v1 ingest path until those events are configured
+ * (paper §6.4.6).
  */
 
 import { TwitterTemporalExtractor } from './twitter';

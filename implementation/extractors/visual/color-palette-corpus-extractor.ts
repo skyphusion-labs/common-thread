@@ -49,7 +49,7 @@
  *
  * The bin index for each emitted feature is dispatched by imageType:
  * 'profile_color_palette_*', 'banner_color_palette_*', or
- * 'posted_color_palette_*'. The §4.5.4 pair extractor uses the
+ * 'posted_color_palette_*'. The §4.5.6 pair extractor uses the
  * 'posted' variant specifically.
  *
  * Determinism: pure JSON parsing and aggregation; the top-K extraction
@@ -60,7 +60,7 @@
  *   - Histogram entries with non-numeric counts or out-of-range bins:
  *     dropped silently.
  *   - imageType not in {profile, banner, posted}: defaults to 'posted'
- *     since that's the primary §4.5.4 use case.
+ *     since that's the primary §4.5.6 use case.
  */
 
 import type {

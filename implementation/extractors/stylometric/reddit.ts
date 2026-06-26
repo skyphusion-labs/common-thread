@@ -375,7 +375,7 @@ export class RedditStylometricExtractor implements AccountFeatureExtractor {
       },
     });
 
-    // ----- Posted URLs (content_artifacts category per paper §4.7) -----
+    // ----- Posted URLs (content_artifacts category per paper §4.6.3) -----
     //
     // The URL list is emitted regardless of count (including the empty
     // case) so the pair extractor (external_link_overlap_cross_platform)
