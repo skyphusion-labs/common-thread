@@ -226,7 +226,7 @@ R2 and assert feature rows.
 - Crew commits land under the member's own `skyphusion-<member>` identity, never Conrad's. (Conrad
   devs ONLY on his laptop, where his commits author as `Conrad Rockenhaus <conrad@skyphusion.org>`
   -- his real name kept, the in-house `@skyphusion.org` email; his name is never scrubbed and his
-  history never rewritten. On jello the `conrad` user is the god process and commits as
+  history never rewritten. On the crew host the `conrad` user is the god process and commits as
   `Mackaye <mackaye@skyphusion.org>`.)
 - This repo lives on two licenses: `paper/` is CC-BY-4.0, `implementation/` is AGPL-3.0 (see
   `NOTICE`). Cross-project operating context lives in the main auto-memory
