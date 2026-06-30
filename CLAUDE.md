@@ -8,24 +8,24 @@ Common Thread is a **methodology paper plus a Cloudflare Workers reference
 implementation** for sockpuppet attribution from public behavioral signals.
 Given a seed set of accounts, it attributes coordinated inauthentic behavior to
 a common operator and emits **calibrated probabilistic claims at three coarse
-confidence bands** — `insufficient`, `consistent`, `strongly_consistent`. It
+confidence bands** -- `insufficient`, `consistent`, `strongly_consistent`. It
 stops at cluster-level attribution by design; it never identifies natural
 persons.
 
 Two halves, two licenses:
 
-- `paper/` — the twelve-section methodology paper (CC-BY-4.0). **The paper is the
+- `paper/` -- the twelve-section methodology paper (CC-BY-4.0). **The paper is the
   spec.** The implementation realizes it; code comments and prompts cite paper
   sections (e.g. `§7.4`, `§3.4`). When changing behavior governed by a section,
   keep the code consistent with the paper.
-- `implementation/` — the reference implementation (AGPL-3.0).
+- `implementation/` -- the reference implementation (AGPL-3.0).
 
 ## Commands
 
 ```bash
 npm test                 # vitest (one-shot) via @cloudflare/vitest-pool-workers
 npx vitest run tests/reasoner/runner.test.ts   # single test file
-npm run typecheck        # tsc --noEmit  (NOT run by vitest — esbuild skips types)
+npm run typecheck        # tsc --noEmit  (NOT run by vitest -- esbuild skips types)
 
 npm run dev              # wrangler dev (local Worker on :8787)
 npm run deploy           # wrangler deploy (default env)
@@ -47,7 +47,7 @@ cp web/wrangler.toml.example web/wrangler.toml
 `wrangler.toml` and `web/wrangler.toml` are gitignored (local resource IDs).
 
 There is **no build step** and **no lint script**. `tsc` is not part of the test
-run, so type errors pass tests silently — run `npm run typecheck` before
+run, so type errors pass tests silently -- run `npm run typecheck` before
 committing (an `investigationId`/`investigation_id` mismatch slipped past tests
 once for exactly this reason; see `TODO.md`).
 
@@ -74,7 +74,7 @@ A document flows through three deterministic-then-probabilistic stages. The
 ordering is a hard pipeline: **archive → extract → reason**, each writing MySQL
 rows that the next stage reads.
 
-### 1. Archive (`implementation/archive/`) — content-addressed, signed
+### 1. Archive (`implementation/archive/`) -- content-addressed, signed
 
 Raw artifacts are stored in R2 by SHA-256 content address before any
 transformation (§3.1). `ArchiveStore` (`store.ts`) keys objects at
@@ -90,7 +90,7 @@ attribution run for reproducibility (§3.4).
 > appends can race (last-write-wins). Serialize via a Durable Object per
 > investigation if this matters.
 
-### 2. Extract (`implementation/extractors/`) — deterministic features
+### 2. Extract (`implementation/extractors/`) -- deterministic features
 
 Two extractor kinds, two runners:
 
@@ -103,9 +103,9 @@ Two extractor kinds, two runners:
 
 Both log an `extractor_runs` row (manifest hash, status, counts; partial work is
 preserved on failure). Extractors are registered by signal category in
-subdirectories under `extractors/` — `stylometric` (paper §4.3
+subdirectories under `extractors/` -- `stylometric` (paper §4.3
 "linguistic"), `temporal`, `network`,
-`visual`, `metadata-leakage`, `cross-platform`, `account-metadata` — and
+`visual`, `metadata-leakage`, `cross-platform`, `account-metadata` -- and
 aggregated in `index.ts` (`ALL_ACCOUNT_EXTRACTORS`, `ALL_PAIR_EXTRACTORS`, and
 `*_BY_CATEGORY` maps). Each extractor carries a `name` + `version`; the version
 is recorded per run and is part of the reproducibility contract. Concrete
@@ -118,7 +118,7 @@ reply/repost/quote posts. Response-latency features (§4.2.2) and color-
 palette features (§4.5.6) are dormant on the default v1 path; see paper
 §6.4.6.
 
-### 3. Reason (`implementation/reasoner/`) — LLM, citation-required
+### 3. Reason (`implementation/reasoner/`) -- LLM, citation-required
 
 `runner.ts` → `runAttribution(env, options)` is the entry point. For every
 canonical ordered pair of seed accounts it:
@@ -128,7 +128,7 @@ canonical ordered pair of seed accounts it:
    `extractor_runs` to flag each signal `sufficient`/`degraded`, attaching an
    8-hex-char provenance fingerprint, and **randomizing signal order** with
    `seededShuffle` (deterministic djb2→xorshift32; the seed is recorded so a
-   reviewer can reproduce the order — §7.4.1).
+   reviewer can reproduce the order -- §7.4.1).
 2. **Triage** (`triage.ts` → `runTriage`, cheap `TRIAGE_MODEL`) returns
    `obviously_not_coordinated` (filtered out) or `warrants_further_analysis`
    (escalate). On any parse/JSON failure it **conservatively escalates** (§7.5.2).
@@ -147,7 +147,7 @@ canonical ordered pair of seed accounts it:
 
 `ai-gateway.ts` (`callLLM`, `extractJSONObject`) is the shared transport to the
 AI Gateway. **Provenance metadata on outputs is authored by the runner, never
-trusted from the model** — model self-reported `methodology_metadata` is
+trusted from the model** -- model self-reported `methodology_metadata` is
 overwritten. Prompt versions live in `prompts.ts` (`triage-v1`, `reasoning-v1`)
 and are written to each run row.
 
@@ -199,7 +199,7 @@ Integration tests use **MySQL** (`TEST_MYSQL_URL`, default
 
 - LLM calls never hit the network: `fetchMock` intercepts the stubbed gateway.
   Helpers: `tests/helpers/db.ts`, `llm.ts`, `test-env.ts`.
-- Use a **unique `investigation_id` per test** — MySQL state is shared across a
+- Use a **unique `investigation_id` per test** -- MySQL state is shared across a
   vitest run.
 - Pure exported helpers (`derivePairBand`, `seededShuffle`) are tested directly
   without any binding.
@@ -215,5 +215,22 @@ R2 and assert feature rows.
   reasoning declines rather than guesses, extractors preserve partial work.
 - Runner internals are bundled with their entry point (signal-table assembly
   lives in `reasoner/runner.ts`, not a sibling) because they are tightly coupled
-  to the pair-iteration loop — follow that pattern rather than splitting helpers
+  to the pair-iteration loop -- follow that pattern rather than splitting helpers
   that just re-take the same `DatabaseClient` handle.
+
+## Crew + identity
+
+- Crew members work as their own Unix + gh identity. The FIRST command in any op is the member's own
+  login shell: `sudo -u <member> bash -lc '<ops>'` (loads their `$HOME`, their `~/dev/common-thread`
+  clone, their gh/CF creds). Commits and PRs land under the member's `skyphusion-<member>` identity.
+- Conrad's own commits in the `skyphusion-labs` org author as `conrad@skyphusion.org` (the public-org
+  identity); never his `rockenhaus.net` address as a commit author.
+- This repo lives on two licenses: `paper/` is CC-BY-4.0, `implementation/` is AGPL-3.0 (see
+  `NOTICE`). Cross-project operating context lives in the main auto-memory
+  (`~/.claude/projects/-home-conrad/memory/`); load it before acting.
+
+## Commits & versioning
+
+Conventional Commits (`feat(scope):` / `fix(scope):` / `docs:` / `ci:`); the body explains the why.
+When a change is governed by a paper section, cite it (`§N.N`) in the commit body as well as the
+code. SemVer-style `0.MINOR.PATCH` while pre-1.0.
