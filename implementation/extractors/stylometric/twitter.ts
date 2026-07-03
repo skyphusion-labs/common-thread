@@ -44,6 +44,7 @@ import type {
   ExtractedFeature,
 } from '../types';
 import type { ManifestEntry } from '../../archive/types';
+import { sourceMatchesHost } from '../platform';
 import {
   FUNCTION_WORDS_150,
   FUNCTION_WORD_INDEX,
@@ -95,7 +96,7 @@ export class TwitterStylometricExtractor implements AccountFeatureExtractor {
     }
 
     if (tool.includes('twitter') || tool.includes('x-com')) return true;
-    if (source.includes('twitter.com') || source.includes('x.com')) return true;
+    if (sourceMatchesHost(source, 'twitter.com', 'x.com')) return true;
 
     return false;
   }

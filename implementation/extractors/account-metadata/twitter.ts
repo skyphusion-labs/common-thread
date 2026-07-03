@@ -38,6 +38,7 @@ import type {
   ExtractedFeature,
 } from '../types';
 import type { ManifestEntry } from '../../archive/types';
+import { sourceMatchesHost } from '../platform';
 import { APIFY_TWITTER_PROFILE_TOOL } from '../../ingest/apify-profile';
 import { APIFY_TWITTER_TIMELINE_TOOL } from '../../ingest/apify-timeline';
 
@@ -112,7 +113,7 @@ export class TwitterAccountMetadataExtractor implements AccountFeatureExtractor 
     if (source.includes('/profile')) return true;
 
     if (tool.includes('twitter') || tool.includes('x-com')) return true;
-    if (source.includes('twitter.com') || source.includes('x.com')) return true;
+    if (sourceMatchesHost(source, 'twitter.com', 'x.com')) return true;
 
     return true;
   }
