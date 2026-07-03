@@ -98,6 +98,7 @@ import type {
   ExtractedFeature,
 } from '../types';
 import type { ManifestEntry } from '../../archive/types';
+import { sourceMatchesHost } from '../platform';
 import {
   computeBurstWindows,
   computeQuietPeriods,
@@ -154,7 +155,7 @@ export class TwitterTemporalExtractor implements AccountFeatureExtractor {
     // For Twitter-scoped tools that don't otherwise hint posts-vs-profile,
     // let it through and rely on extract() to discriminate.
     if (tool.includes('twitter') || tool.includes('x-com')) return true;
-    if (source.includes('twitter.com') || source.includes('x.com')) return true;
+    if (sourceMatchesHost(source, 'twitter.com', 'x.com')) return true;
 
     return false;
   }

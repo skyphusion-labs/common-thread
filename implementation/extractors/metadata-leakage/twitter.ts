@@ -62,6 +62,7 @@ import type {
   ExtractedFeature,
 } from '../types';
 import type { ManifestEntry } from '../../archive/types';
+import { sourceMatchesHost } from '../platform';
 
 const NAME = 'metadata_leakage_twitter';
 const VERSION = '1.0.0';
@@ -98,7 +99,7 @@ export class TwitterMetadataLeakageExtractor implements AccountFeatureExtractor 
       }
       return true;
     }
-    if (source.includes('twitter.com') || source.includes('x.com')) {
+    if (sourceMatchesHost(source, 'twitter.com', 'x.com')) {
       if (
         source.includes('/profile') ||
         source.includes('/followers') ||

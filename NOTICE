@@ -1,0 +1,6 @@
+Common Thread is dual-licensed:
+
+  - Implementation (code): AGPL-3.0-only. See LICENSE.
+  - Methodology paper (paper/): CC-BY-4.0. See paper/LICENSE.
+
+A labor of love, given freely. Run the implementation as a network service and the AGPL has you share your changes back, so it stays a commons; the paper you may share and adapt with attribution under CC-BY-4.0.

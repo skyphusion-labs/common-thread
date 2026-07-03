@@ -16,8 +16,8 @@
  * Account-level inputs consumed:
  *   handle-reuse: username (account_metadata)
  *   bio-link-overlap: bio (account_metadata), url (optional, Twitter)
- *   external-link-overlap: posted_urls (content_artifacts, emitted
- *     by the stylometric extractors as a derived per-account URL set)
+ *   external-link-overlap: posted_urls (content_artifacts per §4.6.3,
+ *     emitted by stylometric extractors as a derived per-account URL set)
  *
  * Cross-platform runner note: pair_features rows record platform_a
  * and platform_b from seed_accounts (or account_features fallback).

@@ -20,6 +20,8 @@
  *       repost, quote rows to event_features)
  *     - pair-level: CoEngagementTimingExtractor (via engagement-pair
  *       runner)
+ *     - v1: active on Apify Twitter ingest when timelines contain
+ *       engagement posts; likes/favorites are not collected (§6.4.6).
  *
  *   §4.4.4 Cross-account amplification:
  *     - pair-level: AmplificationExtractor (via engagement-pair runner;

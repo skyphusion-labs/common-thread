@@ -1,6 +1,9 @@
 /**
  * Stylometric extractor registry.
  *
+ * Paper §4.3 "linguistic" signals; feature category name is
+ * `stylometric` in the signal table (see paper §4.3 terminology note).
+ *
  * Account-level extractors produce per-account stylometric features
  * (function-word vectors, character-bigram distributions, lexical
  * richness, sentence shape, character ratios, platform aggregates).

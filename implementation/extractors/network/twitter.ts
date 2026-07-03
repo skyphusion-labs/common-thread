@@ -4,6 +4,7 @@ import type {
   ExtractedFeature,
 } from '../types';
 import type { ManifestEntry } from '../../archive/types';
+import { sourceMatchesHost } from '../platform';
 
 const NAME = 'network_twitter';
 const VERSION = '1.0.0';
@@ -33,12 +34,11 @@ export class TwitterNetworkExtractor implements AccountFeatureExtractor {
     const looksTwitter =
       tool.includes('twitter') ||
       tool.includes('x-com') ||
-      source.includes('twitter.com') ||
-      source.includes('x.com');
+      sourceMatchesHost(source, 'twitter.com', 'x.com');
 
     if (!looksTwitter) return false;
 
-    const looksReddit = tool.includes('reddit') || source.includes('reddit.com');
+    const looksReddit = tool.includes('reddit') || sourceMatchesHost(source, 'reddit.com');
     if (looksReddit) return false;
 
     return true;

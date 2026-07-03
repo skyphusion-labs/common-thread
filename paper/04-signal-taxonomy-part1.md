@@ -136,6 +136,8 @@ Practitioners should be conservative about which events count as triggering. The
 
 Linguistic signals are observable from what accounts say and how they say it. This category has the deepest prior literature, dating to authorship attribution work that predates modern computing. The signals are stronger than metadata and competitive with temporal in well-resourced investigations, and they are robust to most casual countermeasures.
 
+**Terminology.** The taxonomy uses *linguistic* for this category. Subsections such as §4.3.1 use *stylometric* for the specific authorship-attribution markers drawn from the stylometrics literature. The reference implementation records all §4.3 features under the signal-table category name `stylometric` (see §6.2.3 and §7.3.1). The two names refer to the same category; practitioners comparing paper text to implementation output should treat `stylometric` as the implementation label for §4.3 linguistic signals.
+
 The prior literature is critical here. Authorship attribution as a field is mature, with established methods, known failure modes, and a substantial empirical record. Practitioners should read at least Burrows (2002) on Delta, Koppel et al. (2009) on the general authorship attribution problem, and Stamatatos (2009) on the survey of methods. For adversarial-context work, Brennan and Greenstadt (2009) and the follow-on stylometric defense literature is essential reading; it describes how a writer can deliberately obscure stylometric signal, which is exactly what a sophisticated sockpuppet operator will attempt.
 
 ### 4.3.1 Stylometric markers

@@ -16,6 +16,7 @@ import { ManifestStore } from '../archive/manifest';
 import type { DatabaseClient } from '../db';
 import { packFeatureValue } from '../schema/db-types';
 import type { ManifestEntry } from '../archive/types';
+import { sourceMatchesHost } from './platform';
 import type { AccountFeatureExtractor, ExtractedFeature } from './types';
 import { deriveStoredConfidence } from './confidence';
 
@@ -263,9 +264,9 @@ function inferPlatform(entry: ManifestEntry): string {
   if (tool.includes('bluesky') || tool.includes('atproto')) return 'bluesky';
   if (tool.includes('mastodon')) return 'mastodon';
 
-  if (source.includes('twitter.com') || source.includes('x.com')) return 'twitter';
-  if (source.includes('reddit.com')) return 'reddit';
-  if (source.includes('bsky.app') || source.includes('bsky.social')) return 'bluesky';
+  if (sourceMatchesHost(source, 'twitter.com', 'x.com')) return 'twitter';
+  if (sourceMatchesHost(source, 'reddit.com')) return 'reddit';
+  if (sourceMatchesHost(source, 'bsky.app', 'bsky.social')) return 'bluesky';
 
   return 'unknown';
 }
