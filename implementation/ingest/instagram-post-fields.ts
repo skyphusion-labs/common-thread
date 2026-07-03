@@ -5,6 +5,9 @@
  * shapes (caption, timestamp, ownerUsername, hashtags, mentions).
  */
 
+import type { ManifestEntry } from '../archive/types';
+import { hostOf, hostMatches } from '../extractors/platform';
+
 export interface InstagramPostLike {
   caption?: string;
   text?: string;
@@ -77,4 +80,61 @@ export function instagramPostIsVideo(post: InstagramPostLike): boolean {
 export function instagramPostIsCarousel(post: InstagramPostLike): boolean {
   const t = instagramPostType(post);
   return t === 'sidecar' || t === 'carousel' || t === 'carousel_container';
+}
+
+
+/**
+ * Classify whether a manifest entry belongs to Instagram. Shared by the
+ * stylometric and temporal Instagram account extractors so both apply one
+ * identical rule (previously each carried its own copy, and the two parsed
+ * the source host differently). Host checks route through the parsed-host
+ * helpers in extractors/platform.ts, never a substring, so a spoofed host
+ * such as instagram.com.attacker.example is not misread as Instagram.
+ *
+ * Order matters. An explicit instagram-profile artifact is rejected first
+ * (a profile is not a post timeline). Post and reel permalinks and the
+ * instagram-* tool labels accept. A source whose parsed host is
+ * instagram.com (or a subdomain) accepts. Entries that carry another
+ * platform's tool label or parse to another platform's host are rejected.
+ * Anything unrecognized defaults to reject.
+ */
+export function isInstagramEntry(entry: ManifestEntry): boolean {
+  const tool = entry.collectionMethod.tool.toLowerCase();
+  const source = entry.source.toLowerCase();
+
+  if (tool.includes('instagram-profile')) return false;
+
+  // Post and reel permalinks carry /p/ or /reel/ in the path. This is a
+  // path pattern, not a host, so a substring test is the correct check.
+  if (source.includes('/p/') || source.includes('/reel/')) return true;
+
+  if (
+    tool.includes('instagram-post') ||
+    tool.includes('instagram-timeline') ||
+    tool.includes('instagram-media') ||
+    tool.includes('instagram-scraper')
+  ) {
+    return true;
+  }
+  if (tool.includes('instagram')) return true;
+
+  const host = hostOf(source);
+  if (host !== null && hostMatches(host, 'instagram.com')) return true;
+
+  if (tool.includes('twitter') || tool.includes('x-com')) return false;
+  if (tool.includes('reddit')) return false;
+  if (
+    host !== null &&
+    (hostMatches(host, 'twitter.com') || hostMatches(host, 'x.com'))
+  ) {
+    return false;
+  }
+  if (
+    host !== null &&
+    (hostMatches(host, 'reddit.com') || hostMatches(host, 'redd.it'))
+  ) {
+    return false;
+  }
+
+  return false;
 }

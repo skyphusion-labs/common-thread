@@ -22,71 +22,17 @@ import {
   parseTimestamp,
 } from './helpers';
 import { parseInstagramListingBytes } from '../../ingest/instagram-listing-parser';
+import { isInstagramEntry } from '../../ingest/instagram-post-fields';
 
 const NAME = 'temporal_instagram';
 const VERSION = '1.0.0';
-
-function isInstagramSourceUrl(source: string): boolean {
-  try {
-    const hostname = new URL(source).hostname.toLowerCase();
-    return hostname === 'instagram.com' || hostname.endsWith('.instagram.com');
-  } catch {
-    return false;
-  }
-}
 
 export class InstagramTemporalExtractor implements AccountFeatureExtractor {
   readonly name = NAME;
   readonly version = VERSION;
 
-  private parseHostname(raw: string): string | null {
-    try {
-      const value = raw.trim();
-      const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(value)
-        ? value
-        : `https://${value}`;
-      return new URL(withScheme).hostname.toLowerCase();
-    } catch {
-      return null;
-    }
-  }
-
-  private isHostOrSubdomain(host: string | null, domain: string): boolean {
-    return host === domain || (host !== null && host.endsWith(`.${domain}`));
-  }
-
   filterEntry(entry: ManifestEntry): boolean {
-    const tool = entry.collectionMethod.tool.toLowerCase();
-    const source = entry.source.toLowerCase();
-    const host = this.parseHostname(source);
-
-    if (tool.includes('instagram-profile')) return false;
-    if (source.includes('/p/') || source.includes('/reel/')) return true;
-
-    if (
-      tool.includes('instagram-post') ||
-      tool.includes('instagram-timeline') ||
-      tool.includes('instagram-media') ||
-      tool.includes('instagram-scraper')
-    ) {
-      return true;
-    }
-
-    if (tool.includes('instagram')) return true;
-    if (isInstagramSourceUrl(source)) return true;
-
-    if (tool.includes('twitter') || tool.includes('x-com')) return false;
-    if (tool.includes('reddit')) return false;
-    if (
-      this.isHostOrSubdomain(host, 'twitter.com') ||
-      this.isHostOrSubdomain(host, 'x.com')
-    ) return false;
-    if (
-      this.isHostOrSubdomain(host, 'reddit.com') ||
-      host === 'redd.it'
-    ) return false;
-
-    return false;
+    return isInstagramEntry(entry);
   }
 
   extract(input: ExtractorInput): ExtractedFeature[] {

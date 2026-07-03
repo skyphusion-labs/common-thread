@@ -29,6 +29,7 @@ import {
   extractAndNormalizeUrls,
 } from './text-helpers';
 import { parseInstagramListingBytes } from '../../ingest/instagram-listing-parser';
+import { isInstagramEntry } from '../../ingest/instagram-post-fields';
 
 const NAME = 'stylometric_instagram';
 const VERSION = '1.0.0';
@@ -38,58 +39,7 @@ export class InstagramStylometricExtractor implements AccountFeatureExtractor {
   readonly version = VERSION;
 
   filterEntry(entry: ManifestEntry): boolean {
-    const tool = entry.collectionMethod.tool.toLowerCase();
-    const source = entry.source.toLowerCase();
-
-    if (tool.includes('instagram-profile')) return false;
-    if (source.includes('/p/') || source.includes('/reel/')) return true;
-
-    if (
-      tool.includes('instagram-post') ||
-      tool.includes('instagram-timeline') ||
-      tool.includes('instagram-media') ||
-      tool.includes('instagram-scraper')
-    ) {
-      return true;
-    }
-
-    if (tool.includes('instagram')) return true;
-
-    let sourceHostname: string | null = null;
-    try {
-      sourceHostname = new URL(source).hostname.toLowerCase();
-      if (
-        sourceHostname === 'instagram.com' ||
-        sourceHostname.endsWith('.instagram.com')
-      ) {
-        return true;
-      }
-    } catch {
-      // Ignore invalid/non-URL source values and continue with other heuristics.
-    }
-
-    if (tool.includes('twitter') || tool.includes('x-com')) return false;
-    if (tool.includes('reddit')) return false;
-    if (
-      sourceHostname &&
-      (sourceHostname === 'twitter.com' ||
-        sourceHostname.endsWith('.twitter.com') ||
-        sourceHostname === 'x.com' ||
-        sourceHostname.endsWith('.x.com'))
-    ) {
-      return false;
-    }
-    if (
-      sourceHostname &&
-      (sourceHostname === 'reddit.com' ||
-        sourceHostname.endsWith('.reddit.com') ||
-        sourceHostname === 'redd.it' ||
-        sourceHostname.endsWith('.redd.it'))
-    ) {
-      return false;
-    }
-
-    return false;
+    return isInstagramEntry(entry);
   }
 
   extract(input: ExtractorInput): ExtractedFeature[] {

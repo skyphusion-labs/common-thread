@@ -57,6 +57,9 @@ function collectFrom(value: unknown, out: ParsedInstagramItem[]): void {
   }
 
   const record = obj;
+  // Only these known wrapper keys are descended into; posts nested under
+  // any other (unrecognized) key are intentionally skipped rather than
+  // walked recursively, to avoid pulling in unrelated objects.
   for (const key of ['posts', 'items', 'media', 'data', 'results', 'children']) {
     const candidate = record[key];
     if (Array.isArray(candidate)) {
