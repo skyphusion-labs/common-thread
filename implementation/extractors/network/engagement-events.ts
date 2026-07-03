@@ -9,6 +9,7 @@
  */
 
 import type { ManifestEntry } from '../../archive/types';
+import { sourceMatchesHost } from '../platform';
 import type { EventFeatureExtractor, ExtractedEvent } from '../event-types';
 import type { ExtractorInput } from '../types';
 import { extractEngagementsFromPosts, parsePosts } from './engagement-parse';
@@ -41,7 +42,7 @@ export class TwitterEngagementEventExtractor implements EventFeatureExtractor {
     }
 
     if (tool.includes('twitter') || tool.includes('x-com')) return true;
-    if (source.includes('twitter.com') || source.includes('x.com')) return true;
+    if (sourceMatchesHost(source, 'twitter.com', 'x.com')) return true;
 
     return false;
   }

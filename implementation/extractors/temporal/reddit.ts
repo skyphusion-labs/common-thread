@@ -74,6 +74,7 @@ import type {
   ExtractedFeature,
 } from '../types';
 import type { ManifestEntry } from '../../archive/types';
+import { sourceMatchesHost } from '../platform';
 import {
   computeBurstWindows,
   computeQuietPeriods,
@@ -124,11 +125,11 @@ export class RedditTemporalExtractor implements AccountFeatureExtractor {
     const source = entry.source.toLowerCase();
 
     if (tool.includes('reddit')) return true;
-    if (source.includes('reddit.com') || source.includes('redd.it')) return true;
+    if (sourceMatchesHost(source, 'reddit.com', 'redd.it')) return true;
 
     // Exclude artifacts that obviously belong to other platforms.
     if (tool.includes('twitter') || tool.includes('x-com')) return false;
-    if (source.includes('twitter.com') || source.includes('x.com')) return false;
+    if (sourceMatchesHost(source, 'twitter.com', 'x.com')) return false;
 
     return false;
   }

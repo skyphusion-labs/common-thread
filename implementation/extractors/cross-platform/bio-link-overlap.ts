@@ -75,29 +75,12 @@ import type {
   PairContext,
 } from '../pair-types';
 import type { ExtractedFeature } from '../types';
+import { normalizeUrl } from '../stylometric/text-helpers';
 
 const NAME = 'bio_link_overlap_cross_platform';
 const VERSION = '1.0.0';
 
 const URL_REGEX = /https?:\/\/[^\s<>"'`)\]}]+/gi;
-
-const TRACKING_PARAMS = new Set([
-  'utm_source',
-  'utm_medium',
-  'utm_campaign',
-  'utm_term',
-  'utm_content',
-  'utm_id',
-  'fbclid',
-  'gclid',
-  'igshid',
-  'mc_eid',
-  'mc_cid',
-  'ref',
-  'ref_src',
-  'ref_url',
-  'source',
-]);
 
 export class BioLinkOverlapExtractor implements PairFeatureExtractor {
   readonly name = NAME;
@@ -233,42 +216,6 @@ function collectNormalizedUrls(
   }
 
   return out;
-}
-
-/**
- * Normalize a URL to canonical comparable form. Returns null when
- * parsing fails. The canonical form is host (no scheme, no www) + path
- * (trailing slash stripped) + sorted non-tracking query string.
- */
-function normalizeUrl(raw: string): string | null {
-  let parsed: URL;
-  try {
-    parsed = new URL(raw);
-  } catch {
-    return null;
-  }
-
-  // Only http(s) URLs are relevant for the link-overlap signal.
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    return null;
-  }
-
-  const host = parsed.host.toLowerCase().replace(/^www\./, '');
-  if (host.length === 0) return null;
-
-  const path = parsed.pathname.replace(/\/$/, '');
-
-  // Filter and sort the remaining query parameters for canonical form.
-  const params: string[] = [];
-  for (const [k, v] of parsed.searchParams.entries()) {
-    if (!TRACKING_PARAMS.has(k.toLowerCase())) {
-      params.push(`${k}=${v}`);
-    }
-  }
-  params.sort();
-  const query = params.length > 0 ? `?${params.join('&')}` : '';
-
-  return `${host}${path}${query}`;
 }
 
 /**

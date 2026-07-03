@@ -10,6 +10,7 @@ import { ArchiveStore } from '../archive/store';
 import { ManifestStore } from '../archive/manifest';
 import type { DatabaseClient } from '../db';
 import type { ManifestEntry } from '../archive/types';
+import { sourceMatchesHost } from './platform';
 import type { EventFeatureExtractor, ExtractedEvent } from './event-types';
 
 export interface EventRunnerEnv {
@@ -210,8 +211,8 @@ function inferPlatform(entry: ManifestEntry): string {
   }
   if (tool.includes('reddit')) return 'reddit';
 
-  if (source.includes('twitter.com') || source.includes('x.com')) return 'twitter';
-  if (source.includes('reddit.com')) return 'reddit';
+  if (sourceMatchesHost(source, 'twitter.com', 'x.com')) return 'twitter';
+  if (sourceMatchesHost(source, 'reddit.com')) return 'reddit';
 
   return 'unknown';
 }
