@@ -13,9 +13,10 @@
  *
  *   Account-level extractors: read artifact bytes via the account
  *   runner, produce account_features rows. Categories:
- *   account_metadata (Twitter, Reddit), temporal (Twitter, Reddit),
- *   stylometric (Twitter, Reddit; paper §4.3 "linguistic" category),
- *   network (Twitter follower/following lists), visual (image-hash,
+ *   account_metadata (Twitter, Reddit, Instagram), temporal (Twitter,
+ *   Reddit, Instagram), stylometric (Twitter, Reddit, Instagram; paper
+ *   §4.3 "linguistic" category), network (Twitter follower/following
+ *   lists), visual (image-hash, posted-image-corpus,
  *   exif-corpus, color-palette-corpus), metadata_leakage (Twitter
  *   tweet-timeline source/lang aggregation).
  *

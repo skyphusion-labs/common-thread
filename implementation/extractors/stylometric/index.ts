@@ -21,6 +21,7 @@
 
 import { TwitterStylometricExtractor } from './twitter';
 import { RedditStylometricExtractor } from './reddit';
+import { InstagramStylometricExtractor } from './instagram';
 import { BurrowsDeltaExtractor } from './burrows-delta';
 import { JsdCharacterBigramsExtractor } from './jsd-bigrams';
 import { TwitterTopicPhraseExtractor } from './topic-phrase';
@@ -31,6 +32,7 @@ import type { PairFeatureExtractor } from '../pair-types';
 export const STYLOMETRIC_EXTRACTORS: AccountFeatureExtractor[] = [
   new TwitterStylometricExtractor(),
   new RedditStylometricExtractor(),
+  new InstagramStylometricExtractor(),
   new TwitterTopicPhraseExtractor(),
   // Future:
   // new BlueskyStylometricExtractor(),
@@ -45,6 +47,7 @@ export const STYLOMETRIC_PAIR_EXTRACTORS: PairFeatureExtractor[] = [
 
 export { TwitterStylometricExtractor } from './twitter';
 export { RedditStylometricExtractor } from './reddit';
+export { InstagramStylometricExtractor } from './instagram';
 export { BurrowsDeltaExtractor } from './burrows-delta';
 export { JsdCharacterBigramsExtractor } from './jsd-bigrams';
 export {
