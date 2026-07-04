@@ -1,0 +1,25 @@
+[
+  {
+    "noResults": true,
+    "searchQuery": "from:nonexistent_synth_handle",
+    "message": "No results"
+  },
+  {
+    "id": "100001906035",
+    "url": "https://x.com/avaloomis_synth/status/100001910134",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-04T09:15:00.000Z",
+    "fullText": "The archivist tallies the manifest for the record."
+  },
+  {
+    "id": "100001914233",
+    "url": "https://x.com/emberkoss_fake/status/100001918332",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-05T18:42:00.000Z",
+    "full_text": "The archivist annotates the manifest and moves on."
+  }
+]

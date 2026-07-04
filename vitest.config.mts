@@ -37,9 +37,17 @@ process.env.CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_DB ??=
   hyperdriveLocalConnectionString(testMysqlUrl);
 
 // Suites that run in the NODE project (no cloudflare:test imports; safe in node).
-// Today this is the pure-helper unit suite. As the hybrid suites below are
-// refactored off cloudflare:test they move into this list.
-const nodeSuites = ['tests/investigation/api-routes.test.ts'];
+// Two kinds today:
+//   - the pure-helper unit suite (api-routes), and
+//   - twitter-scrapes, which reads a committed synthetic fixture corpus off disk
+//     with node:fs (unavailable in the workers pool) and touches no DB or
+//     cloudflare:test. It rides the node project for node:fs access; the node-db
+//     globalSetup is a harmless no-op for it (it never queries MySQL).
+// As the hybrid suites below are refactored off cloudflare:test they move here.
+const nodeSuites = [
+  'tests/investigation/api-routes.test.ts',
+  'tests/extractors/twitter-scrapes.test.ts',
+];
 
 // HYBRID suites: they import BOTH the mysql2 DB layer AND `cloudflare:test`
 // (env.ARCHIVE / fetchMock / worker.fetch). They have no working pool today --
@@ -62,13 +70,7 @@ const hybridSuitesBlocked = [
   'tests/reasoner/triage.test.ts',
 ];
 
-// Pure-node DB suite that reads a `twitter_scrapes/` fixture corpus which is NOT
-// committed to the repo (local-only test data). It cannot run in CI until those
-// fixtures are committed/generated. Excluded with that reason on record;
-// tracked in its own follow-up issue.
-const fixtureBlocked = ['tests/extractors/twitter-scrapes.test.ts'];
-
-const blocked = [...hybridSuitesBlocked, ...fixtureBlocked];
+const blocked = [...hybridSuitesBlocked];
 
 export default defineConfig({
   test: {
@@ -91,8 +93,8 @@ export default defineConfig({
           name: 'workers',
           pool: 'workers',
           include: ['tests/**/*.test.ts'],
-          // Node-only suites and the blocked (hybrid / fixture-missing) suites
-          // do not belong in the workers pool.
+          // Node-only suites and the blocked (hybrid) suites do not belong in
+          // the workers pool.
           exclude: [...nodeSuites, ...blocked],
         },
       },

@@ -1,0 +1,434 @@
+[
+  {
+    "id": "100000004099",
+    "url": "https://x.com/avaloomis_synth/status/100000004099",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-01T09:30:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "fullText": "A quiet harbor shelters the archive index quietly."
+  },
+  {
+    "id": "100000008198",
+    "url": "https://x.com/avaloomis_synth/status/100000008198",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-02T12:51:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "fullText": "A courier catalogues every waypoint as promised."
+  },
+  {
+    "id": "100000012297",
+    "url": "https://x.com/avaloomis_synth/status/100000012297",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-03T16:05:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "fullText": "@orlopdeck_ref The atlas tallies our shared route quietly.",
+    "isReply": true,
+    "inReplyToId": "100000016396",
+    "inReplyToUsername": "orlopdeck_ref",
+    "conversationId": "100000020495"
+  },
+  {
+    "id": "100000024594",
+    "url": "https://x.com/avaloomis_synth/status/100000024594",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-04T17:21:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "fullText": "The lantern catalogues a spare signal quietly.",
+    "isRetweet": true,
+    "retweet": {
+      "id": "100000028693",
+      "author": {
+        "userName": "quilltide_ref"
+      },
+      "fullText": "A courier annotates the tidal charts and moves on."
+    }
+  },
+  {
+    "id": "100000032792",
+    "url": "https://x.com/avaloomis_synth/status/100000032792",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-05T17:37:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "fullText": "My compass shelters the manifest quietly."
+  },
+  {
+    "id": "100000036891",
+    "url": "https://x.com/avaloomis_synth/status/100000036891",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-06T19:45:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "fullText": "A quiet harbor catalogues a spare signal quietly. example.invalid/palewick_ref",
+    "quotedTweet": {
+      "id": "100000040990",
+      "author": {
+        "userName": "palewick_ref"
+      },
+      "fullText": "A quiet harbor catalogues a spare signal again today."
+    }
+  },
+  {
+    "id": "100000045089",
+    "url": "https://x.com/avaloomis_synth/status/100000045089",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-07T13:46:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "fullText": "@orlopdeck_ref A courier reroutes every waypoint for the record.",
+    "isReply": true,
+    "inReplyToId": "100000049188",
+    "inReplyToUsername": "orlopdeck_ref",
+    "conversationId": "100000053287"
+  },
+  {
+    "id": "100000057386",
+    "url": "https://x.com/avaloomis_synth/status/100000057386",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-08T00:50:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "fullText": "RT @orlopdeck_ref: Our ledger reroutes the tidal charts without comment."
+  },
+  {
+    "id": "100000061485",
+    "url": "https://x.com/avaloomis_synth/status/100000061485",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-09T23:50:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "fullText": "This beacon reroutes the archive index as promised."
+  },
+  {
+    "id": "100000065584",
+    "url": "https://x.com/avaloomis_synth/status/100000065584",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-10T06:12:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "fullText": "This beacon annotates a folded map as promised."
+  },
+  {
+    "id": "100000069683",
+    "url": "https://x.com/avaloomis_synth/status/100000069683",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-11T04:01:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "fullText": "@orlopdeck_ref Our ledger tallies a spare signal for the record.",
+    "isReply": true,
+    "inReplyToId": "100000073782",
+    "inReplyToUsername": "orlopdeck_ref",
+    "conversationId": "100000077881"
+  },
+  {
+    "id": "100000081980",
+    "url": "https://x.com/avaloomis_synth/status/100000081980",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-12T16:39:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "fullText": "The archivist shelters a folded map for the record.",
+    "isRetweet": true,
+    "retweet": {
+      "id": "100000086079",
+      "author": {
+        "userName": "quilltide_ref"
+      },
+      "fullText": "A courier drifts past the archive index quietly."
+    }
+  },
+  {
+    "id": "100000090178",
+    "url": "https://x.com/avaloomis_synth/status/100000090178",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-13T00:02:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "fullText": "The lantern mirrors the tidal charts twice over."
+  },
+  {
+    "id": "100000094277",
+    "url": "https://x.com/avaloomis_synth/status/100000094277",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-14T20:22:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "fullText": "This beacon tallies the tidal charts and moves on. example.invalid/palewick_ref",
+    "quotedTweet": {
+      "id": "100000098376",
+      "author": {
+        "userName": "palewick_ref"
+      },
+      "fullText": "My compass tallies our shared route quietly."
+    }
+  },
+  {
+    "id": "100000102475",
+    "url": "https://x.com/avaloomis_synth/status/100000102475",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-01T09:43:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "fullText": "@orlopdeck_ref The archivist mirrors a spare signal again today.",
+    "isReply": true,
+    "inReplyToId": "100000106574",
+    "inReplyToUsername": "orlopdeck_ref",
+    "conversationId": "100000110673"
+  },
+  {
+    "id": "100000114772",
+    "url": "https://x.com/avaloomis_synth/status/100000114772",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-02T05:30:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "fullText": "RT @orlopdeck_ref: My compass catalogues the tidal charts and moves on."
+  },
+  {
+    "id": "100000118871",
+    "url": "https://x.com/avaloomis_synth/status/100000118871",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-03T11:25:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "fullText": "This beacon catalogues the archive index again today."
+  },
+  {
+    "id": "100000122970",
+    "url": "https://x.com/avaloomis_synth/status/100000122970",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-04T01:09:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "fullText": "The atlas shelters the tidal charts without comment."
+  },
+  {
+    "id": "100000127069",
+    "url": "https://x.com/avaloomis_synth/status/100000127069",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-05T04:47:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "fullText": "@orlopdeck_ref This beacon drifts past the tidal charts for the record.",
+    "isReply": true,
+    "inReplyToId": "100000131168",
+    "inReplyToUsername": "orlopdeck_ref",
+    "conversationId": "100000135267"
+  },
+  {
+    "id": "100000139366",
+    "url": "https://x.com/avaloomis_synth/status/100000139366",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-06T07:45:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "fullText": "A courier drifts past every waypoint and moves on.",
+    "isRetweet": true,
+    "retweet": {
+      "id": "100000143465",
+      "author": {
+        "userName": "quilltide_ref"
+      },
+      "fullText": "The lantern reroutes the archive index for the record."
+    }
+  },
+  {
+    "id": "100000147564",
+    "url": "https://x.com/avaloomis_synth/status/100000147564",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-07T20:46:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "fullText": "The atlas catalogues the archive index and moves on."
+  },
+  {
+    "id": "100000151663",
+    "url": "https://x.com/avaloomis_synth/status/100000151663",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-08T06:06:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "fullText": "The archivist drifts past the tidal charts quietly. example.invalid/palewick_ref",
+    "quotedTweet": {
+      "id": "100000155762",
+      "author": {
+        "userName": "palewick_ref"
+      },
+      "fullText": "A quiet harbor drifts past every waypoint and moves on."
+    }
+  },
+  {
+    "id": "100000159861",
+    "url": "https://x.com/avaloomis_synth/status/100000159861",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-09T15:12:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "fullText": "@orlopdeck_ref This beacon unspools a folded map for the record.",
+    "isReply": true,
+    "inReplyToId": "100000163960",
+    "inReplyToUsername": "orlopdeck_ref",
+    "conversationId": "100000168059"
+  },
+  {
+    "id": "100000172158",
+    "url": "https://x.com/avaloomis_synth/status/100000172158",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-10T21:19:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "fullText": "RT @orlopdeck_ref: My compass catalogues a spare signal as promised."
+  },
+  {
+    "id": "100000176257",
+    "url": "https://x.com/avaloomis_synth/status/100000176257",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-11T00:42:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "fullText": "The archivist reroutes the archive index without comment."
+  },
+  {
+    "id": "100000180356",
+    "url": "https://x.com/avaloomis_synth/status/100000180356",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-12T11:37:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "fullText": "This beacon catalogues our shared route and moves on."
+  },
+  {
+    "id": "100000184455",
+    "url": "https://x.com/avaloomis_synth/status/100000184455",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-13T15:30:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "fullText": "@orlopdeck_ref The atlas reroutes the manifest quietly.",
+    "isReply": true,
+    "inReplyToId": "100000188554",
+    "inReplyToUsername": "orlopdeck_ref",
+    "conversationId": "100000192653"
+  },
+  {
+    "id": "100000196752",
+    "url": "https://x.com/avaloomis_synth/status/100000196752",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-14T04:54:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "fullText": "The lantern mirrors a folded map as promised.",
+    "isRetweet": true,
+    "retweet": {
+      "id": "100000200851",
+      "author": {
+        "userName": "quilltide_ref"
+      },
+      "fullText": "The archivist reroutes every waypoint twice over."
+    }
+  },
+  {
+    "id": "100000204950",
+    "url": "https://x.com/avaloomis_synth/status/100000204950",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-01T06:28:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "fullText": "A quiet harbor reroutes a folded map twice over."
+  },
+  {
+    "id": "100000209049",
+    "url": "https://x.com/avaloomis_synth/status/100000209049",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-02T12:25:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "fullText": "My compass annotates the manifest before dawn. example.invalid/palewick_ref",
+    "quotedTweet": {
+      "id": "100000213148",
+      "author": {
+        "userName": "palewick_ref"
+      },
+      "fullText": "A courier catalogues the tidal charts without comment."
+    }
+  },
+  {
+    "id": "100000217247",
+    "url": "https://x.com/avaloomis_synth/status/100000217247",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-03T03:53:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "fullText": "@orlopdeck_ref A courier reroutes our shared route twice over.",
+    "isReply": true,
+    "inReplyToId": "100000221346",
+    "inReplyToUsername": "orlopdeck_ref",
+    "conversationId": "100000225445"
+  },
+  {
+    "id": "100000229544",
+    "url": "https://x.com/avaloomis_synth/status/100000229544",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-04T10:46:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "fullText": "RT @orlopdeck_ref: The lantern drifts past these coordinates before dawn."
+  },
+  {
+    "id": "100000233643",
+    "url": "https://x.com/avaloomis_synth/status/100000233643",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-05T17:18:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "fullText": "A courier unspools a spare signal without comment."
+  },
+  {
+    "id": "100000237742",
+    "url": "https://x.com/avaloomis_synth/status/100000237742",
+    "author": {
+      "userName": "avaloomis_synth"
+    },
+    "createdAt": "2026-01-06T05:00:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "fullText": "The atlas catalogues a spare signal again today."
+  }
+]
