@@ -78,3 +78,45 @@ jobs:
           MYSQL_URL: mysql://root@127.0.0.1:3306/common_thread_test
       - name: DB-backed (node) tests
         run: npx vitest run --project node-db
+
+  coverage:
+    # Unified coverage across BOTH vitest projects in one process, so istanbul
+    # merges per-file coverage maps (a line hit by the workers pool OR the
+    # node-db project counts once). That needs the workers pool AND a real
+    # MySQL, so this job carries the same MySQL 8 service container as db-tests.
+    # It re-runs the suites a third time on purpose: `ci` and `db-tests` stay the
+    # fast split pass/fail gates, this job is the single coverage source of
+    # truth. Modest thresholds live in vitest.config.mts and fail the job on
+    # regression. Hosted runner keeps untrusted-PR code in GitHub sandbox.
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+          MYSQL_DATABASE: common_thread_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      TEST_MYSQL_URL: mysql://root@127.0.0.1:3306/common_thread_test
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      # wrangler.toml is gitignored; the workers pool needs it to start Miniflare.
+      - name: Materialize wrangler.toml
+        run: cp wrangler.toml.example wrangler.toml
+      - name: Apply schema
+        run: npm run db:migrate
+        env:
+          MYSQL_URL: mysql://root@127.0.0.1:3306/common_thread_test
+      - name: Coverage (both projects, unified istanbul report)
+        run: npm run test:coverage
