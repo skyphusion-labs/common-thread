@@ -66,6 +66,9 @@ const nodeSuites = [
   'tests/reasoner/reasoner.test.ts',
   'tests/reasoner/runner.test.ts',
   'tests/reasoner/triage.test.ts',
+  // Worker error-hygiene e2e (#67): drives worker.fetch, which imports the
+  // mysql2 DB layer and so cannot run in the workers pool.
+  'tests/workers/error-hygiene.test.ts',
 ];
 
 // Note: the two apify ingest suites read the twitter_scrapes/ phatadvert probe,

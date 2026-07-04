@@ -84,8 +84,14 @@ export default {
       const response = await handle(request, env);
       return withCors(response, request, env);
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return withCors(jsonResponse({ error: message }, 500), request, env);
+      // Log the detail server-side; never return raw error strings (which can
+      // carry SQL/driver internals) to clients on a public API (#67).
+      console.error('Unhandled error in worker fetch:', err);
+      return withCors(
+        jsonResponse({ error: 'Internal server error', code: 'internal_error' }, 500),
+        request,
+        env
+      );
     }
   },
 };
@@ -124,11 +130,12 @@ async function handle(request: Request, env: Env): Promise<Response> {
 
   // Create investigation (returns capability token once)
   if (method === 'POST' && path === '/investigations') {
-    const body = (await request.json()) as {
+    const body = await parseJsonBody<{
       id?: string;
       name?: string;
       description?: string;
-    };
+    }>(request);
+    if (body instanceof Response) return body;
 
     if (!body.id || !body.name) {
       return jsonResponse({ error: 'id and name are required' }, 400);
@@ -364,14 +371,15 @@ async function handle(request: Request, env: Env): Promise<Response> {
     const auth = await authorizeOrRespond(env, request, url, investigationId, true);
     if (auth instanceof Response) return auth;
 
-    const body = (await request.json()) as {
+    const body = await parseJsonBody<{
       platform?: string;
       account?: string;
       basis_statement?: string;
       basisStatement?: string;
       is_control?: boolean;
       added_by?: string;
-    };
+    }>(request);
+    if (body instanceof Response) return body;
 
     if (!body.account || !body.platform) {
       return jsonResponse({ error: 'platform and account are required' }, 400);
@@ -417,12 +425,13 @@ async function handle(request: Request, env: Env): Promise<Response> {
     const auth = await authorizeOrRespond(env, request, url, investigationId, true);
     if (auth instanceof Response) return auth;
 
-    const body = (await request.json()) as {
+    const body = await parseJsonBody<{
       platform?: string;
       account?: string;
       removed_reason?: string;
       removedReason?: string;
-    };
+    }>(request);
+    if (body instanceof Response) return body;
 
     if (!body.account || !body.platform) {
       return jsonResponse({ error: 'platform and account are required' }, 400);
@@ -707,7 +716,9 @@ async function handle(request: Request, env: Env): Promise<Response> {
 
       if (allItems.length === 0) return jsonResponse({ error: 'No valid files uploaded' }, 400);
     } else {
-      const body = await request.json() as any;
+      const parsedBody = await parseJsonBody<unknown>(request);
+      if (parsedBody instanceof Response) return parsedBody;
+      const body = parsedBody as any;
       allItems = Array.isArray(body) ? body : Array.isArray(body?.items) ? body.items : Array.isArray(body?.data) ? body.data : [body];
     }
 
@@ -766,6 +777,21 @@ async function authorizeOrRespond(
       return jsonResponse({ error: err.message, code: err.code }, accessErrorStatus(err.code));
     }
     throw err;
+  }
+}
+
+/**
+ * Parse a JSON request body, returning a 400 with a typed error code rather
+ * than letting a malformed body bubble up as a generic 500 (#67).
+ */
+async function parseJsonBody<T>(request: Request): Promise<T | Response> {
+  try {
+    return (await request.json()) as T;
+  } catch {
+    return jsonResponse(
+      { error: 'Request body must be valid JSON', code: 'invalid_json_body' },
+      400
+    );
   }
 }
 
