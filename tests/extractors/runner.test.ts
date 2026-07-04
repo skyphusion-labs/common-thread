@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { env } from 'cloudflare:test';
+import { env } from '../helpers/test-env';
 import { collectArtifact } from '../../implementation/archive/example';
 import { TwitterAccountMetadataExtractor } from '../../implementation/extractors/account-metadata/twitter';
 import { TwitterNetworkExtractor } from '../../implementation/extractors/network/twitter';

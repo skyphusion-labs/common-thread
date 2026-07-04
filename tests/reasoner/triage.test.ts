@@ -30,7 +30,7 @@
  */
 
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { fetchMock } from 'cloudflare:test';
+import { fetchMock } from '../helpers/undici-mock';
 
 import { runTriage } from '../../implementation/reasoner/triage';
 import type { SignalId, SignalTable } from '../../implementation/reasoner/types';

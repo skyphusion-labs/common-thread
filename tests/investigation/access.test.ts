@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { env } from 'cloudflare:test';
+import { env } from '../helpers/test-env';
 import worker from '../../implementation/workers/index';
 import pkg from '../../package.json';
 import {

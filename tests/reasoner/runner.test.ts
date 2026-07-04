@@ -36,7 +36,7 @@
  */
 
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { env, fetchMock } from 'cloudflare:test';
+import { fetchMock } from '../helpers/undici-mock';
 
 // Mock ManifestStore at the module level. Hoisted by vi.mock; must
 // appear before any import that transitively imports the manifest
@@ -170,7 +170,7 @@ async function buildTwoAccountScenario(opts: ScenarioOpts): Promise<{
 
 describe('runAttribution', () => {
   it('records an insufficient row when triage filters the pair', async () => {
-    const investigationId = 'inv_triage_filter';
+    const investigationId = `inv_triage_filter-${Date.now()}`;
     const { pair } = await buildTwoAccountScenario({
       investigationId,
       withPairFeatures: true,
@@ -206,7 +206,7 @@ describe('runAttribution', () => {
   });
 
   it('escalates to reasoning and persists a consistent claim when reasoning cites three distinct categories', async () => {
-    const investigationId = 'inv_reasoning_consistent';
+    const investigationId = `inv_reasoning_consistent-${Date.now()}`;
     const a = 'alice';
     const b = 'bob';
 
@@ -323,7 +323,7 @@ describe('runAttribution', () => {
     // and confirm the schema's CHECK (account_a < account_b) does not
     // get violated because the runner canonicalizes via
     // canonicalPlatformedPair.
-    const investigationId = 'inv_canonical_order';
+    const investigationId = `inv_canonical_order-${Date.now()}`;
     const { pair } = await buildTwoAccountScenario({
       investigationId,
       accountA: 'zebra',

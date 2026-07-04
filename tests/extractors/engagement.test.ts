@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { env } from 'cloudflare:test';
+import { env } from '../helpers/test-env';
 import { collectArtifact } from '../../implementation/archive/example';
 import { TwitterEngagementEventExtractor } from '../../implementation/extractors/network/engagement-events';
 import { CoEngagementTimingExtractor } from '../../implementation/extractors/network/co-engagement-timing';

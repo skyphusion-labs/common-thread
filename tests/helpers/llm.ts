@@ -19,7 +19,7 @@
  * The convenience helpers below queue one intercept per call.
  */
 
-import { fetchMock } from 'cloudflare:test';
+import { fetchMock } from './undici-mock';
 
 import type {
   AlternativeExplanation,

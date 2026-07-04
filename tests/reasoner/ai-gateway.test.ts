@@ -16,7 +16,7 @@
  */
 
 import { beforeAll, afterEach, describe, it, expect } from 'vitest';
-import { fetchMock } from 'cloudflare:test';
+import { fetchMock } from '../helpers/undici-mock';
 
 import { callLLM, extractJSONObject } from '../../implementation/reasoner/ai-gateway';
 
