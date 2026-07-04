@@ -942,19 +942,33 @@ window.onload = init;
 </body>
 </html>`;
 
+// Headers always forwarded to the backend: neither is a credential.
 const PROXY_FORWARD_HEADERS = [
   'content-type',
   'x-ai-gateway-url',
-  'x-anthropic-api-key',
-  'x-investigation-token',
-  'authorization',
 ];
 
-function buildProxyHeaders(request) {
+// Capability / credential secrets. Forwarded ONLY to a trusted backend target
+// (the service binding, the deployer-configured DEFAULT_BACKEND_URL, or an
+// allowlisted / loopback dev override) -- never to an arbitrary caller-supplied
+// `?backend=` host. See resolveBackend() (issue #66).
+const PROXY_SENSITIVE_HEADERS = [
+  'authorization',
+  'x-anthropic-api-key',
+  'x-investigation-token',
+];
+
+function buildProxyHeaders(request, forwardSensitive) {
   const headers = new Headers();
   for (const name of PROXY_FORWARD_HEADERS) {
     const value = request.headers.get(name);
     if (value) headers.set(name, value);
+  }
+  if (forwardSensitive) {
+    for (const name of PROXY_SENSITIVE_HEADERS) {
+      const value = request.headers.get(name);
+      if (value) headers.set(name, value);
+    }
   }
   return headers;
 }
@@ -967,12 +981,96 @@ function renderHtml(env) {
   return HTML.replace('__SITE_HEADER__', siteHeader);
 }
 
-function resolveBackendBase(env, url) {
-  const override = url.searchParams.get('backend');
-  if (override) return override.replace(/\/$/, '');
-  if (env.DEFAULT_BACKEND_URL) return env.DEFAULT_BACKEND_URL.replace(/\/$/, '');
-  // Service binding is preferred; this fallback is only for misconfigured deploys.
-  return 'http://127.0.0.1:8787';
+function normalizeBase(value) {
+  return String(value).replace(/\/+$/, '');
+}
+
+function isLoopbackOrigin(origin) {
+  return /^https?:\/\/(?:127\.0\.0\.1|localhost|\[::1\])(?::\d+)?$/i.test(origin);
+}
+
+function backendOriginAllowlist(env) {
+  return String(env.BACKEND_ORIGIN_ALLOWLIST || '')
+    .split(',')
+    .map(s => normalizeBase(s.trim()))
+    .filter(Boolean);
+}
+
+/**
+ * Decide which backend a proxied request targets, and whether that target is
+ * trusted enough to receive capability / credential headers.
+ *
+ * Trust model (issue #66):
+ *   - `env.BACKEND` service binding present  -> dispatch via the binding. A
+ *     caller-supplied `?backend=` override is REJECTED with an explicit 400
+ *     rather than silently ignored.
+ *   - No binding, caller supplied `?backend=` -> honored ONLY when its origin is
+ *     a loopback dev address or listed in `BACKEND_ORIGIN_ALLOWLIST`. Any other
+ *     override is REJECTED (403) and never fetched, so credentials are never
+ *     forwarded to an attacker-named host (no SSRF, no credential exfiltration).
+ *   - No binding, no override -> the deployer-configured `DEFAULT_BACKEND_URL`,
+ *     else a loopback fallback for local dev.
+ *
+ * Local-dev workflow this preserves: run the web worker with no service binding
+ * (`wrangler dev --config web/wrangler.toml`), set the UI "Backend URL" field to
+ * the local backend (e.g. http://127.0.0.1:8787 from `npm run dev`), which sends
+ * `?backend=<url>`. Loopback origins are allowed with no extra config; a remote
+ * dev backend must be added to `BACKEND_ORIGIN_ALLOWLIST`.
+ *
+ * Returns { viaBinding, base, trusted } or { error: { status, message } }.
+ */
+function resolveBackend(env, url) {
+  const hasBinding = !!env.BACKEND;
+  const rawOverride = url.searchParams.get('backend');
+
+  if (rawOverride) {
+    if (hasBinding) {
+      return {
+        error: {
+          status: 400,
+          message: 'backend override is not permitted when a service binding is configured',
+        },
+      };
+    }
+    let parsed;
+    try {
+      parsed = new URL(rawOverride);
+    } catch {
+      return { error: { status: 400, message: 'invalid backend override URL' } };
+    }
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return { error: { status: 400, message: 'backend override must use http or https' } };
+    }
+    const allowed =
+      isLoopbackOrigin(parsed.origin) ||
+      backendOriginAllowlist(env).includes(normalizeBase(parsed.origin));
+    if (!allowed) {
+      return {
+        error: {
+          status: 403,
+          message: 'backend override origin is not allowed on this deployment',
+        },
+      };
+    }
+    return { viaBinding: false, base: normalizeBase(rawOverride), trusted: true };
+  }
+
+  if (hasBinding) {
+    // Base is unused for routing under a binding (the bound worker routes on
+    // path); a stable placeholder keeps URL construction valid.
+    return { viaBinding: true, base: 'https://backend.invalid', trusted: true };
+  }
+  if (env.DEFAULT_BACKEND_URL) {
+    return { viaBinding: false, base: normalizeBase(env.DEFAULT_BACKEND_URL), trusted: true };
+  }
+  return { viaBinding: false, base: 'http://127.0.0.1:8787', trusted: true };
+}
+
+function proxyJson(status, obj) {
+  return new Response(JSON.stringify(obj), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  });
 }
 
 // Cloudflare Worker
@@ -988,13 +1086,19 @@ export default {
     }
 
     if (url.pathname.startsWith('/api/proxy')) {
+      const decision = resolveBackend(env, url);
+      if (decision.error) {
+        return proxyJson(decision.error.status, { error: decision.error.message });
+      }
+
       const backendPath = url.pathname.slice('/api/proxy'.length) || '/';
-      const backendBase = resolveBackendBase(env, url);
-      const targetUrl = new URL(backendBase + backendPath);
+      const targetUrl = new URL(decision.base + backendPath);
       // Drop proxy-only query params before forwarding.
       targetUrl.searchParams.delete('backend');
 
-      const headers = buildProxyHeaders(request);
+      // Credential headers are forwarded only to a trusted target (see
+      // resolveBackend); an untrusted override is rejected above before any fetch.
+      const headers = buildProxyHeaders(request, decision.trusted);
       const init = {
         method: request.method,
         headers,
@@ -1006,15 +1110,12 @@ export default {
 
       try {
         const targetRequest = new Request(targetUrl.toString(), init);
-        if (env.BACKEND) {
+        if (decision.viaBinding) {
           return await env.BACKEND.fetch(targetRequest);
         }
         return await fetch(targetRequest);
       } catch (e) {
-        return new Response(JSON.stringify({ error: e.message }), {
-          status: 502,
-          headers: { 'content-type': 'application/json' },
-        });
+        return proxyJson(502, { error: e.message });
       }
     }
 
