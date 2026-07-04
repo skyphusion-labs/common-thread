@@ -31,7 +31,7 @@
  */
 
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { fetchMock } from 'cloudflare:test';
+import { fetchMock } from '../helpers/undici-mock';
 
 import { buildRetryPromptAddition } from '../../implementation/reasoner/prompts';
 import { runReasoning } from '../../implementation/reasoner/reasoner';

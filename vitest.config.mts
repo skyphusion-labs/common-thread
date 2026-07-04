@@ -9,8 +9,17 @@
  * query() (Cloudflare's supported mysql2-in-Workers path) at the real compat
  * date, where it loads fine. So here, suites that touch the DB run in a NODE
  * project against a real MySQL (TEST_MYSQL_URL, a service container in CI); the
- * Workers-runtime suites (R2, fetchMock, Hyperdrive bindings) stay in the
- * workers pool. See issue #30.
+ * pure Workers-runtime suites stay in the workers pool. See issues #30, #46.
+ *
+ * The DB-backed suites that ALSO used `cloudflare:test` primitives were once
+ * dark in both projects (#46). They now run in the node project: `env.ARCHIVE`
+ * is an in-memory fake R2 (tests/helpers/fake-r2.ts), `fetchMock` is an undici
+ * MockAgent shim (tests/helpers/undici-mock.ts), and `worker.fetch(req, env)`
+ * is a direct handler call with a plain Node env (tests/helpers/test-env.ts).
+ * Tradeoff: the fake R2 loses real R2-binding fidelity; it is the only path
+ * that runs these suites at all and it recovers the real DB coverage. If a
+ * subset ever needs real-R2 fidelity, run that subset in the workers pool as a
+ * separate follow-up (#46).
  *
  * This file uses the `.mts` extension so Node/Vite load it as ESM.
  * `@cloudflare/vitest-pool-workers` is ESM-only and fails when the config is
@@ -36,29 +45,18 @@ function hyperdriveLocalConnectionString(url: string): string {
 process.env.CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_DB ??=
   hyperdriveLocalConnectionString(testMysqlUrl);
 
-// Suites that run in the NODE project (no cloudflare:test imports; safe in node).
-// Two kinds today:
-//   - the pure-helper unit suite (api-routes), and
-//   - twitter-scrapes, which reads a committed synthetic fixture corpus off disk
-//     with node:fs (unavailable in the workers pool) and touches no DB or
-//     cloudflare:test. It rides the node project for node:fs access; the node-db
-//     globalSetup is a harmless no-op for it (it never queries MySQL).
-// As the hybrid suites below are refactored off cloudflare:test they move here.
+// Suites that run in the NODE project. Everything that needs node:fs or the
+// mysql2 DB layer, neither of which works in the workers pool:
+//   - api-routes: the pure-helper unit suite.
+//   - twitter-scrapes: reads a committed synthetic fixture corpus off disk with
+//     node:fs; touches no DB (the node-db globalSetup is a harmless no-op for
+//     it).
+//   - the DB-backed suites recovered from the old cloudflare:test hybrid block
+//     (#46), now using the node harness helpers (fake R2, undici MockAgent,
+//     direct worker.fetch) instead of `cloudflare:test`.
 const nodeSuites = [
   'tests/investigation/api-routes.test.ts',
   'tests/extractors/twitter-scrapes.test.ts',
-];
-
-// HYBRID suites: they import BOTH the mysql2 DB layer AND `cloudflare:test`
-// (env.ARCHIVE / fetchMock / worker.fetch). They have no working pool today --
-// mysql2 fails to load under the workers pool (nodejs_compat v1, a vitest-pool
-// limitation, NOT a prod issue -- prod runs mysql2 over Hyperdrive), and
-// `cloudflare:test` does not exist under the node environment. They are
-// EXCLUDED from both projects (an honest, documented skip; NOT silently green)
-// until refactored to run against the MySQL service container with R2 fidelity
-// preserved. Tracked in #46 (records the fidelity-preferred Hyperdrive-binding
-// approach vs the node/fake-R2 fallback).
-const hybridSuitesBlocked = [
   'tests/extractors/engagement.test.ts',
   'tests/extractors/runner.test.ts',
   'tests/ingest/apify-artifacts-ingest.test.ts',
@@ -70,12 +68,15 @@ const hybridSuitesBlocked = [
   'tests/reasoner/triage.test.ts',
 ];
 
-const blocked = [...hybridSuitesBlocked];
+// Note: the two apify ingest suites read the twitter_scrapes/ phatadvert probe,
+// which is NOT part of the committed synthetic corpus, so their fixture-reading
+// tests skip visibly via it.skipIf (helpers/fixtures.ts) while their
+// non-fixture coverage runs. Nothing is silently excluded from either project.
 
 export default defineConfig({
   test: {
     projects: [
-      // --- Workers-runtime suites (R2, fetchMock, Hyperdrive bindings) ---
+      // --- Pure Workers-runtime suites (no mysql2, no node:fs, no DB env) ---
       {
         plugins: [
           cloudflareTest({
@@ -93,12 +94,11 @@ export default defineConfig({
           name: 'workers',
           pool: 'workers',
           include: ['tests/**/*.test.ts'],
-          // Node-only suites and the blocked (hybrid) suites do not belong in
-          // the workers pool.
-          exclude: [...nodeSuites, ...blocked],
+          // Node-only suites do not belong in the workers pool.
+          exclude: [...nodeSuites],
         },
       },
-      // --- Node suites (real MySQL via mysql2 when they touch the DB) ---
+      // --- Node suites (real MySQL via mysql2; fake R2 + undici MockAgent) ---
       {
         test: {
           name: 'node-db',
