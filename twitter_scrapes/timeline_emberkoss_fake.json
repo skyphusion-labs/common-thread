@@ -1,0 +1,422 @@
+[
+  {
+    "id_str": "100000955067",
+    "url": "https://x.com/emberkoss_fake/status/100000955067",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-01T11:55:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "full_text": "A quiet harbor drifts past a folded map before dawn."
+  },
+  {
+    "id_str": "100000959166",
+    "url": "https://x.com/emberkoss_fake/status/100000959166",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-02T07:31:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "full_text": "The archivist tallies these coordinates twice over."
+  },
+  {
+    "id_str": "100000963265",
+    "url": "https://x.com/emberkoss_fake/status/100000963265",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-03T19:46:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "full_text": "@orlopdeck_ref The atlas unspools every waypoint without comment.",
+    "in_reply_to_status_id_str": "100000967364",
+    "in_reply_to_screen_name": "orlopdeck_ref",
+    "conversation_id": "100000971463"
+  },
+  {
+    "id_str": "100000975562",
+    "url": "https://x.com/emberkoss_fake/status/100000975562",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-04T10:43:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "full_text": "A courier reroutes these coordinates before dawn.",
+    "retweeted_status": {
+      "id_str": "100000979661",
+      "user": {
+        "screen_name": "quilltide_ref"
+      },
+      "full_text": "The lantern tallies every waypoint twice over."
+    }
+  },
+  {
+    "id_str": "100000983760",
+    "url": "https://x.com/emberkoss_fake/status/100000983760",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-05T20:01:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "full_text": "The lantern annotates our shared route quietly."
+  },
+  {
+    "id_str": "100000987859",
+    "url": "https://x.com/emberkoss_fake/status/100000987859",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-06T06:47:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "full_text": "This beacon drifts past a folded map quietly. example.invalid/palewick_ref",
+    "quoted_status": {
+      "id_str": "100000991958",
+      "user": {
+        "screen_name": "palewick_ref"
+      },
+      "full_text": "The lantern catalogues the manifest for the record."
+    }
+  },
+  {
+    "id_str": "100000996057",
+    "url": "https://x.com/emberkoss_fake/status/100000996057",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-07T03:01:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "full_text": "@orlopdeck_ref This beacon tallies our shared route before dawn.",
+    "in_reply_to_status_id_str": "100001000156",
+    "in_reply_to_screen_name": "orlopdeck_ref",
+    "conversation_id": "100001004255"
+  },
+  {
+    "id_str": "100001008354",
+    "url": "https://x.com/emberkoss_fake/status/100001008354",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-08T21:35:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "full_text": "RT @orlopdeck_ref: The archivist shelters a folded map as promised."
+  },
+  {
+    "id_str": "100001012453",
+    "url": "https://x.com/emberkoss_fake/status/100001012453",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-09T10:30:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "full_text": "The archivist reroutes every waypoint as promised."
+  },
+  {
+    "id_str": "100001016552",
+    "url": "https://x.com/emberkoss_fake/status/100001016552",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-10T17:15:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "full_text": "Our ledger drifts past a spare signal again today."
+  },
+  {
+    "id_str": "100001020651",
+    "url": "https://x.com/emberkoss_fake/status/100001020651",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-11T12:38:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "full_text": "@orlopdeck_ref This beacon unspools the tidal charts again today.",
+    "in_reply_to_status_id_str": "100001024750",
+    "in_reply_to_screen_name": "orlopdeck_ref",
+    "conversation_id": "100001028849"
+  },
+  {
+    "id_str": "100001032948",
+    "url": "https://x.com/emberkoss_fake/status/100001032948",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-12T00:28:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "full_text": "A quiet harbor drifts past every waypoint again today.",
+    "retweeted_status": {
+      "id_str": "100001037047",
+      "user": {
+        "screen_name": "quilltide_ref"
+      },
+      "full_text": "The archivist catalogues these coordinates again today."
+    }
+  },
+  {
+    "id_str": "100001041146",
+    "url": "https://x.com/emberkoss_fake/status/100001041146",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-13T03:14:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "full_text": "The atlas shelters a folded map again today."
+  },
+  {
+    "id_str": "100001045245",
+    "url": "https://x.com/emberkoss_fake/status/100001045245",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-14T15:41:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "full_text": "The archivist catalogues the tidal charts and moves on. example.invalid/palewick_ref",
+    "quoted_status": {
+      "id_str": "100001049344",
+      "user": {
+        "screen_name": "palewick_ref"
+      },
+      "full_text": "The lantern tallies a spare signal and moves on."
+    }
+  },
+  {
+    "id_str": "100001053443",
+    "url": "https://x.com/emberkoss_fake/status/100001053443",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-01T18:45:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "full_text": "@orlopdeck_ref The atlas shelters a folded map as promised.",
+    "in_reply_to_status_id_str": "100001057542",
+    "in_reply_to_screen_name": "orlopdeck_ref",
+    "conversation_id": "100001061641"
+  },
+  {
+    "id_str": "100001065740",
+    "url": "https://x.com/emberkoss_fake/status/100001065740",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-02T22:30:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "full_text": "RT @orlopdeck_ref: The lantern annotates the manifest for the record."
+  },
+  {
+    "id_str": "100001069839",
+    "url": "https://x.com/emberkoss_fake/status/100001069839",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-03T01:04:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "full_text": "A quiet harbor mirrors the archive index quietly."
+  },
+  {
+    "id_str": "100001073938",
+    "url": "https://x.com/emberkoss_fake/status/100001073938",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-04T01:45:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "full_text": "The lantern annotates the archive index before dawn."
+  },
+  {
+    "id_str": "100001078037",
+    "url": "https://x.com/emberkoss_fake/status/100001078037",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-05T12:03:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "full_text": "@orlopdeck_ref My compass catalogues our shared route quietly.",
+    "in_reply_to_status_id_str": "100001082136",
+    "in_reply_to_screen_name": "orlopdeck_ref",
+    "conversation_id": "100001086235"
+  },
+  {
+    "id_str": "100001090334",
+    "url": "https://x.com/emberkoss_fake/status/100001090334",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-06T01:25:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "full_text": "A courier catalogues every waypoint for the record.",
+    "retweeted_status": {
+      "id_str": "100001094433",
+      "user": {
+        "screen_name": "quilltide_ref"
+      },
+      "full_text": "The atlas reroutes a folded map before dawn."
+    }
+  },
+  {
+    "id_str": "100001098532",
+    "url": "https://x.com/emberkoss_fake/status/100001098532",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-07T00:21:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "full_text": "Our ledger unspools the archive index as promised."
+  },
+  {
+    "id_str": "100001102631",
+    "url": "https://x.com/emberkoss_fake/status/100001102631",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-08T02:11:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "full_text": "A quiet harbor shelters the manifest before dawn. example.invalid/palewick_ref",
+    "quoted_status": {
+      "id_str": "100001106730",
+      "user": {
+        "screen_name": "palewick_ref"
+      },
+      "full_text": "This beacon tallies our shared route quietly."
+    }
+  },
+  {
+    "id_str": "100001110829",
+    "url": "https://x.com/emberkoss_fake/status/100001110829",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-09T15:50:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "full_text": "@orlopdeck_ref This beacon catalogues a folded map before dawn.",
+    "in_reply_to_status_id_str": "100001114928",
+    "in_reply_to_screen_name": "orlopdeck_ref",
+    "conversation_id": "100001119027"
+  },
+  {
+    "id_str": "100001123126",
+    "url": "https://x.com/emberkoss_fake/status/100001123126",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-10T10:35:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "full_text": "RT @orlopdeck_ref: My compass reroutes the tidal charts and moves on."
+  },
+  {
+    "id_str": "100001127225",
+    "url": "https://x.com/emberkoss_fake/status/100001127225",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-11T21:01:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "full_text": "A courier unspools these coordinates before dawn."
+  },
+  {
+    "id_str": "100001131324",
+    "url": "https://x.com/emberkoss_fake/status/100001131324",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-12T11:40:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "full_text": "The archivist annotates the archive index without comment."
+  },
+  {
+    "id_str": "100001135423",
+    "url": "https://x.com/emberkoss_fake/status/100001135423",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-13T01:47:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "full_text": "@orlopdeck_ref A courier unspools the manifest twice over.",
+    "in_reply_to_status_id_str": "100001139522",
+    "in_reply_to_screen_name": "orlopdeck_ref",
+    "conversation_id": "100001143621"
+  },
+  {
+    "id_str": "100001147720",
+    "url": "https://x.com/emberkoss_fake/status/100001147720",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-14T07:53:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "full_text": "Our ledger annotates our shared route before dawn.",
+    "retweeted_status": {
+      "id_str": "100001151819",
+      "user": {
+        "screen_name": "quilltide_ref"
+      },
+      "full_text": "My compass reroutes these coordinates twice over."
+    }
+  },
+  {
+    "id_str": "100001155918",
+    "url": "https://x.com/emberkoss_fake/status/100001155918",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-01T20:51:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "full_text": "A courier catalogues the manifest and moves on."
+  },
+  {
+    "id_str": "100001160017",
+    "url": "https://x.com/emberkoss_fake/status/100001160017",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-02T13:47:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "full_text": "Our ledger tallies the manifest without comment. example.invalid/palewick_ref",
+    "quoted_status": {
+      "id_str": "100001164116",
+      "user": {
+        "screen_name": "palewick_ref"
+      },
+      "full_text": "The archivist catalogues our shared route again today."
+    }
+  },
+  {
+    "id_str": "100001168215",
+    "url": "https://x.com/emberkoss_fake/status/100001168215",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-03T11:43:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "full_text": "@orlopdeck_ref The lantern reroutes these coordinates as promised.",
+    "in_reply_to_status_id_str": "100001172314",
+    "in_reply_to_screen_name": "orlopdeck_ref",
+    "conversation_id": "100001176413"
+  },
+  {
+    "id_str": "100001180512",
+    "url": "https://x.com/emberkoss_fake/status/100001180512",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-04T12:13:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "full_text": "RT @orlopdeck_ref: My compass drifts past every waypoint before dawn."
+  },
+  {
+    "id_str": "100001184611",
+    "url": "https://x.com/emberkoss_fake/status/100001184611",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-05T18:29:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "full_text": "My compass shelters a folded map before dawn."
+  },
+  {
+    "id_str": "100001188710",
+    "url": "https://x.com/emberkoss_fake/status/100001188710",
+    "user": {
+      "screen_name": "emberkoss_fake"
+    },
+    "created_at": "2026-01-06T23:46:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "full_text": "My compass mirrors the tidal charts quietly."
+  }
+]

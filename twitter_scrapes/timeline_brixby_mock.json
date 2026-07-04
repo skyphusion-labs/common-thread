@@ -1,0 +1,434 @@
+[
+  {
+    "id": "100000241841",
+    "url": "https://x.com/brixby_mock/status/100000241841",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-01T21:00:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "fullText": "Our ledger mirrors a spare signal twice over."
+  },
+  {
+    "id": "100000245940",
+    "url": "https://x.com/brixby_mock/status/100000245940",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-02T00:10:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "fullText": "The lantern catalogues the tidal charts before dawn."
+  },
+  {
+    "id": "100000250039",
+    "url": "https://x.com/brixby_mock/status/100000250039",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-03T19:50:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "fullText": "@orlopdeck_ref The lantern shelters a spare signal twice over.",
+    "isReply": true,
+    "inReplyToId": "100000254138",
+    "inReplyToUsername": "orlopdeck_ref",
+    "conversationId": "100000258237"
+  },
+  {
+    "id": "100000262336",
+    "url": "https://x.com/brixby_mock/status/100000262336",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-04T11:54:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "fullText": "A courier drifts past our shared route without comment.",
+    "isRetweet": true,
+    "retweet": {
+      "id": "100000266435",
+      "author": {
+        "userName": "quilltide_ref"
+      },
+      "fullText": "This beacon mirrors the manifest quietly."
+    }
+  },
+  {
+    "id": "100000270534",
+    "url": "https://x.com/brixby_mock/status/100000270534",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-05T17:00:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "fullText": "A courier shelters a spare signal quietly."
+  },
+  {
+    "id": "100000274633",
+    "url": "https://x.com/brixby_mock/status/100000274633",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-06T12:10:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "fullText": "A courier shelters these coordinates as promised. example.invalid/palewick_ref",
+    "quotedTweet": {
+      "id": "100000278732",
+      "author": {
+        "userName": "palewick_ref"
+      },
+      "fullText": "A courier tallies the manifest for the record."
+    }
+  },
+  {
+    "id": "100000282831",
+    "url": "https://x.com/brixby_mock/status/100000282831",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-07T11:06:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "fullText": "@orlopdeck_ref The lantern tallies the manifest again today.",
+    "isReply": true,
+    "inReplyToId": "100000286930",
+    "inReplyToUsername": "orlopdeck_ref",
+    "conversationId": "100000291029"
+  },
+  {
+    "id": "100000295128",
+    "url": "https://x.com/brixby_mock/status/100000295128",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-08T16:11:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "fullText": "RT @orlopdeck_ref: My compass catalogues our shared route for the record."
+  },
+  {
+    "id": "100000299227",
+    "url": "https://x.com/brixby_mock/status/100000299227",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-09T09:15:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "fullText": "My compass annotates the manifest quietly."
+  },
+  {
+    "id": "100000303326",
+    "url": "https://x.com/brixby_mock/status/100000303326",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-10T04:56:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "fullText": "The atlas tallies a spare signal twice over."
+  },
+  {
+    "id": "100000307425",
+    "url": "https://x.com/brixby_mock/status/100000307425",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-11T08:51:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "fullText": "@orlopdeck_ref A courier shelters every waypoint again today.",
+    "isReply": true,
+    "inReplyToId": "100000311524",
+    "inReplyToUsername": "orlopdeck_ref",
+    "conversationId": "100000315623"
+  },
+  {
+    "id": "100000319722",
+    "url": "https://x.com/brixby_mock/status/100000319722",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-12T14:15:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "fullText": "The atlas tallies these coordinates without comment.",
+    "isRetweet": true,
+    "retweet": {
+      "id": "100000323821",
+      "author": {
+        "userName": "quilltide_ref"
+      },
+      "fullText": "Our ledger shelters every waypoint again today."
+    }
+  },
+  {
+    "id": "100000327920",
+    "url": "https://x.com/brixby_mock/status/100000327920",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-13T11:05:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "fullText": "A courier shelters these coordinates quietly."
+  },
+  {
+    "id": "100000332019",
+    "url": "https://x.com/brixby_mock/status/100000332019",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-14T11:15:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "fullText": "My compass unspools these coordinates as promised. example.invalid/palewick_ref",
+    "quotedTweet": {
+      "id": "100000336118",
+      "author": {
+        "userName": "palewick_ref"
+      },
+      "fullText": "A quiet harbor annotates the tidal charts again today."
+    }
+  },
+  {
+    "id": "100000340217",
+    "url": "https://x.com/brixby_mock/status/100000340217",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-01T23:20:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "fullText": "@orlopdeck_ref The lantern annotates a spare signal before dawn.",
+    "isReply": true,
+    "inReplyToId": "100000344316",
+    "inReplyToUsername": "orlopdeck_ref",
+    "conversationId": "100000348415"
+  },
+  {
+    "id": "100000352514",
+    "url": "https://x.com/brixby_mock/status/100000352514",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-02T19:06:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "fullText": "RT @orlopdeck_ref: Our ledger tallies these coordinates as promised."
+  },
+  {
+    "id": "100000356613",
+    "url": "https://x.com/brixby_mock/status/100000356613",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-03T12:42:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "fullText": "This beacon mirrors the archive index for the record."
+  },
+  {
+    "id": "100000360712",
+    "url": "https://x.com/brixby_mock/status/100000360712",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-04T09:14:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "fullText": "The lantern tallies the tidal charts before dawn."
+  },
+  {
+    "id": "100000364811",
+    "url": "https://x.com/brixby_mock/status/100000364811",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-05T09:05:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "fullText": "@orlopdeck_ref A quiet harbor catalogues the tidal charts again today.",
+    "isReply": true,
+    "inReplyToId": "100000368910",
+    "inReplyToUsername": "orlopdeck_ref",
+    "conversationId": "100000373009"
+  },
+  {
+    "id": "100000377108",
+    "url": "https://x.com/brixby_mock/status/100000377108",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-06T20:51:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "fullText": "Our ledger reroutes a spare signal before dawn.",
+    "isRetweet": true,
+    "retweet": {
+      "id": "100000381207",
+      "author": {
+        "userName": "quilltide_ref"
+      },
+      "fullText": "A courier mirrors these coordinates and moves on."
+    }
+  },
+  {
+    "id": "100000385306",
+    "url": "https://x.com/brixby_mock/status/100000385306",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-07T07:40:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "fullText": "My compass catalogues every waypoint before dawn."
+  },
+  {
+    "id": "100000389405",
+    "url": "https://x.com/brixby_mock/status/100000389405",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-08T08:10:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "fullText": "The atlas drifts past our shared route and moves on. example.invalid/palewick_ref",
+    "quotedTweet": {
+      "id": "100000393504",
+      "author": {
+        "userName": "palewick_ref"
+      },
+      "fullText": "The lantern unspools the tidal charts for the record."
+    }
+  },
+  {
+    "id": "100000397603",
+    "url": "https://x.com/brixby_mock/status/100000397603",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-09T00:08:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "fullText": "@orlopdeck_ref Our ledger unspools the archive index and moves on.",
+    "isReply": true,
+    "inReplyToId": "100000401702",
+    "inReplyToUsername": "orlopdeck_ref",
+    "conversationId": "100000405801"
+  },
+  {
+    "id": "100000409900",
+    "url": "https://x.com/brixby_mock/status/100000409900",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-10T16:17:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "fullText": "RT @orlopdeck_ref: A quiet harbor drifts past the manifest quietly."
+  },
+  {
+    "id": "100000413999",
+    "url": "https://x.com/brixby_mock/status/100000413999",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-11T04:39:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "fullText": "The atlas shelters a spare signal without comment."
+  },
+  {
+    "id": "100000418098",
+    "url": "https://x.com/brixby_mock/status/100000418098",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-12T20:22:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "fullText": "The lantern tallies the tidal charts as promised."
+  },
+  {
+    "id": "100000422197",
+    "url": "https://x.com/brixby_mock/status/100000422197",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-13T17:36:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "fullText": "@orlopdeck_ref My compass catalogues a folded map quietly.",
+    "isReply": true,
+    "inReplyToId": "100000426296",
+    "inReplyToUsername": "orlopdeck_ref",
+    "conversationId": "100000430395"
+  },
+  {
+    "id": "100000434494",
+    "url": "https://x.com/brixby_mock/status/100000434494",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-14T14:49:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "fullText": "A courier mirrors a spare signal again today.",
+    "isRetweet": true,
+    "retweet": {
+      "id": "100000438593",
+      "author": {
+        "userName": "quilltide_ref"
+      },
+      "fullText": "The atlas mirrors a spare signal and moves on."
+    }
+  },
+  {
+    "id": "100000442692",
+    "url": "https://x.com/brixby_mock/status/100000442692",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-01T16:57:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "fullText": "A courier drifts past the tidal charts without comment."
+  },
+  {
+    "id": "100000446791",
+    "url": "https://x.com/brixby_mock/status/100000446791",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-02T18:41:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "fullText": "The archivist tallies the archive index as promised. example.invalid/palewick_ref",
+    "quotedTweet": {
+      "id": "100000450890",
+      "author": {
+        "userName": "palewick_ref"
+      },
+      "fullText": "The atlas unspools the manifest as promised."
+    }
+  },
+  {
+    "id": "100000454989",
+    "url": "https://x.com/brixby_mock/status/100000454989",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-03T04:45:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "fullText": "@orlopdeck_ref The lantern unspools a folded map twice over.",
+    "isReply": true,
+    "inReplyToId": "100000459088",
+    "inReplyToUsername": "orlopdeck_ref",
+    "conversationId": "100000463187"
+  },
+  {
+    "id": "100000467286",
+    "url": "https://x.com/brixby_mock/status/100000467286",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-04T08:54:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "fullText": "RT @orlopdeck_ref: A quiet harbor tallies a folded map twice over."
+  },
+  {
+    "id": "100000471385",
+    "url": "https://x.com/brixby_mock/status/100000471385",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-05T16:32:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "fullText": "The archivist reroutes a folded map without comment."
+  },
+  {
+    "id": "100000475484",
+    "url": "https://x.com/brixby_mock/status/100000475484",
+    "author": {
+      "userName": "brixby_mock"
+    },
+    "createdAt": "2026-01-06T20:39:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "fullText": "This beacon mirrors a spare signal twice over."
+  }
+]

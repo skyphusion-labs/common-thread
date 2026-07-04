@@ -1,8 +1,21 @@
 /**
- * Validates extractors against real Apify scrape JSON in twitter_scrapes/.
+ * Validates the Apify ingest parser and the stylometric / temporal / engagement
+ * extractors against realistic Apify Twitter scrape SHAPES held in
+ * `twitter_scrapes/`.
  *
- * Files over MAX_BYTES are skipped to keep CI fast; the subset still covers
- * the main Apify field variants (fullText, retweet, inReplyTo*, noResults).
+ * The corpus is a small, committed, 100% SYNTHETIC fixture set (see
+ * `twitter_scrapes/README.md` and `scripts/gen-twitter-fixtures.mjs`). It is not
+ * scraped data: handles are invented, text is machine-composed, IDs are
+ * fabricated, external links use example.invalid. It deliberately covers the
+ * Apify field variants the extractors branch on: camelCase (`fullText`,
+ * `createdAt`, `author.userName`) vs snake_case (`full_text`, `created_at`,
+ * `user.screen_name`); embedded `retweet` / `retweeted_status` reposts; weak
+ * RT-prefix-only reposts; `inReplyTo*` / `in_reply_to_*` replies; `quotedTweet`
+ * / `quoted_status` quotes; and `noResults` placeholder rows.
+ *
+ * If the directory is absent (a developer removed the fixtures) the suite skips
+ * with a reason rather than hard-failing on ENOENT. Files over MAX_BYTES or
+ * matching SKIP_NAME (manifest / chain-of-custody sidecars) are ignored.
  */
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -19,6 +32,22 @@ const SCRAPES_DIR = join(process.cwd(), 'twitter_scrapes');
 const MAX_BYTES = 15 * 1024 * 1024;
 const SKIP_NAME = /Chain_of_Custody|MANIFEST/i;
 
+/**
+ * Scrape JSON files, or [] when the directory is absent. The suite skips (with
+ * a reason) on [] rather than ENOENT-failing, so a missing local corpus never
+ * turns into a hard CI error.
+ */
+function listScrapeFiles(): string[] {
+  try {
+    return readdirSync(SCRAPES_DIR).filter(
+      f => f.endsWith('.json') && !SKIP_NAME.test(f)
+    );
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw err;
+  }
+}
+
 function stubEntry(account: string): ManifestEntry {
   return {
     hash: '0'.repeat(64),
@@ -31,12 +60,13 @@ function stubEntry(account: string): ManifestEntry {
   };
 }
 
-describe('twitter_scrapes Apify compatibility', () => {
-  it('account and engagement extractors handle real scrape shapes', () => {
-    const files = readdirSync(SCRAPES_DIR).filter(
-      f => f.endsWith('.json') && !SKIP_NAME.test(f)
-    );
+const scrapeFiles = listScrapeFiles();
+// Skip-with-reason when the fixture corpus is absent (acceptance for issue #47:
+// never a hard ENOENT). Present in CI via the committed synthetic corpus.
+const suite = scrapeFiles.length > 0 ? describe : describe.skip;
 
+suite('twitter_scrapes Apify compatibility', () => {
+  it('account and engagement extractors handle Apify scrape shapes', () => {
     const summary = {
       filesProcessed: 0,
       tweetsParsed: 0,
@@ -52,7 +82,7 @@ describe('twitter_scrapes Apify compatibility', () => {
     const stylometric = new TwitterStylometricExtractor();
     const temporal = new TwitterTemporalExtractor();
 
-    for (const file of files) {
+    for (const file of scrapeFiles) {
       const filePath = join(SCRAPES_DIR, file);
       if (statSync(filePath).size > MAX_BYTES) continue;
 
@@ -104,14 +134,21 @@ describe('twitter_scrapes Apify compatibility', () => {
       }
     }
 
+    // Thresholds are floors for the committed synthetic corpus (8 accounts x 34
+    // posts across two field dialects, plus a mixed noResults file; actuals are
+    // deterministic: 9 files, 274 tweets, 160 events, 128 real-post-id, 32
+    // rt-prefix, 10/10 stylometric/temporal). They assert the extractors resolve
+    // every field variant, not corpus scale, with margin for fixture edits.
     expect(summary.parseErrors, summary.parseErrors.join(', ')).toHaveLength(0);
-    expect(summary.filesProcessed).toBeGreaterThan(15);
-    expect(summary.tweetsParsed).toBeGreaterThan(5_000);
-    expect(summary.engagementEvents).toBeGreaterThan(500);
-    expect(summary.engagementsWithRealPostId).toBeGreaterThan(200);
-    expect(summary.accountsWithStylometric).toBeGreaterThan(20);
-    expect(summary.accountsWithTemporal).toBeGreaterThan(20);
-    // Embedded `retweet` objects should dominate over weak RT-prefix keys.
+    expect(summary.filesProcessed).toBeGreaterThan(7);
+    expect(summary.tweetsParsed).toBeGreaterThan(200);
+    expect(summary.engagementEvents).toBeGreaterThan(100);
+    expect(summary.engagementsWithRealPostId).toBeGreaterThan(90);
+    expect(summary.accountsWithStylometric).toBeGreaterThan(8);
+    expect(summary.accountsWithTemporal).toBeGreaterThan(8);
+    // The weak RT-prefix-only path must actually be exercised by the corpus,
+    // yet embedded `retweet` objects must dominate over those weak keys.
+    expect(summary.rtPrefixOnly).toBeGreaterThan(0);
     expect(summary.rtPrefixOnly).toBeLessThan(summary.engagementsWithRealPostId);
   }, 120_000);
 });

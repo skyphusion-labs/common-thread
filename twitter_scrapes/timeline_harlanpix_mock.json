@@ -1,0 +1,422 @@
+[
+  {
+    "id_str": "100001668293",
+    "url": "https://x.com/harlanpix_mock/status/100001668293",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-01T04:14:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "full_text": "Our ledger annotates a folded map before dawn."
+  },
+  {
+    "id_str": "100001672392",
+    "url": "https://x.com/harlanpix_mock/status/100001672392",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-02T13:43:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "full_text": "A courier catalogues a folded map twice over."
+  },
+  {
+    "id_str": "100001676491",
+    "url": "https://x.com/harlanpix_mock/status/100001676491",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-03T10:44:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "full_text": "@orlopdeck_ref The archivist unspools every waypoint for the record.",
+    "in_reply_to_status_id_str": "100001680590",
+    "in_reply_to_screen_name": "orlopdeck_ref",
+    "conversation_id": "100001684689"
+  },
+  {
+    "id_str": "100001688788",
+    "url": "https://x.com/harlanpix_mock/status/100001688788",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-04T22:14:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "full_text": "The archivist annotates every waypoint before dawn.",
+    "retweeted_status": {
+      "id_str": "100001692887",
+      "user": {
+        "screen_name": "quilltide_ref"
+      },
+      "full_text": "A courier reroutes the archive index as promised."
+    }
+  },
+  {
+    "id_str": "100001696986",
+    "url": "https://x.com/harlanpix_mock/status/100001696986",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-05T04:13:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "full_text": "A quiet harbor reroutes the manifest before dawn."
+  },
+  {
+    "id_str": "100001701085",
+    "url": "https://x.com/harlanpix_mock/status/100001701085",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-06T07:20:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "full_text": "Our ledger unspools a spare signal twice over. example.invalid/palewick_ref",
+    "quoted_status": {
+      "id_str": "100001705184",
+      "user": {
+        "screen_name": "palewick_ref"
+      },
+      "full_text": "This beacon reroutes the manifest for the record."
+    }
+  },
+  {
+    "id_str": "100001709283",
+    "url": "https://x.com/harlanpix_mock/status/100001709283",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-07T13:58:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "full_text": "@orlopdeck_ref The lantern shelters a spare signal without comment.",
+    "in_reply_to_status_id_str": "100001713382",
+    "in_reply_to_screen_name": "orlopdeck_ref",
+    "conversation_id": "100001717481"
+  },
+  {
+    "id_str": "100001721580",
+    "url": "https://x.com/harlanpix_mock/status/100001721580",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-08T15:44:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "full_text": "RT @orlopdeck_ref: This beacon unspools a spare signal before dawn."
+  },
+  {
+    "id_str": "100001725679",
+    "url": "https://x.com/harlanpix_mock/status/100001725679",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-09T16:10:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "full_text": "A quiet harbor drifts past these coordinates without comment."
+  },
+  {
+    "id_str": "100001729778",
+    "url": "https://x.com/harlanpix_mock/status/100001729778",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-10T09:30:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "full_text": "A quiet harbor unspools every waypoint as promised."
+  },
+  {
+    "id_str": "100001733877",
+    "url": "https://x.com/harlanpix_mock/status/100001733877",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-11T18:22:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "full_text": "@orlopdeck_ref This beacon drifts past a folded map twice over.",
+    "in_reply_to_status_id_str": "100001737976",
+    "in_reply_to_screen_name": "orlopdeck_ref",
+    "conversation_id": "100001742075"
+  },
+  {
+    "id_str": "100001746174",
+    "url": "https://x.com/harlanpix_mock/status/100001746174",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-12T17:12:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "full_text": "A quiet harbor tallies the archive index as promised.",
+    "retweeted_status": {
+      "id_str": "100001750273",
+      "user": {
+        "screen_name": "quilltide_ref"
+      },
+      "full_text": "A quiet harbor shelters our shared route and moves on."
+    }
+  },
+  {
+    "id_str": "100001754372",
+    "url": "https://x.com/harlanpix_mock/status/100001754372",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-13T10:48:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "full_text": "This beacon unspools the manifest twice over."
+  },
+  {
+    "id_str": "100001758471",
+    "url": "https://x.com/harlanpix_mock/status/100001758471",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-14T02:15:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "full_text": "The archivist drifts past the archive index quietly. example.invalid/palewick_ref",
+    "quoted_status": {
+      "id_str": "100001762570",
+      "user": {
+        "screen_name": "palewick_ref"
+      },
+      "full_text": "A courier tallies the manifest for the record."
+    }
+  },
+  {
+    "id_str": "100001766669",
+    "url": "https://x.com/harlanpix_mock/status/100001766669",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-01T07:33:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "full_text": "@orlopdeck_ref The lantern tallies the tidal charts for the record.",
+    "in_reply_to_status_id_str": "100001770768",
+    "in_reply_to_screen_name": "orlopdeck_ref",
+    "conversation_id": "100001774867"
+  },
+  {
+    "id_str": "100001778966",
+    "url": "https://x.com/harlanpix_mock/status/100001778966",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-02T03:39:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "full_text": "RT @orlopdeck_ref: The archivist drifts past the tidal charts again today."
+  },
+  {
+    "id_str": "100001783065",
+    "url": "https://x.com/harlanpix_mock/status/100001783065",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-03T04:56:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "full_text": "The atlas reroutes a spare signal quietly."
+  },
+  {
+    "id_str": "100001787164",
+    "url": "https://x.com/harlanpix_mock/status/100001787164",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-04T22:44:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "full_text": "Our ledger shelters every waypoint without comment."
+  },
+  {
+    "id_str": "100001791263",
+    "url": "https://x.com/harlanpix_mock/status/100001791263",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-05T14:32:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "full_text": "@orlopdeck_ref A quiet harbor unspools a folded map and moves on.",
+    "in_reply_to_status_id_str": "100001795362",
+    "in_reply_to_screen_name": "orlopdeck_ref",
+    "conversation_id": "100001799461"
+  },
+  {
+    "id_str": "100001803560",
+    "url": "https://x.com/harlanpix_mock/status/100001803560",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-06T06:17:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "full_text": "A quiet harbor reroutes the manifest and moves on.",
+    "retweeted_status": {
+      "id_str": "100001807659",
+      "user": {
+        "screen_name": "quilltide_ref"
+      },
+      "full_text": "My compass reroutes a folded map and moves on."
+    }
+  },
+  {
+    "id_str": "100001811758",
+    "url": "https://x.com/harlanpix_mock/status/100001811758",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-07T17:19:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "full_text": "Our ledger reroutes a spare signal again today."
+  },
+  {
+    "id_str": "100001815857",
+    "url": "https://x.com/harlanpix_mock/status/100001815857",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-08T14:53:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "full_text": "A quiet harbor drifts past the manifest quietly. example.invalid/palewick_ref",
+    "quoted_status": {
+      "id_str": "100001819956",
+      "user": {
+        "screen_name": "palewick_ref"
+      },
+      "full_text": "The archivist reroutes the archive index without comment."
+    }
+  },
+  {
+    "id_str": "100001824055",
+    "url": "https://x.com/harlanpix_mock/status/100001824055",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-09T09:31:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "full_text": "@orlopdeck_ref Our ledger mirrors the archive index and moves on.",
+    "in_reply_to_status_id_str": "100001828154",
+    "in_reply_to_screen_name": "orlopdeck_ref",
+    "conversation_id": "100001832253"
+  },
+  {
+    "id_str": "100001836352",
+    "url": "https://x.com/harlanpix_mock/status/100001836352",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-10T10:33:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "full_text": "RT @orlopdeck_ref: A courier reroutes every waypoint before dawn."
+  },
+  {
+    "id_str": "100001840451",
+    "url": "https://x.com/harlanpix_mock/status/100001840451",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-11T15:23:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "full_text": "My compass reroutes a folded map again today."
+  },
+  {
+    "id_str": "100001844550",
+    "url": "https://x.com/harlanpix_mock/status/100001844550",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-12T03:55:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "full_text": "This beacon tallies a spare signal without comment."
+  },
+  {
+    "id_str": "100001848649",
+    "url": "https://x.com/harlanpix_mock/status/100001848649",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-13T06:03:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "full_text": "@orlopdeck_ref The atlas shelters the tidal charts quietly.",
+    "in_reply_to_status_id_str": "100001852748",
+    "in_reply_to_screen_name": "orlopdeck_ref",
+    "conversation_id": "100001856847"
+  },
+  {
+    "id_str": "100001860946",
+    "url": "https://x.com/harlanpix_mock/status/100001860946",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-14T15:40:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "full_text": "My compass unspools these coordinates quietly.",
+    "retweeted_status": {
+      "id_str": "100001865045",
+      "user": {
+        "screen_name": "quilltide_ref"
+      },
+      "full_text": "A quiet harbor shelters the archive index before dawn."
+    }
+  },
+  {
+    "id_str": "100001869144",
+    "url": "https://x.com/harlanpix_mock/status/100001869144",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-01T11:34:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "full_text": "The atlas catalogues a folded map twice over."
+  },
+  {
+    "id_str": "100001873243",
+    "url": "https://x.com/harlanpix_mock/status/100001873243",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-02T03:24:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "full_text": "The archivist shelters our shared route again today. example.invalid/palewick_ref",
+    "quoted_status": {
+      "id_str": "100001877342",
+      "user": {
+        "screen_name": "palewick_ref"
+      },
+      "full_text": "My compass catalogues our shared route as promised."
+    }
+  },
+  {
+    "id_str": "100001881441",
+    "url": "https://x.com/harlanpix_mock/status/100001881441",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-03T21:17:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "full_text": "@orlopdeck_ref The atlas mirrors our shared route for the record.",
+    "in_reply_to_status_id_str": "100001885540",
+    "in_reply_to_screen_name": "orlopdeck_ref",
+    "conversation_id": "100001889639"
+  },
+  {
+    "id_str": "100001893738",
+    "url": "https://x.com/harlanpix_mock/status/100001893738",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-04T06:34:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Lantern for Android</a>",
+    "full_text": "RT @orlopdeck_ref: The atlas reroutes the manifest twice over."
+  },
+  {
+    "id_str": "100001897837",
+    "url": "https://x.com/harlanpix_mock/status/100001897837",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-05T14:12:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Courier Deck</a>",
+    "full_text": "The atlas drifts past every waypoint and moves on."
+  },
+  {
+    "id_str": "100001901936",
+    "url": "https://x.com/harlanpix_mock/status/100001901936",
+    "user": {
+      "screen_name": "harlanpix_mock"
+    },
+    "created_at": "2026-01-06T09:27:00.000Z",
+    "source": "<a href=\"https://example.invalid/app\">Nimbus for Web</a>",
+    "full_text": "Our ledger mirrors our shared route again today."
+  }
+]
