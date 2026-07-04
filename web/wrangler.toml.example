@@ -21,6 +21,15 @@ invocation_logs = true
 # Fallback when no service binding (local dev or misconfigured binding)
 [vars]
 # DEFAULT_BACKEND_URL = "http://127.0.0.1:8787"
+#
+# Backend override policy (resolveBackend in worker.js, issue #66):
+# The UI 'Backend URL' field sends ?backend=<url> to the /api/proxy route. With
+# the BACKEND service binding set (hosted deploys), any override is rejected with
+# an explicit 400. With no binding, an override is honored ONLY if its origin is a
+# loopback dev address (http://127.0.0.1:*, http://localhost:*) or listed below.
+# Credentials (authorization, x-anthropic-api-key, x-investigation-token) are only
+# forwarded to such a trusted target. Leave unset in production. Comma-separated:
+# BACKEND_ORIGIN_ALLOWLIST = "https://common-thread-dev.example.workers.dev"
 
 # =============================================================================
 # Service bindings → backend Worker
