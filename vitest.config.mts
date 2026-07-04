@@ -78,6 +78,31 @@ const nodeSuites = [
 
 export default defineConfig({
   test: {
+    // Coverage (issue #72). One unified istanbul report across BOTH projects:
+    // vitest merges per-file coverage maps, so a line exercised by EITHER the
+    // workers pool OR the node-db project counts as covered (union semantics).
+    // Scoped to implementation/** (the shipped Worker source); tests/, scripts/
+    // and config are not the subject under measurement. istanbul (not v8) is
+    // required because the v8 provider does not instrument code inside the
+    // @cloudflare/vitest-pool-workers (workerd) runtime; istanbul does, and it
+    // is already the installed devDependency.
+    //
+    // Thresholds are a deliberately MODEST floor set just under the current
+    // measured union over implementation/** (statements ~47.9, branches ~34.8,
+    // functions ~54.2, lines ~51.4), so CI stays green with a few points of
+    // headroom and the floor can be ratcheted up later. The goal is a real
+    // number that cannot silently regress, not a target to chase.
+    coverage: {
+      provider: 'istanbul',
+      reporter: ['text', 'text-summary'],
+      include: ['implementation/**/*.ts'],
+      thresholds: {
+        statements: 45,
+        branches: 30,
+        functions: 50,
+        lines: 48,
+      },
+    },
     projects: [
       // --- Pure Workers-runtime suites (no mysql2, no node:fs, no DB env) ---
       {

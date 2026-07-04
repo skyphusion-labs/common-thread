@@ -25,6 +25,7 @@
     "dev:web": "wrangler dev --config web/wrangler.toml",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "db:migrate": "node scripts/apply-mysql-schema.mjs",
     "db:hyperdrive:create": "wrangler hyperdrive create common-thread --connection-string",
     "r2:create": "wrangler r2 bucket create common-thread-archive --binding ARCHIVE --update-config",
