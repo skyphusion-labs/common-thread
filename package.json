@@ -33,15 +33,15 @@
     "keygen": "node scripts/keygen.mjs"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1076.0",
+    "@aws-sdk/client-s3": "^3.1080.0",
     "marked": "^18.0.5",
     "mysql2": "^3.22.5"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.16.20",
+    "@cloudflare/vitest-pool-workers": "^0.18.0",
     "@cloudflare/workers-types": "^4.20260616.1",
-    "@vitest/coverage-istanbul": "^4.1.9",
-    "tsx": "^4.20.3",
+    "@vitest/coverage-istanbul": "^4.1.10",
+    "tsx": "^4.23.0",
     "typescript": "^6.0.3",
     "undici": "^7.28.0",
     "vitest": "^4.1.9",
