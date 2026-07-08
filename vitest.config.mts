@@ -94,7 +94,7 @@ export default defineConfig({
     // number that cannot silently regress, not a target to chase.
     coverage: {
       provider: 'istanbul',
-      reporter: ['text', 'text-summary'],
+      reporter: ['text', 'text-summary', 'cobertura'],
       include: ['implementation/**/*.ts'],
       thresholds: {
         statements: 45,
