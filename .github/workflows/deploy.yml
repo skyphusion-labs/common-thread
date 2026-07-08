@@ -1,0 +1,95 @@
+name: deploy
+
+# Deploy backend + web Workers to production on a green push to main.
+# PRs are gated by ci.yml; this re-runs typecheck + tests on the exact commit
+# being shipped (same pattern as postern deploy.yml).
+#
+# Workers:
+#   root wrangler.toml -> common-thread-prod (API)
+#   web/wrangler.toml  -> common-thread-web-prod (browser UI)
+#
+# Required repo secrets:
+#   CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID
+#   COMMON_THREAD_BACKEND_WRANGLER -- full production backend wrangler.toml (real ids)
+#   COMMON_THREAD_WEB_WRANGLER      -- full production web wrangler.toml
+#
+# Runtime secrets (INGEST_SECRET, PDF_SECRET, AI keys, etc.) are set once via
+# `wrangler secret put` and persist across deploys -- not managed here.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-common-thread-main
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy Workers to Cloudflare
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+          MYSQL_DATABASE: common_thread_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      TEST_MYSQL_URL: mysql://root@127.0.0.1:3306/common_thread_test
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Gate (typecheck + tests)
+        run: |
+          npm ci
+          npm run typecheck
+          cp wrangler.toml.example wrangler.toml
+          npx vitest run --project workers
+          npm run db:migrate
+          npx vitest run --project node-db
+        env:
+          MYSQL_URL: mysql://root@127.0.0.1:3306/common_thread_test
+
+      - name: Deploy backend (common-thread-prod)
+        env:
+          COMMON_THREAD_BACKEND_WRANGLER: ${{ secrets.COMMON_THREAD_BACKEND_WRANGLER }}
+        run: |
+          set -euo pipefail
+          [ -n "${COMMON_THREAD_BACKEND_WRANGLER:-}" ] || {
+            echo "::error::COMMON_THREAD_BACKEND_WRANGLER secret is unset"
+            exit 1
+          }
+          printf '%s' "$COMMON_THREAD_BACKEND_WRANGLER" > wrangler.ci.toml
+          npx wrangler deploy --env production -c wrangler.ci.toml
+          rm -f wrangler.ci.toml
+
+      - name: Deploy web (common-thread-web-prod)
+        env:
+          COMMON_THREAD_WEB_WRANGLER: ${{ secrets.COMMON_THREAD_WEB_WRANGLER }}
+        run: |
+          set -euo pipefail
+          [ -n "${COMMON_THREAD_WEB_WRANGLER:-}" ] || {
+            echo "::error::COMMON_THREAD_WEB_WRANGLER secret is unset"
+            exit 1
+          }
+          printf '%s' "$COMMON_THREAD_WEB_WRANGLER" > web/wrangler.ci.toml
+          npx wrangler deploy --env production -c web/wrangler.ci.toml
+          rm -f web/wrangler.ci.toml

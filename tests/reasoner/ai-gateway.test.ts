@@ -18,7 +18,7 @@
 import { beforeAll, afterEach, describe, it, expect } from 'vitest';
 import { fetchMock } from '../helpers/undici-mock';
 
-import { callLLM, extractJSONObject } from '../../implementation/reasoner/ai-gateway';
+import { callLLM, extractJSONObject, LlmTransportError } from '../../implementation/reasoner/ai-gateway';
 
 beforeAll(() => {
   fetchMock.activate();
@@ -155,7 +155,44 @@ describe('callLLM', () => {
         userPrompt: 'usr',
         maxTokens: 256,
       })
-    ).rejects.toThrow(/HTTP 500/);
+    ).rejects.toThrow(LlmTransportError);
+  });
+
+  it('retries once on HTTP 429 then succeeds', async () => {
+    fetchMock
+      .get('https://gateway.test')
+      .intercept({ path: '/anthropic/v1/messages', method: 'POST' })
+      .reply(429, 'rate limited')
+      .times(1);
+
+    fetchMock
+      .get('https://gateway.test')
+      .intercept({ path: '/anthropic/v1/messages', method: 'POST' })
+      .reply(
+        200,
+        {
+          id: 'msg_retry',
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'text', text: '{"verdict":"obviously_not_coordinated"}' }],
+          model: 'claude-haiku-4-5-20260101',
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 1, output_tokens: 1 },
+        },
+        { headers: { 'content-type': 'application/json' } }
+      );
+
+    const result = await callLLM({
+      apiKey: 'sk-test',
+      gatewayUrl: 'https://gateway.test/anthropic',
+      model: 'claude-haiku-4-5',
+      systemPrompt: 'sys',
+      userPrompt: 'usr',
+      maxTokens: 256,
+      maxRetries: 2,
+    });
+
+    expect(result.text).toContain('obviously_not_coordinated');
   });
 
   it('appends /v1/messages when the gateway URL already has a trailing slash', async () => {

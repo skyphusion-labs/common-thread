@@ -32,6 +32,11 @@ export async function renderHtmlToPdfA(html: string): Promise<Uint8Array> {
         // internal endpoints (SSRF). Evidence-packet HTML is self-contained, so
         // disabling local-file access does not affect a normal render.
         '--disable-local-file-access',
+        // Attacker-influenced packet HTML must not execute script or fetch
+        // remote resources during render (issue #65).
+        '--disable-javascript',
+        '--disable-external-links',
+        '--no-images',
         '--print-media-type',
         '--page-size',
         'A4',
