@@ -50,6 +50,13 @@ describe('investigation API helpers', () => {
     expect(clean).not.toMatch(/http:\/\/evil\.example/);
     expect(clean).toContain('<p>ok</p>');
   });
+
+  it('packetMarkdownToHtml escapes raw HTML blocks in markdown source', async () => {
+    const html = await packetMarkdownToHtml('<script>alert(1)</script>\n\n# Title', 't');
+    expect(html).not.toMatch(/<script/i);
+    expect(html).toContain('&lt;script&gt;');
+    expect(html).toContain('<h1>Title</h1>');
+  });
 });
 
 function escapeForExpect(value: string): string {

@@ -31,6 +31,8 @@ export class TwitterEngagementEventExtractor implements EventFeatureExtractor {
       tool.includes('timeline') ||
       tool.includes('tweets') ||
       tool.includes('posts') ||
+      tool.includes('twitter') ||
+      tool.includes('x-com') ||
       source.includes('/timeline') ||
       source.includes('/tweets')
     );
