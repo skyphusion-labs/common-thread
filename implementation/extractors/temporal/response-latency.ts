@@ -21,7 +21,7 @@ import {
   type TriggeringEvent,
 } from '../../investigations/triggers';
 import { isApifyTweetLike, tweetText } from '../../ingest/apify-tweet-fields';
-import { sourceMatchesHost } from '../platform';
+import { inferPlatform } from '../platform';
 import { parseTimestamp } from './helpers';
 import type { PairFeatureExtractor, AccountFeatureMap } from '../pair-types';
 import type { ExtractedFeature } from '../types';
@@ -345,11 +345,4 @@ function pearson(a: number[], b: number[]): number | null {
   const den = Math.sqrt(denA * denB);
   if (den === 0) return null;
   return num / den;
-}
-
-function inferPlatform(entry: { collectionMethod: { tool: string }; source: string }): string {
-  const tool = entry.collectionMethod.tool.toLowerCase();
-  if (tool.includes('twitter') || tool.includes('x-com')) return 'twitter';
-  if (sourceMatchesHost(entry.source, 'twitter.com', 'x.com')) return 'twitter';
-  return 'unknown';
 }

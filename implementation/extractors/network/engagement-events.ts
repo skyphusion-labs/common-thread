@@ -9,7 +9,7 @@
  */
 
 import type { ManifestEntry } from '../../archive/types';
-import { sourceMatchesHost } from '../platform';
+import { entryMatchesPlatform } from '../platform';
 import type { EventFeatureExtractor, ExtractedEvent } from '../event-types';
 import type { ExtractorInput } from '../types';
 import { extractEngagementsFromPosts, parsePosts } from './engagement-parse';
@@ -22,29 +22,20 @@ export class TwitterEngagementEventExtractor implements EventFeatureExtractor {
   readonly version = VERSION;
 
   filterEntry(entry: ManifestEntry): boolean {
+    if (entryMatchesPlatform(entry, 'twitter') !== true) return false;
+
     const tool = entry.collectionMethod.tool.toLowerCase();
     const source = entry.source.toLowerCase();
 
-    if (
+    return (
       tool.includes('timeline') ||
       tool.includes('tweets') ||
       tool.includes('posts') ||
-      tool.includes('apify')
-    ) {
-      return true;
-    }
-    if (
+      tool.includes('twitter') ||
+      tool.includes('x-com') ||
       source.includes('/timeline') ||
-      source.includes('/tweets') ||
-      source.includes('apify')
-    ) {
-      return true;
-    }
-
-    if (tool.includes('twitter') || tool.includes('x-com')) return true;
-    if (sourceMatchesHost(source, 'twitter.com', 'x.com')) return true;
-
-    return false;
+      source.includes('/tweets')
+    );
   }
 
   extract(input: ExtractorInput): ExtractedEvent[] {

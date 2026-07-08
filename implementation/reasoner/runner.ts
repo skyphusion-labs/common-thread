@@ -41,6 +41,7 @@ import type {
   NewAttributionRun,
 } from '../schema/db-types';
 import { REASONING_PROMPT_VERSION, TRIAGE_PROMPT_VERSION } from './prompts';
+import { isLlmTransportError } from './ai-gateway';
 import { runReasoning } from './reasoner';
 import { runTriage } from './triage';
 import { toPresentationConfidence } from '../extractors/confidence';
@@ -85,7 +86,9 @@ export interface RunAttributionOptions {
 
   /**
    * Override the randomization seed for signal-order presentation.
-   * Default: a fresh random UUID per pair (recorded with each run).
+   * When set, the same seed is reused for every pair in the run (useful
+   * for deterministic test replays). Default: a fresh random UUID per
+   * pair, recorded on each attribution_runs row.
    */
   randomizationSeed?: string;
 
@@ -184,52 +187,71 @@ export async function runAttribution(
 
       let triageOut: TriageOutput | undefined;
       let escalate = !!options.skipTriage;
-
-      if (!options.skipTriage) {
-        triageOut = await runTriage({
-          apiKey: env.ANTHROPIC_API_KEY,
-          gatewayUrl: env.AI_GATEWAY_URL,
-          model: env.TRIAGE_MODEL,
-          pair: {
-            account_a: left.account,
-            account_b: right.account,
-            platform_a: left.platform,
-            platform_b: right.platform,
-          },
-          signal_table: signalTable,
-        });
-        escalate = triageOut.verdict === 'warrants_further_analysis';
-      }
-
       let reasoningOutput: ReasoningOutput | undefined;
       let reasoningAttempts: number | undefined;
       let reasoningDeclined = false;
+      let transportFailure = false;
 
-      if (escalate) {
-        const result = await runReasoning({
-          apiKey: env.ANTHROPIC_API_KEY,
-          gatewayUrl: env.AI_GATEWAY_URL,
-          model: env.REASONING_MODEL,
-          signal_table: signalTable,
-          max_attempts: options.maxRetries,
-        });
-        reasoningOutput = result.output;
-        reasoningAttempts = result.attempts;
-        reasoningDeclined = result.declined;
+      try {
+        if (!options.skipTriage) {
+          triageOut = await runTriage({
+            apiKey: env.ANTHROPIC_API_KEY,
+            gatewayUrl: env.AI_GATEWAY_URL,
+            model: env.TRIAGE_MODEL,
+            pair: {
+              account_a: left.account,
+              account_b: right.account,
+              platform_a: left.platform,
+              platform_b: right.platform,
+            },
+            signal_table: signalTable,
+          });
+          escalate = triageOut.verdict === 'warrants_further_analysis';
+        }
+
+        if (escalate) {
+          const result = await runReasoning({
+            apiKey: env.ANTHROPIC_API_KEY,
+            gatewayUrl: env.AI_GATEWAY_URL,
+            model: env.REASONING_MODEL,
+            signal_table: signalTable,
+            max_attempts: options.maxRetries,
+          });
+          reasoningOutput = result.output;
+          reasoningAttempts = result.attempts;
+          reasoningDeclined = result.declined;
+        }
+      } catch (err) {
+        if (!isLlmTransportError(err)) throw err;
+        transportFailure = true;
+        reasoningDeclined = true;
+        reasoningOutput = buildTransportFailureOutput(signalTable, err);
       }
 
       const completedAt = new Date().toISOString();
 
-      const { band, summary, outputJson } = synthesizeAttributionOutput({
-        triageOut,
-        reasoningOutput,
-        pair: {
-          account_a: left.account,
-          account_b: right.account,
-          platform_a: left.platform,
-          platform_b: right.platform,
-        },
-      });
+      const { band, summary, outputJson } = transportFailure
+        ? synthesizeTransportFailureOutput({
+            triageOut,
+            reasoningOutput: reasoningOutput!,
+            pair: {
+              account_a: left.account,
+              account_b: right.account,
+              platform_a: left.platform,
+              platform_b: right.platform,
+            },
+            transportError: reasoningOutput!.declined_pairs[0]?.reason ?? 'LLM transport failure',
+          })
+        : synthesizeAttributionOutput({
+            triageOut,
+            reasoningOutput,
+            pair: {
+              account_a: left.account,
+              account_b: right.account,
+              platform_a: left.platform,
+              platform_b: right.platform,
+            },
+          });
 
       const attributionRunId = await writeAttributionRun(env.DB, {
         investigation_id: options.investigationId,
@@ -242,7 +264,7 @@ export async function runAttribution(
         model_version:
           reasoningOutput?.methodology_metadata.model_version ??
           triageOut?.methodology_metadata.model_version ??
-          env.TRIAGE_MODEL,
+          '',
         reasoning_prompt_version: reasoningOutput
           ? REASONING_PROMPT_VERSION
           : TRIAGE_PROMPT_VERSION,
@@ -382,6 +404,61 @@ export function derivePairBand(
     }
   }
   return best;
+}
+
+function buildTransportFailureOutput(
+  signal_table: SignalTable,
+  err: Error
+): ReasoningOutput {
+  const seen = new Set<string>();
+  const declined_pairs: ReasoningOutput['declined_pairs'] = [];
+  for (const sig of signal_table.signals) {
+    if (sig.scope.type !== 'pair') continue;
+    const key = `${sig.scope.account_a}|${sig.scope.account_b}|${sig.scope.platform_a}|${sig.scope.platform_b}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    declined_pairs.push({
+      account_a: sig.scope.account_a,
+      account_b: sig.scope.account_b,
+      platform_a: sig.scope.platform_a,
+      platform_b: sig.scope.platform_b,
+      reason: `LLM transport failure; pair declined per §7.2.3: ${err.message}`,
+    });
+  }
+
+  return {
+    claims: [],
+    alternative_explanations: [],
+    declined_pairs,
+    methodology_metadata: {
+      model_identifier: '',
+      model_version: '',
+      prompt_version: REASONING_PROMPT_VERSION,
+      randomization_seed: signal_table.randomization_seed,
+      run_timestamp: new Date().toISOString(),
+    },
+  };
+}
+
+function synthesizeTransportFailureOutput(args: {
+  triageOut: TriageOutput | undefined;
+  reasoningOutput: ReasoningOutput;
+  pair: {
+    account_a: string;
+    account_b: string;
+    platform_a: string;
+    platform_b: string;
+  };
+  transportError: string;
+}): SynthesizedOutput {
+  return {
+    band: 'insufficient',
+    summary: `insufficient (LLM transport failure): ${args.transportError}`,
+    outputJson: {
+      triage: args.triageOut,
+      ...args.reasoningOutput,
+    } as unknown as Record<string, unknown>,
+  };
 }
 
 function bandValue(b: ConfidenceBand): number {
@@ -704,7 +781,7 @@ async function loadEventSignals(
 
     return {
       signal_id: `event:${row.id}` as SignalId,
-      category: 'network',
+      category: 'event',
       feature_name: row.event_type,
       scope: {
         type: 'account',

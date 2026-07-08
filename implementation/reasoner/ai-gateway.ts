@@ -24,6 +24,14 @@
 const ANTHROPIC_VERSION = '2023-06-01';
 const MESSAGES_PATH = '/v1/messages';
 
+/** Default wall-clock timeout per LLM attempt. */
+export const DEFAULT_LLM_TIMEOUT_MS = 120_000;
+
+/** Default transport-level retries on 429/5xx and network errors. */
+export const DEFAULT_LLM_MAX_RETRIES = 3;
+
+const RETRYABLE_HTTP_STATUSES = new Set([429, 500, 502, 503, 504]);
+
 export interface LLMCallOptions {
   apiKey: string;
   /** Full base URL ending in '/anthropic'; '/v1/messages' is appended. */
@@ -41,6 +49,10 @@ export interface LLMCallOptions {
    * §7.2.3's retry loop + §7.2.2 validator catch malformed outputs).
    */
   temperature?: number;
+  /** Per-attempt timeout in milliseconds. Default {@link DEFAULT_LLM_TIMEOUT_MS}. */
+  timeoutMs?: number;
+  /** Transport retries on 429/5xx and network errors. Default {@link DEFAULT_LLM_MAX_RETRIES}. */
+  maxRetries?: number;
 }
 
 export interface LLMCallResult {
@@ -66,13 +78,23 @@ export interface LLMCallResult {
 }
 
 /**
+ * True when an error originated from the LLM transport layer (timeout,
+ * non-retryable exhaustion of retries, or non-200 after retries).
+ * Callers use this to isolate per-pair failures in runAttribution.
+ */
+export function isLlmTransportError(err: unknown): err is Error {
+  return err instanceof Error && err.name === 'LlmTransportError';
+}
+
+/**
  * Make one Anthropic /v1/messages call via the Cloudflare AI Gateway.
- * Throws on network error, non-200 HTTP status, or malformed response
- * shape. Callers (triage.ts, reasoner.ts) handle their own retry /
- * declination semantics.
+ * Retries transient 429/5xx and network failures with bounded backoff.
+ * Throws {@link LlmTransportError} on timeout or exhausted retries.
  */
 export async function callLLM(opts: LLMCallOptions): Promise<LLMCallResult> {
   const url = joinGatewayPath(opts.gatewayUrl, MESSAGES_PATH);
+  const timeoutMs = opts.timeoutMs ?? DEFAULT_LLM_TIMEOUT_MS;
+  const maxRetries = opts.maxRetries ?? DEFAULT_LLM_MAX_RETRIES;
 
   const body: Record<string, unknown> = {
     model: opts.model,
@@ -84,41 +106,90 @@ export async function callLLM(opts: LLMCallOptions): Promise<LLMCallResult> {
     body.temperature = opts.temperature;
   }
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-api-key': opts.apiKey,
-      'anthropic-version': ANTHROPIC_VERSION,
-    },
-    body: JSON.stringify(body),
-  });
+  let lastError: Error | undefined;
 
-  if (!res.ok) {
-    const errText = await res.text().catch(() => '<unreadable>');
-    throw new Error(
-      `AI Gateway request failed: HTTP ${res.status} ${res.statusText} for model '${opts.model}'. Body: ${errText.slice(0, 500)}`
-    );
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': opts.apiKey,
+          'anthropic-version': ANTHROPIC_VERSION,
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '<unreadable>');
+        const message = `AI Gateway request failed: HTTP ${res.status} ${res.statusText} for model '${opts.model}'. Body: ${errText.slice(0, 500)}`;
+        if (RETRYABLE_HTTP_STATUSES.has(res.status) && attempt < maxRetries - 1) {
+          lastError = new LlmTransportError(message);
+          await sleep(retryDelayMs(attempt));
+          continue;
+        }
+        throw new LlmTransportError(message);
+      }
+
+      let json: unknown;
+      try {
+        json = await res.json();
+      } catch (err) {
+        throw new LlmTransportError(
+          `AI Gateway response was not JSON for model '${opts.model}': ${err instanceof Error ? err.message : String(err)}`
+        );
+      }
+
+      return parseLlmResponse(json, opts.model);
+    } catch (err) {
+      if (err instanceof LlmTransportError) {
+        if (attempt < maxRetries - 1) {
+          lastError = err;
+          await sleep(retryDelayMs(attempt));
+          continue;
+        }
+        throw err;
+      }
+
+      const message =
+        err instanceof Error && err.name === 'AbortError'
+          ? `AI Gateway request timed out after ${timeoutMs}ms for model '${opts.model}'`
+          : `AI Gateway request failed for model '${opts.model}': ${err instanceof Error ? err.message : String(err)}`;
+
+      if (attempt < maxRetries - 1) {
+        lastError = new LlmTransportError(message);
+        await sleep(retryDelayMs(attempt));
+        continue;
+      }
+      throw new LlmTransportError(message);
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
-  let json: unknown;
-  try {
-    json = await res.json();
-  } catch (err) {
-    throw new Error(
-      `AI Gateway response was not JSON for model '${opts.model}': ${err instanceof Error ? err.message : String(err)}`
-    );
-  }
+  throw lastError ?? new LlmTransportError(`AI Gateway request failed for model '${opts.model}'`);
+}
 
+export class LlmTransportError extends Error {
+  override name = 'LlmTransportError';
+}
+
+function parseLlmResponse(json: unknown, modelAlias: string): LLMCallResult {
   if (!json || typeof json !== 'object') {
-    throw new Error(`AI Gateway response was not an object for model '${opts.model}'`);
+    throw new LlmTransportError(
+      `AI Gateway response was not an object for model '${modelAlias}'`
+    );
   }
 
   const obj = json as Record<string, unknown>;
   const content = obj.content;
   if (!Array.isArray(content)) {
-    throw new Error(
-      `AI Gateway response missing 'content' array for model '${opts.model}'. Got keys: ${Object.keys(obj).join(', ')}`
+    throw new LlmTransportError(
+      `AI Gateway response missing 'content' array for model '${modelAlias}'. Got keys: ${Object.keys(obj).join(', ')}`
     );
   }
 
@@ -133,13 +204,22 @@ export async function callLLM(opts: LLMCallOptions): Promise<LLMCallResult> {
   const usage = obj.usage as Record<string, unknown> | undefined;
   return {
     text: textParts.join(''),
-    modelVersion: typeof obj.model === 'string' ? obj.model : opts.model,
+    modelVersion: typeof obj.model === 'string' ? obj.model : modelAlias,
     stopReason: typeof obj.stop_reason === 'string' ? obj.stop_reason : null,
     usage: {
       inputTokens: typeof usage?.input_tokens === 'number' ? usage.input_tokens : 0,
       outputTokens: typeof usage?.output_tokens === 'number' ? usage.output_tokens : 0,
     },
   };
+}
+
+function retryDelayMs(attempt: number): number {
+  // 1s, 2s, 4s capped at 8s.
+  return Math.min(1000 * 2 ** attempt, 8000);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function joinGatewayPath(base: string, path: string): string {

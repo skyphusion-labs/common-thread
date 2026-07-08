@@ -2,10 +2,12 @@
  * HTML rendering for evidence packets (§8.1.2).
  *
  * Markdown remains canonical; HTML is the print source for wkhtmltopdf
- * in the self-hosted PDF/A container.
+ * in the self-hosted PDF/A container. Raw HTML in markdown source and
+ * model-influenced text is escaped at parse time and sanitized again
+ * before injection.
  */
 
-import { marked } from 'marked';
+import { Marked } from 'marked';
 
 const PRINT_CSS = `
   @page {
@@ -66,6 +68,72 @@ const PRINT_CSS = `
   }
 `;
 
+const DANGEROUS_TAG_NAMES = [
+  'script',
+  'iframe',
+  'object',
+  'embed',
+  'form',
+  'base',
+  'meta',
+] as const;
+
+/** marked instance: raw HTML blocks in markdown are escaped, not passed through. */
+const packetMarked = new Marked();
+packetMarked.use({
+  walkTokens(token) {
+    if (token.type === 'html') {
+      const escaped = escapeHtml(token.text);
+      token.type = 'text';
+      token.text = escaped;
+      token.raw = escaped;
+    }
+  },
+});
+
+/**
+ * Apply one regex replacement repeatedly until the string stabilizes.
+ * CodeQL requires this pattern for multi-character sanitization (issue #65).
+ */
+function replaceUntilStable(input: string, pattern: RegExp, replacement = ''): string {
+  let out = input;
+  let previous: string;
+  do {
+    previous = out;
+    out = out.replace(pattern, replacement);
+  } while (out !== previous);
+  return out;
+}
+
+/** Strip active content and external resource loads from marked HTML output. */
+export function sanitizePacketHtml(html: string): string {
+  let out = html;
+
+  for (const tag of DANGEROUS_TAG_NAMES) {
+    out = replaceUntilStable(
+      out,
+      new RegExp(`<\\s*${tag}\\b[^>]*>[\\s\\S]*?<\\s*\\/\\s*${tag}\\s*>`, 'gi')
+    );
+    out = replaceUntilStable(out, new RegExp(`<\\s*${tag}\\b[^>]*\\/?>`, 'gi'));
+  }
+
+  out = replaceUntilStable(out, /\s+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi);
+  out = replaceUntilStable(
+    out,
+    /\s(href|src|xlink:href)\s*=\s*(["'])\s*javascript:[^"']*\2/gi
+  );
+  out = replaceUntilStable(
+    out,
+    /<\s*img\b[^>]*\ssrc\s*=\s*(["'])https?:[^"']*\1[^>]*>/gi
+  );
+  out = replaceUntilStable(
+    out,
+    /<\s*link\b[^>]*\shref\s*=\s*(["'])https?:[^"']*\1[^>]*>/gi
+  );
+
+  return out;
+}
+
 export function packetDocumentTitle(investigationId: string, runId: number): string {
   return `Common Thread Evidence Packet — ${investigationId} — run ${runId}`;
 }
@@ -74,7 +142,8 @@ export async function packetMarkdownToHtml(
   markdown: string,
   title: string
 ): Promise<string> {
-  const body = await marked.parse(markdown);
+  const parsed = await packetMarked.parse(markdown);
+  const body = sanitizePacketHtml(parsed);
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -90,9 +159,10 @@ export async function packetMarkdownToHtml(
 }
 
 function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  let out = value;
+  out = replaceUntilStable(out, /&/g, '&amp;');
+  out = replaceUntilStable(out, /</g, '&lt;');
+  out = replaceUntilStable(out, />/g, '&gt;');
+  out = replaceUntilStable(out, /"/g, '&quot;');
+  return out;
 }

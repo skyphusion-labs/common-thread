@@ -1092,7 +1092,7 @@ export default {
       }
 
       const backendPath = url.pathname.slice('/api/proxy'.length) || '/';
-      const targetUrl = new URL(decision.base + backendPath);
+      const targetUrl = new URL(decision.base + backendPath + url.search);
       // Drop proxy-only query params before forwarding.
       targetUrl.searchParams.delete('backend');
 

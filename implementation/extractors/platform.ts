@@ -1,3 +1,5 @@
+import type { ManifestEntry } from '../archive/types';
+
 /**
  * Parsed-host platform matching.
  *
@@ -68,4 +70,54 @@ export function sourceMatchesHost(source: string, ...domains: string[]): boolean
   const host = hostOf(source);
   if (host === null) return false;
   return domains.some((domain) => hostMatches(host, domain));
+}
+
+/** Known platform identifiers inferred from manifest entries. */
+export type InferredPlatform =
+  | 'twitter'
+  | 'reddit'
+  | 'bluesky'
+  | 'mastodon'
+  | 'instagram'
+  | 'unknown';
+
+/**
+ * Infer the platform for a manifest entry.
+ *
+ * Source URL host is authoritative when parseable. Collection-tool hints
+ * fill gaps when the source does not parse. Apify artifacts resolve from
+ * the source host only; the tool name alone never implies twitter.
+ *
+ * TODO(manifest-schema): add an explicit `platform` field to ManifestEntry
+ * and require it at collection time.
+ */
+export function inferPlatform(entry: ManifestEntry): InferredPlatform {
+  const tool = entry.collectionMethod.tool.toLowerCase();
+  const source = entry.source;
+
+  const fromSource = platformFromSourceHost(source);
+  if (fromSource !== 'unknown') return fromSource;
+
+  if (tool.includes('twitter') || tool.includes('x-com')) return 'twitter';
+  if (tool.includes('reddit')) return 'reddit';
+  if (tool.includes('bluesky') || tool.includes('atproto')) return 'bluesky';
+  if (tool.includes('mastodon')) return 'mastodon';
+  if (tool.includes('instagram')) return 'instagram';
+
+  return 'unknown';
+}
+
+/** True when {@link inferPlatform} resolves to the given platform. */
+export function entryMatchesPlatform(entry: ManifestEntry, platform: InferredPlatform): boolean {
+  return inferPlatform(entry) === platform;
+}
+
+function platformFromSourceHost(source: string): InferredPlatform {
+  if (sourceMatchesHost(source, 'twitter.com', 'x.com')) return 'twitter';
+  if (sourceMatchesHost(source, 'reddit.com', 'redd.it')) return 'reddit';
+  if (sourceMatchesHost(source, 'bsky.app', 'bsky.social')) return 'bluesky';
+  if (sourceMatchesHost(source, 'instagram.com')) return 'instagram';
+  // Federated; host match is best-effort until manifest carries platform.
+  if (sourceMatchesHost(source, 'mastodon.social')) return 'mastodon';
+  return 'unknown';
 }

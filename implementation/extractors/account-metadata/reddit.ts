@@ -31,7 +31,7 @@ import type {
   ExtractedFeature,
 } from '../types';
 import type { ManifestEntry } from '../../archive/types';
-import { sourceMatchesHost } from '../platform';
+import { entryMatchesPlatform } from '../platform';
 
 const NAME = 'account_metadata_reddit';
 const VERSION = '1.0.0';
@@ -71,18 +71,7 @@ export class RedditAccountMetadataExtractor implements AccountFeatureExtractor {
   readonly version = VERSION;
 
   filterEntry(entry: ManifestEntry): boolean {
-    const tool = entry.collectionMethod.tool.toLowerCase();
-    const source = entry.source.toLowerCase();
-
-    if (tool.includes('reddit')) return true;
-    if (sourceMatchesHost(source, 'reddit.com', 'redd.it')) return true;
-
-    // Don't process artifacts that obviously belong to other platforms.
-    if (tool.includes('twitter') || tool.includes('x-com')) return false;
-    if (sourceMatchesHost(source, 'twitter.com', 'x.com')) return false;
-
-    // Otherwise let it through and rely on extract() to discriminate.
-    return true;
+    return entryMatchesPlatform(entry, 'reddit');
   }
 
   extract(input: ExtractorInput): ExtractedFeature[] {
