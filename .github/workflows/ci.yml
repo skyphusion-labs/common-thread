@@ -89,6 +89,11 @@ jobs:
     # truth. Modest thresholds live in vitest.config.mts and fail the job on
     # regression. Hosted runner keeps untrusted-PR code in GitHub sandbox.
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      code-quality: write
+      pull-requests: write
     services:
       mysql:
         image: mysql:8.0
@@ -120,3 +125,9 @@ jobs:
           MYSQL_URL: mysql://root@127.0.0.1:3306/common_thread_test
       - name: Coverage (both projects, unified istanbul report)
         run: npm run test:coverage
+      - name: Upload coverage report
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/upload-code-coverage@v1
+        with:
+          file: ./coverage/cobertura-coverage.xml
+          language: javascript
