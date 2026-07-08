@@ -9,8 +9,7 @@
 import { ArchiveStore } from '../archive/store';
 import { ManifestStore } from '../archive/manifest';
 import type { DatabaseClient } from '../db';
-import type { ManifestEntry } from '../archive/types';
-import { sourceMatchesHost } from './platform';
+import { inferPlatform } from './platform';
 import type { EventFeatureExtractor, ExtractedEvent } from './event-types';
 
 export interface EventRunnerEnv {
@@ -76,6 +75,7 @@ export async function runEventExtractors(
     const extractorRunId = runResult.meta.last_row_id as number;
     let inputCount = 0;
     let outputCount = 0;
+    let unknownPlatformCount = 0;
 
     try {
       for (const entry of entries) {
@@ -99,6 +99,8 @@ export async function runEventExtractors(
         });
 
         const platform = inferPlatform(entry);
+        if (platform === 'unknown') unknownPlatformCount++;
+
         for (const event of events) {
           await writeEventFeature(env.DB, {
             investigationId: options.investigationId,
@@ -116,13 +118,18 @@ export async function runEventExtractors(
       }
 
       const completedAt = new Date().toISOString();
+      const configurationJson =
+        unknownPlatformCount > 0
+          ? JSON.stringify({ unknown_platform_artifact_count: unknownPlatformCount })
+          : null;
       await env.DB.prepare(
         `UPDATE extractor_runs SET
            completed_at = ?, status = 'completed',
-           input_artifact_count = ?, output_feature_count = ?
+           input_artifact_count = ?, output_feature_count = ?,
+           configuration_json = COALESCE(?, configuration_json)
          WHERE id = ?`
       )
-        .bind(completedAt, inputCount, outputCount, extractorRunId)
+        .bind(completedAt, inputCount, outputCount, configurationJson, extractorRunId)
         .run();
 
       results.push({
@@ -200,19 +207,4 @@ async function writeEventFeature(
     )
     .bind(eventFeatureId, params.artifactHash, params.manifestEntryHash ?? null)
     .run();
-}
-
-function inferPlatform(entry: ManifestEntry): string {
-  const tool = entry.collectionMethod.tool.toLowerCase();
-  const source = entry.source.toLowerCase();
-
-  if (tool.includes('twitter') || tool.includes('x-com') || tool.includes('apify')) {
-    return 'twitter';
-  }
-  if (tool.includes('reddit')) return 'reddit';
-
-  if (sourceMatchesHost(source, 'twitter.com', 'x.com')) return 'twitter';
-  if (sourceMatchesHost(source, 'reddit.com')) return 'reddit';
-
-  return 'unknown';
 }

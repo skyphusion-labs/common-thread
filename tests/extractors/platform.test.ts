@@ -14,8 +14,10 @@ import { describe, expect, it } from 'vitest';
 import {
   hostOf,
   hostMatches,
+  inferPlatform,
   sourceMatchesHost,
 } from '../../implementation/extractors/platform';
+import type { ManifestEntry } from '../../implementation/archive/types';
 
 describe('hostOf', () => {
   it('extracts the host from a well-formed URL', () => {
@@ -135,5 +137,54 @@ describe('sourceMatchesHost', () => {
   it('returns false when the source does not parse', () => {
     expect(sourceMatchesHost('garbage', 'twitter.com')).toBe(false);
     expect(sourceMatchesHost('', 'twitter.com')).toBe(false);
+  });
+});
+
+describe('inferPlatform', () => {
+  function entry(partial: Partial<ManifestEntry> & Pick<ManifestEntry, 'source'>): ManifestEntry {
+    return {
+      hash: 'abc',
+      source: partial.source,
+      collectionMethod: partial.collectionMethod ?? { tool: 'manual', version: '1' },
+      investigationId: 'inv',
+      account: 'user',
+      mimeType: 'application/json',
+      status: 'present',
+      collectedAt: '2026-01-01T00:00:00.000Z',
+      ...partial,
+    };
+  }
+
+  it('resolves twitter from source host even when tool is apify', () => {
+    expect(
+      inferPlatform(
+        entry({
+          source: 'https://twitter.com/user/status/1',
+          collectionMethod: { tool: 'apify-twitter-timeline', version: '1' },
+        })
+      )
+    ).toBe('twitter');
+  });
+
+  it('does not stamp apify artifacts as twitter when source host is unknown', () => {
+    expect(
+      inferPlatform(
+        entry({
+          source: 'https://reddit.com/r/test/comments/abc',
+          collectionMethod: { tool: 'apify-reddit-scraper', version: '1' },
+        })
+      )
+    ).toBe('reddit');
+  });
+
+  it('returns unknown when neither source nor tool resolves', () => {
+    expect(
+      inferPlatform(
+        entry({
+          source: 'not-a-url',
+          collectionMethod: { tool: 'apify-mystery', version: '1' },
+        })
+      )
+    ).toBe('unknown');
   });
 });

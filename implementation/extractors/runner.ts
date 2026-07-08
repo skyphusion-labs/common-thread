@@ -15,8 +15,7 @@ import { ArchiveStore } from '../archive/store';
 import { ManifestStore } from '../archive/manifest';
 import type { DatabaseClient } from '../db';
 import { packFeatureValue } from '../schema/db-types';
-import type { ManifestEntry } from '../archive/types';
-import { sourceMatchesHost } from './platform';
+import { inferPlatform } from './platform';
 import type { AccountFeatureExtractor, ExtractedFeature } from './types';
 import { deriveStoredConfidence } from './confidence';
 
@@ -106,6 +105,7 @@ export async function runAccountExtractors(
 
     let inputCount = 0;
     let outputCount = 0;
+    let unknownPlatformCount = 0;
 
     try {
       for (const entry of entries) {
@@ -135,6 +135,8 @@ export async function runAccountExtractors(
 
         // Write features + provenance
         const platform = inferPlatform(entry);
+        if (platform === 'unknown') unknownPlatformCount++;
+
         for (const feature of features) {
           await writeAccountFeature(env.DB, {
             investigationId: options.investigationId,
@@ -152,13 +154,18 @@ export async function runAccountExtractors(
       }
 
       const completedAt = new Date().toISOString();
+      const configurationJson =
+        unknownPlatformCount > 0
+          ? JSON.stringify({ unknown_platform_artifact_count: unknownPlatformCount })
+          : null;
       await env.DB.prepare(
         `UPDATE extractor_runs SET
            completed_at = ?, status = 'completed',
-           input_artifact_count = ?, output_feature_count = ?
+           input_artifact_count = ?, output_feature_count = ?,
+           configuration_json = COALESCE(?, configuration_json)
          WHERE id = ?`
       )
-        .bind(completedAt, inputCount, outputCount, extractorRunId)
+        .bind(completedAt, inputCount, outputCount, configurationJson, extractorRunId)
         .run();
 
       results.push({
@@ -245,28 +252,4 @@ async function writeAccountFeature(
     )
     .bind(featureId, params.artifactHash, params.manifestEntryHash ?? null)
     .run();
-}
-
-/**
- * Infer the platform from a manifest entry.
- *
- * TODO(manifest-schema): The manifest entry should have an explicit
- * `platform` field. Inferring from collection_method.tool and source
- * URL is a stopgap. Add `platform: string` to ManifestEntry in the
- * archive layer types and update collectArtifact() to require it.
- */
-function inferPlatform(entry: ManifestEntry): string {
-  const tool = entry.collectionMethod.tool.toLowerCase();
-  const source = entry.source.toLowerCase();
-
-  if (tool.includes('twitter') || tool.includes('x-com')) return 'twitter';
-  if (tool.includes('reddit')) return 'reddit';
-  if (tool.includes('bluesky') || tool.includes('atproto')) return 'bluesky';
-  if (tool.includes('mastodon')) return 'mastodon';
-
-  if (sourceMatchesHost(source, 'twitter.com', 'x.com')) return 'twitter';
-  if (sourceMatchesHost(source, 'reddit.com')) return 'reddit';
-  if (sourceMatchesHost(source, 'bsky.app', 'bsky.social')) return 'bluesky';
-
-  return 'unknown';
 }

@@ -2,7 +2,8 @@
  * HTML rendering for evidence packets (§8.1.2).
  *
  * Markdown remains canonical; HTML is the print source for wkhtmltopdf
- * in the self-hosted PDF/A container.
+ * in the self-hosted PDF/A container. Raw HTML in markdown source and
+ * model-influenced text is sanitized before injection.
  */
 
 import { marked } from 'marked';
@@ -66,6 +67,25 @@ const PRINT_CSS = `
   }
 `;
 
+/** Strip active content and external resource loads from marked HTML output. */
+export function sanitizePacketHtml(html: string): string {
+  let out = html;
+
+  // Remove entire tags that can execute or embed remote content.
+  out = out.replace(/<\s*(script|iframe|object|embed|form|base|meta)\b[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '');
+  out = out.replace(/<\s*(script|iframe|object|embed|form|base|meta)\b[^>]*\/?>/gi, '');
+
+  // Drop inline event handlers and javascript: URLs.
+  out = out.replace(/\s+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  out = out.replace(/\s(href|src|xlink:href)\s*=\s*(["'])\s*javascript:[^"']*\2/gi, '');
+
+  // Block remote images/stylesheets (SSRF / beacon risk during PDF render).
+  out = out.replace(/<\s*img\b[^>]*\ssrc\s*=\s*(["'])https?:[^"']*\1[^>]*>/gi, '');
+  out = out.replace(/<\s*link\b[^>]*\shref\s*=\s*(["'])https?:[^"']*\1[^>]*>/gi, '');
+
+  return out;
+}
+
 export function packetDocumentTitle(investigationId: string, runId: number): string {
   return `Common Thread Evidence Packet — ${investigationId} — run ${runId}`;
 }
@@ -74,7 +94,8 @@ export async function packetMarkdownToHtml(
   markdown: string,
   title: string
 ): Promise<string> {
-  const body = await marked.parse(markdown);
+  const parsed = await marked.parse(markdown);
+  const body = sanitizePacketHtml(parsed);
   return `<!DOCTYPE html>
 <html lang="en">
 <head>

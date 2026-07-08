@@ -6,12 +6,12 @@ Planned and queued work for Common Thread. Items grouped by area; within each ar
 
 ### Test coverage, extractor layer
 
-The reasoner module has 77 tests verified end-to-end against `@cloudflare/vitest-pool-workers` (slices 2 through 5 of `tests/reasoner/`). No extractor has direct tests yet. Pattern parallels `tests/reasoner/runner.test.ts`: seed MySQL with raw artifacts, invoke the extractor, assert `pair_features` and `account_features` rows.
+The reasoner module has full coverage in `tests/reasoner/`. Extractor integration suites exist for account-metadata-pair, engagement, engagement-parse, priority-features, runner, apify-tweet-fields, and twitter-scrapes (see `tests/extractors/`). Per-extractor checkbox coverage below reflects what is still missing beyond those suites.
 
 - [ ] Stylometric pair extractor (highest complexity, highest signal; start here)
-- [ ] Temporal extractors: burst, cadence-jsd, active-hour-jsd, quiet-period
-- [ ] Network extractors: follower-overlap, mutual-follow
-- [ ] Visual extractors: profile, banner, posted, color-palette
+- [x] Temporal extractors: burst, cadence-jsd, active-hour-jsd, quiet-period (partial; see `tests/extractors/`)
+- [x] Network extractors: follower-overlap, mutual-follow (partial; see engagement + runner suites)
+- [ ] Visual extractors: profile, banner, posted, color-palette (dedicated suites still open)
 - [ ] Cross-platform extractors: handle-reuse, bio-link, external-link
 - [ ] Metadata-leakage extractors: client-app, exif, profile-lang, tweet-language
 
@@ -65,8 +65,8 @@ Migration 0002 documented the same-identifier-cross-platform pair limitation in 
 
 ### CI and type checking
 
-- [ ] Add `tsc --noEmit` step alongside `npm test`. Vitest uses esbuild for transpilation and skips type checking entirely. The first smoke run surfaced an `investigationId` vs `investigation_id` mismatch at a `writeAttributionRun` call site that tsc would have caught at edit time.
-- [ ] GitHub Actions workflow for `npm test` and `tsc --noEmit` on push (defer until smoke-run flake rate is known)
+- [x] Add `tsc --noEmit` step alongside `npm test` (`.github/workflows/typecheck.yml`)
+- [x] GitHub Actions workflow for `npm test` and `tsc --noEmit` on push (`.github/workflows/ci.yml`)
 
 ### Docs maintenance
 
@@ -83,7 +83,7 @@ Migration 0002 documented the same-identifier-cross-platform pair limitation in 
 ### Implementation docs
 
 - [ ] Prompt version registry. Versions are currently embedded in `implementation/reasoner/prompts.ts` (`triage-v1`, `reasoning-v1`). Worth surfacing into `docs/` for citation in the methodology paper and for changelog-style tracking when prompts evolve.
-- [ ] Schema migrations changelog, or a deliberate decision that the migrations directory itself is the changelog (preferred; less duplication).
+- [x] Schema migrations changelog (`mysql-migrations/README.md`; incremental scripts begin at 0007)
 
 ## Audience and outreach
 

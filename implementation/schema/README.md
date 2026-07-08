@@ -4,7 +4,7 @@ Relational storage uses **MySQL** via Cloudflare Hyperdrive. The canonical
 schema lives at the repository root:
 
 - [`mysql-schema.sql`](../../mysql-schema.sql) — full database (fresh install)
-- [`mysql-migrations/`](../../mysql-migrations/) — incremental ALTER scripts
+- [`mysql-migrations/`](../../mysql-migrations/) — incremental ALTER scripts (0001–0006 folded into the base schema; see [`mysql-migrations/README.md`](../../mysql-migrations/README.md))
 
 TypeScript row types: [`db-types.ts`](db-types.ts).
 

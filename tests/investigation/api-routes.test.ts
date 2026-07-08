@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { collectCitedSignalIds } from '../../implementation/reporting/evidence-packet';
-import { packetDocumentTitle, packetMarkdownToHtml } from '../../implementation/reporting/packet-html';
+import { packetDocumentTitle, packetMarkdownToHtml, sanitizePacketHtml } from '../../implementation/reporting/packet-html';
 import { parseFeaturesQueryParams } from '../../implementation/features/query';
 import { canonicalPair } from '../../implementation/schema/db-types';
 
@@ -41,6 +41,14 @@ describe('investigation API helpers', () => {
     expect(html).toContain('<h1>Hello</h1>');
     expect(html).toContain('Body text.');
     expect(html).toContain(escapeForExpect(title));
+  });
+
+  it('sanitizePacketHtml strips active content from marked output', () => {
+    const dirty = '<script>alert(1)</script><p>ok</p><img src="http://evil.example/x.png">';
+    const clean = sanitizePacketHtml(dirty);
+    expect(clean).not.toMatch(/<script/i);
+    expect(clean).not.toMatch(/http:\/\/evil\.example/);
+    expect(clean).toContain('<p>ok</p>');
   });
 });
 
