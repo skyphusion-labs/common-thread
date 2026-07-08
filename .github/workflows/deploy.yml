@@ -32,9 +32,23 @@ jobs:
     name: Deploy Workers to Cloudflare
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+          MYSQL_DATABASE: common_thread_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      TEST_MYSQL_URL: mysql://root@127.0.0.1:3306/common_thread_test
     steps:
       - uses: actions/checkout@v7
 
@@ -47,7 +61,12 @@ jobs:
         run: |
           npm ci
           npm run typecheck
-          npm test
+          cp wrangler.toml.example wrangler.toml
+          npx vitest run --project workers
+          npm run db:migrate
+          npx vitest run --project node-db
+        env:
+          MYSQL_URL: mysql://root@127.0.0.1:3306/common_thread_test
 
       - name: Deploy backend (common-thread-prod)
         env:
