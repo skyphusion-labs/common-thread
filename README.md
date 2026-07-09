@@ -118,4 +118,6 @@ Using the hosted API in your own project requires prior contact with the
 operator — email **common-thread@skyphusion.org** or see [docs/contact.md](docs/contact.md).
 To run your own instance without asking, self-host per `docs/SETUP.md`.
 
+**Skyphusion Labs:** https://skyphusion.org · **Org:** https://github.com/skyphusion-labs
+
 **Repository:** https://github.com/skyphusion-labs/common-thread
