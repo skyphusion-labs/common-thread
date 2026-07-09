@@ -4,7 +4,15 @@
   "private": true,
   "description": "Methodology and reference implementation for sockpuppet attribution from public behavioral signals on social platforms.",
   "license": "AGPL-3.0",
-  "homepage": "https://github.com/skyphusion-labs/common-thread",
+  "homepage": "https://common-thread.skyphusion.org",
+  "keywords": [
+    "osint",
+    "sockpuppet",
+    "attribution",
+    "cloudflare-workers",
+    "investigation",
+    "agpl"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/skyphusion-labs/common-thread.git"
