@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Methodology and reference implementation for sockpuppet attribution from public behavioral signals on social platforms.",
-  "license": "AGPL-3.0",
+  "license": "AGPL-3.0-only",
   "homepage": "https://common-thread.skyphusion.org",
   "keywords": [
     "osint",
