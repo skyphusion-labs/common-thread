@@ -1,0 +1,97 @@
+name: attribution-image
+
+# Build the attribution executor container and push it to GHCR.
+#
+# After a green push, dispatches fleet-chezmoi `common-thread-containers-roll` to pin
+# the image on biafra and redeploy `common-thread-containers` (requires org secret
+# FLEET_DISPATCH_TOKEN).
+#
+# Triggers:
+#   - push to main that touches attribution paths (or this workflow)
+#   - a v* tag
+#   - workflow_dispatch
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'containers/attribution-worker/**'
+      - 'implementation/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
+      - '.github/workflows/attribution-image.yml'
+      - '.github/scripts/dispatch-fleet-common-thread-containers-roll.sh'
+    tags:
+      - 'v*'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: attribution-image-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE: ghcr.io/skyphusion-labs/common-thread-attribution
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+
+  build:
+    needs: gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Derive image tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=sha,prefix=,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=tag
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./containers/attribution-worker/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  dispatch-roll:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: Dispatch common-thread-attribution roll to fleet-chezmoi
+        env:
+          FLEET_DISPATCH_TOKEN: ${{ secrets.FLEET_DISPATCH_TOKEN }}
+        run: bash .github/scripts/dispatch-fleet-common-thread-containers-roll.sh attribution skyphusion-labs/common-thread-attribution
