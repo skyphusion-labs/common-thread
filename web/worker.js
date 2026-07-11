@@ -275,6 +275,8 @@ var state = {
   investigationStatus: 'active',
   selectedFiles: [],
   ingestJobId: null,
+  attributionJobId: null,
+  attributionPolling: false,
   settings: {
     backendUrl: '',
     aiGatewayUrl: '',
@@ -328,14 +330,30 @@ function saveSettings() {
   updateCredentialHint();
 }
 
+function hasByokCredentials() {
+  return Boolean(state.settings.aiGatewayUrl && state.settings.anthropicApiKey);
+}
+
+function updateAttributeButtonLabel() {
+  var btn = document.getElementById('attribute-btn');
+  if (!btn) return;
+  // Do not stomp on the transient Submitting/Queued/Running labels mid-run.
+  if (state.attributionPolling) return;
+  btn.textContent = hasByokCredentials()
+    ? 'Run attribution (your key, immediate)'
+    : 'Run attribution (server-side, may queue)';
+}
+
 function updateCredentialHint() {
   var el = document.getElementById('credential-hint');
-  if (!state.settings.aiGatewayUrl || !state.settings.anthropicApiKey) {
+  if (!hasByokCredentials()) {
     el.classList.remove('hidden');
-    el.textContent = 'Add AI Gateway URL and Anthropic API key in Setup before running attribution.';
+    el.textContent = 'No AI key set. Attribution will run server-side on the deployment credentials (if configured) and may be queued; add a key in Setup to run immediately with your own.';
   } else {
     el.classList.add('hidden');
+    el.textContent = '';
   }
+  updateAttributeButtonLabel();
 }
 
 function showAlert(message, kind) {
@@ -765,18 +783,20 @@ async function loadFeatures() {
 
 async function runAttribution() {
   if (!requireWritableInvestigation()) return;
-  if (!state.settings.aiGatewayUrl || !state.settings.anthropicApiKey) {
-    showAlert('Configure AI credentials in Setup first.', 'error');
-    showTab('setup');
-    return;
-  }
+  // Credentials are optional (issue #69). With a BYOK key the run is synchronous
+  // (the key is sent and the backend returns 200); without one it runs on the
+  // deployment credentials and the backend may return 202 with a queued job to
+  // poll. BYOK stays sync-only per Conrad; the mode is derived, never chosen.
+  var useByok = hasByokCredentials();
   var btn = document.getElementById('attribute-btn');
   var panel = document.getElementById('attribute-progress');
   var body = document.getElementById('attribute-body');
   btn.disabled = true;
-  btn.textContent = 'Running…';
+  btn.textContent = 'Submitting…';
   panel.classList.remove('hidden');
-  body.textContent = 'Attribution in progress. This may take several minutes…';
+  body.textContent = useByok
+    ? 'Attribution in progress with your credentials. This may take several minutes…'
+    : 'Submitting attribution to the server…';
 
   var payload = {};
   if (document.getElementById('skip-triage').checked) payload.skipTriage = true;
@@ -786,19 +806,84 @@ async function runAttribution() {
   try {
     var data = await api('POST', '/investigations/' + encodeURIComponent(state.investigationId) + '/attribute', {
       json: payload,
-      withCredentials: true,
+      withCredentials: useByok,
     });
-    body.textContent = JSON.stringify(data, null, 2);
-    showAlert('Attribution finished (' + data.pair_count + ' pairs).', 'success');
-    showTab('results');
-    loadRuns();
+    if (data && data.mode === 'async') {
+      // Server-creds path: a job was queued. Poll it to a terminal state.
+      state.attributionJobId = data.jobId || null;
+      body.textContent = JSON.stringify(data, null, 2) +
+        '\n\nQueued server-side. Polling for completion; you can safely leave this tab, ' +
+        'the results land under Results regardless.';
+      if (state.attributionJobId) {
+        showAlert('Attribution queued (job ' + state.attributionJobId + ').', 'success');
+        await pollAttributionJob();
+      } else {
+        showAlert('Server queued a job but returned no job id; check Results shortly.', 'error');
+      }
+    } else {
+      // Sync path (BYOK, or server-creds inline with no executor). Done now.
+      body.textContent = JSON.stringify(data, null, 2);
+      var pairs = (data && typeof data.pair_count === 'number') ? data.pair_count : '?';
+      showAlert('Attribution finished (' + pairs + ' pairs).', 'success');
+      showTab('results');
+      loadRuns();
+    }
   } catch (e) {
     body.textContent = e.message;
     showAlert(e.message, 'error');
   } finally {
+    state.attributionPolling = false;
     btn.disabled = false;
-    btn.textContent = 'Run attribution';
+    updateAttributeButtonLabel();
+    updateWritableUi();
   }
+}
+
+async function pollAttributionJob() {
+  if (!state.investigationId || !state.attributionJobId) return;
+  state.attributionPolling = true;
+  var body = document.getElementById('attribute-body');
+  var btn = document.getElementById('attribute-btn');
+  var interval = 2000;         // start at 2s
+  var maxInterval = 10000;     // cap each wait at 10s
+  var budgetSeconds = 20 * 60; // stop polling after ~20 min; the job continues server-side
+  var elapsed = 0;
+  while (elapsed < budgetSeconds) {
+    var data;
+    try {
+      data = await api('GET', '/investigations/' + encodeURIComponent(state.investigationId) +
+        '/attribution-jobs/' + encodeURIComponent(state.attributionJobId));
+    } catch (e) {
+      body.textContent = e.message;
+      showAlert('Attribution status check failed: ' + e.message, 'error');
+      return;
+    }
+    var job = data && data.job;
+    var status = job && job.status;
+    if (btn) btn.textContent = status === 'running' ? 'Running…' : 'Queued…';
+    body.textContent = JSON.stringify(data, null, 2) +
+      '\n\nPolling every ' + Math.round(interval / 1000) + 's; safe to leave this tab, ' +
+      'results land under Results.';
+    if (status === 'completed' || status === 'failed') {
+      if (status === 'completed') {
+        var pairs = (job && typeof job.pair_count === 'number') ? job.pair_count : '?';
+        showAlert('Attribution completed (' + pairs + ' pairs).', 'success');
+        showTab('results');
+        loadRuns();
+      } else {
+        var reason = (job && job.error_message) ? job.error_message : 'no error message provided';
+        body.textContent = JSON.stringify(data, null, 2) + '\n\nFailed: ' + reason +
+          '\n(Any pairs finished before the failure are still saved under Results.)';
+        showAlert('Attribution failed: ' + reason, 'error');
+        loadRuns();
+      }
+      return;
+    }
+    await new Promise(function(r) { setTimeout(r, interval); });
+    elapsed += Math.round(interval / 1000);
+    interval = Math.min(Math.round(interval * 1.5), maxInterval);
+  }
+  showAlert('Attribution is taking longer than expected; it continues server-side. Check Results shortly.', 'error');
 }
 
 function bandClass(band) {
