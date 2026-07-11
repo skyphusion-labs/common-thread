@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # Dispatch a common-thread-containers roll to fleet-chezmoi after a GHCR image push.
 # Args: <service> <image-repo-without-registry>
-#   service: ingest | pdf
-#   image: skyphusion-labs/common-thread-ingest | skyphusion-labs/common-thread-pdf
+#   service: ingest | pdf | attribution
+#   image: skyphusion-labs/common-thread-ingest | skyphusion-labs/common-thread-pdf | skyphusion-labs/common-thread-attribution
 set -euo pipefail
 
-service="${1:?service required (ingest|pdf)}"
+service="${1:?service required (ingest|pdf|attribution)}"
 image_path="${2:?image path required (e.g. skyphusion-labs/common-thread-ingest)}"
 
 case "$service" in
-  ingest|pdf) ;;
-  *) echo "::error::unknown service '$service' (want ingest|pdf)"; exit 2 ;;
+  ingest|pdf|attribution) ;;
+  *) echo "::error::unknown service '$service' (want ingest|pdf|attribution)"; exit 2 ;;
 esac
 
 if [ -z "${FLEET_DISPATCH_TOKEN:+SET}" ]; then
