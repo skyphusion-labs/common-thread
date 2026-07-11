@@ -69,6 +69,9 @@ const nodeSuites = [
   // Worker error-hygiene e2e (#67): drives worker.fetch, which imports the
   // mysql2 DB layer and so cannot run in the workers pool.
   'tests/workers/error-hygiene.test.ts',
+  // Async attribution jobs (#69): DB-backed + worker.fetch, node project.
+  'tests/attribution/jobs.test.ts',
+  'tests/attribution/async-dispatch.test.ts',
 ];
 
 // Note: the two apify ingest suites read the twitter_scrapes/ phatadvert probe,

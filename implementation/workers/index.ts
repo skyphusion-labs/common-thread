@@ -39,6 +39,8 @@ import {
 import { resolveAttributionCredentials, parseAllowedGatewayHosts } from '../reasoner/credentials';
 import { runAttribution } from '../reasoner/runner';
 import { listAttributionRuns, getAttributionRun } from '../attribution/query';
+import { enqueueAttributionJob } from '../attribution/enqueue';
+import { shouldRunAttributionAsync } from '../attribution/dispatch';
 import {
   parseFeaturesQueryParams,
   queryInvestigationFeatures,
@@ -96,6 +98,12 @@ export interface Env {
   PDF_WORKER_URL?: string;
   /** Required for `?format=pdf` packet export (wrangler secret put PDF_SECRET). */
   PDF_SECRET?: string;
+  /** Workers VPC binding to the self-hosted attribution executor (#69). */
+  VPC_ATTRIBUTION?: Fetcher;
+  /** Full URL for VPC_ATTRIBUTION.fetch(), e.g. http://common-thread-attribution:8082/trigger */
+  ATTRIBUTION_WORKER_URL?: string;
+  /** Required when delegating attribution to the VPC executor (wrangler secret put ATTRIBUTION_SECRET). */
+  ATTRIBUTION_SECRET?: string;
 }
 
 export default {
@@ -275,6 +283,9 @@ const ROUTES: Route[] = [
 
   // Ingest job status
   { method: 'GET', pattern: /^\/investigations\/([^/]+)\/ingest-jobs\/([^/]+)$/, auth: {}, handler: handleIngestJobStatus },
+
+  // Async attribution job status (#69)
+  { method: 'GET', pattern: /^\/investigations\/([^/]+)\/attribution-jobs\/([^/]+)$/, auth: {}, handler: handleAttributionJobStatus },
 ];
 
 // ---------------------------------------------------------------------------
@@ -678,6 +689,21 @@ async function handleAttribute(ctx: RouteContext): Promise<Response> {
         ? body.randomization_seed
         : undefined;
 
+  // Async path (#69): server-credentials-only runs delegate to the VPC
+  // executor and return 202 + a job id. BYOK requests (credential source
+  // 'request') and environments without the executor bound fall through to
+  // the synchronous inline path below, unchanged. No credential is persisted
+  // or handed to the executor: options carries only non-secret run parameters.
+  if (shouldRunAttributionAsync(env, credentials.source)) {
+    const { jobId, status } = await enqueueAttributionJob(env, investigationId, {
+      accountFilter,
+      skipTriage,
+      maxRetries,
+      randomizationSeed,
+    });
+    return jsonResponse({ investigationId, jobId, status, mode: 'async' }, 202);
+  }
+
   const db = resolveDatabase(env.DB);
   const summaries = await runAttribution(
     {
@@ -702,6 +728,7 @@ async function handleAttribute(ctx: RouteContext): Promise<Response> {
     pair_count: summaries.length,
     credential_source: credentials.source,
     runs: summaries,
+    mode: 'sync',
   });
 }
 
@@ -872,6 +899,27 @@ async function handleIngestJobStatus(ctx: RouteContext): Promise<Response> {
 
   if (!row) {
     return jsonResponse({ error: `Ingest job not found: ${jobId}` }, 404);
+  }
+
+  return jsonResponse({ job: row });
+}
+
+async function handleAttributionJobStatus(ctx: RouteContext): Promise<Response> {
+  const { env, params } = ctx;
+  const investigationId = ctx.investigationId;
+  const jobId = params[1] ?? '';
+
+  const row = await queryOne(
+    env.DB,
+    `SELECT job_id, investigation_id, status, pair_count,
+            container_name, started_at, completed_at, error_message, created_at
+     FROM attribution_jobs
+     WHERE job_id = ? AND investigation_id = ?`,
+    [jobId, investigationId]
+  );
+
+  if (!row) {
+    return jsonResponse({ error: `Attribution job not found: ${jobId}` }, 404);
   }
 
   return jsonResponse({ job: row });

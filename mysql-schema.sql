@@ -285,6 +285,30 @@ CREATE TABLE ingest_jobs (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------------
+-- Attribution jobs (migration 0009).
+-- ---------------------------------------------------------------------------
+-- Async attribution queue mirroring ingest_jobs. Server-credentials-only by
+-- design: no credential column exists, so a BYOK key can never be persisted
+-- (Conrad, 2026-07-11). options_json holds only non-secret run parameters.
+
+CREATE TABLE attribution_jobs (
+  job_id            VARCHAR(255) PRIMARY KEY,
+  investigation_id  VARCHAR(255) NOT NULL,
+  status            VARCHAR(32) NOT NULL,
+  options_json      TEXT,
+  pair_count        INT,
+  container_name    VARCHAR(255),
+  started_at        VARCHAR(64),
+  completed_at      VARCHAR(64),
+  error_message     TEXT,
+  created_at        VARCHAR(64) NOT NULL,
+  INDEX idx_attribution_jobs_investigation (investigation_id),
+  INDEX idx_attribution_jobs_status (status),
+  CONSTRAINT fk_attribution_jobs_investigation
+    FOREIGN KEY (investigation_id) REFERENCES investigations(id)
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------------
 -- Schema metadata.
 -- ---------------------------------------------------------------------------
 
@@ -295,7 +319,7 @@ CREATE TABLE schema_metadata (
 ) ENGINE=InnoDB;
 
 INSERT INTO schema_metadata (`key`, value, updated_at) VALUES
-  ('schema_version', '0008', '1970-01-01T00:00:00.000Z'),
+  ('schema_version', '0009', '1970-01-01T00:00:00.000Z'),
   ('schema_initialized_at', '1970-01-01T00:00:00.000Z', '1970-01-01T00:00:00.000Z'),
   (
     'pair_features_same_identifier_cross_platform_limitation',
