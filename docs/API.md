@@ -405,13 +405,23 @@ Build an evidence packet for one attribution run.
 
 | Query | Response |
 |-------|----------|
-| _(default)_ | JSON packet (`format_version`, `cover`, `narrative`, `signal_appendix`, `manifest_extract`, `methodology_metadata`, `markdown`, …) |
+| _(default)_ | JSON packet (`format_version`, `cover`, `narrative`, `signal_appendix`, `manifest_extract`, `methodology_metadata`, `markdown`, `packet_signature`, …) |
 | `format=markdown` | `text/markdown` body |
 | `format=pdf` | `application/pdf` (PDF/A-2b via `containers/pdf-worker/`; requires `PDF_WORKER_URL` on VPC) |
 
 **Response `503`** for `format=pdf` when PDF container is not configured.
 
-Markdown is the canonical signed source per §8.1.3; PDF is a derived view.
+The `markdown` field is the canonical form of the packet; PDF is a derived view.
+Per §8.1.3, when a signing key (`SIGNER_PRIVATE_KEY`) is configured the default
+JSON packet also carries a **detached Ed25519 signature** over that canonical
+Markdown in `packet_signature` (`{ algorithm, publicKey, packetSha256, signedAt,
+signerId?, signature }`); when no key is configured `packet_signature` is `null`
+and the Markdown can be signed offline instead. Verify an exported packet with
+`npm run verify:packet -- packet.json` (or pipe the JSON on stdin); it recomputes
+the Markdown SHA-256 and checks the signature with no archive or Worker access.
+The `format=markdown` and `format=pdf` responses are derived views; verify the
+signature against the canonical Markdown in the JSON packet (a reproducible PDF
+pipeline is required to verify against the PDF, per §8.1.3).
 
 ---
 
@@ -497,7 +507,6 @@ See `containers/ingest-worker/README.md` and `containers/pdf-worker/README.md`.
 |-------|-------|
 | `DELETE /investigations/:id` | No investigation or artifact purge API yet |
 | Token recovery / rotation | Lost tokens cannot be reset; create a new investigation |
-| Packet detached signing on export | Ed25519 signing exists for manifests; not wired to packet route |
 
 ---
 
@@ -514,6 +523,8 @@ See `containers/ingest-worker/README.md` and `containers/pdf-worker/README.md`.
 | `INGEST_SECRET` | Container auth (secret; required with `VPC_INGEST`) |
 | `PDF_SECRET` | PDF container auth (secret; required for `?format=pdf`) |
 | `SIGNER_PUBLIC_KEY` | Manifest verification |
+| `SIGNER_PRIVATE_KEY` | In-Worker Ed25519 evidence-packet signing (secret; optional, §8.1.3). When unset, packets export unsigned |
+| `SIGNER_ID` | Optional signer identity recorded in packet signatures (var) |
 
 Vars: `INGEST_WORKER_URL`, `PDF_WORKER_URL`, `TRIAGE_MODEL`, `REASONING_MODEL`,
 `CORS_ALLOWED_ORIGINS`.

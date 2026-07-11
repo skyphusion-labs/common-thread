@@ -55,6 +55,13 @@ export interface Env {
   /** Comma-separated hostnames allowed for AI Gateway URLs (BYOK + server secret). */
   AI_GATEWAY_ALLOWED_HOSTS?: string;
   SIGNER_PUBLIC_KEY?: string;
+  /** In-Worker Ed25519 signing key (base64 seed) for detached evidence-packet
+   * signing (§8.1.3). Optional: when unset, packets export unsigned. Provide
+   * via `wrangler secret put SIGNER_PRIVATE_KEY`, never a tracked file. */
+  SIGNER_PRIVATE_KEY?: string;
+  /** Optional signer identity recorded in packet signatures (the named
+   * practitioner, §8.1.3). */
+  SIGNER_ID?: string;
   INVESTIGATION_NAMESPACE?: string;
   /** Comma-separated browser origins permitted to call the API (empty = browser blocked). */
   CORS_ALLOWED_ORIGINS?: string;
@@ -623,7 +630,15 @@ async function handle(request: Request, env: Env): Promise<Response> {
     const auth = await authorizeOrRespond(env, request, url, investigationId);
     if (auth instanceof Response) return auth;
 
-    const packet = await buildEvidencePacket(env.DB, env.ARCHIVE, investigationId, runId);
+    const packet = await buildEvidencePacket(
+      env.DB,
+      env.ARCHIVE,
+      investigationId,
+      runId,
+      env.SIGNER_PRIVATE_KEY
+        ? { privateKey: env.SIGNER_PRIVATE_KEY, signerId: env.SIGNER_ID }
+        : undefined
+    );
     if (!packet) {
       return jsonResponse({ error: `Attribution run not found: ${runId}` }, 404);
     }

@@ -62,6 +62,32 @@ export interface VerificationResult {
   reason?: string;
 }
 
+/**
+ * Detached signature over an evidence packet (methodology paper 8.1.3). The
+ * signed content is the canonical Markdown form of the packet; packetSha256 is
+ * its SHA-256, bound into the signed payload alongside the signer identity and
+ * timestamp so metadata cannot be swapped under a valid signature.
+ */
+export interface PacketSignaturePayload {
+  algorithm: 'ed25519';
+  publicKey: string;
+  /** SHA-256 (lowercase hex) of the canonical packet Markdown. */
+  packetSha256: string;
+  signedAt: string;
+  signerId?: string;
+  note?: string;
+}
+
+export interface PacketSignature extends PacketSignaturePayload {
+  signature: string;
+}
+
+export interface PacketVerificationResult {
+  valid: boolean;
+  signature: PacketSignature;
+  reason?: string;
+}
+
 // ---------------------------------------------------------------------------
 // Base64 helpers
 // ---------------------------------------------------------------------------
@@ -244,7 +270,7 @@ async function derivePublicKey(privateKeyB64: string): Promise<string> {
 // Manifest-level signing
 // ---------------------------------------------------------------------------
 
-function payloadBytes(payload: SignaturePayload): Uint8Array {
+function payloadBytes(payload: SignaturePayload | PacketSignaturePayload): Uint8Array {
   const stripped: Record<string, unknown> = { ...payload };
   delete stripped.signature;
   return new TextEncoder().encode(canonicalJson(stripped));
@@ -312,6 +338,80 @@ export async function verifyManifestSignature(
       };
     }
 
+    return { valid: true, signature };
+  } catch (err) {
+    return {
+      valid: false,
+      signature,
+      reason: `Cryptographic verification threw: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Packet-level signing (paper 8.1.3)
+// ---------------------------------------------------------------------------
+
+/**
+ * Produce a detached Ed25519 signature over an evidence packet, given the
+ * SHA-256 (lowercase hex) of the packet canonical Markdown. Mirrors
+ * signManifest: the signature is over the canonical JSON of the payload, which
+ * embeds packetSha256, so a verifier that recomputes the Markdown hash can
+ * confirm both the content and the bound metadata.
+ */
+export async function signPacket(
+  privateKeyB64: string,
+  packetSha256: string,
+  options: { signerId?: string; note?: string } = {}
+): Promise<PacketSignature> {
+  if (!/^[0-9a-f]{64}$/.test(packetSha256)) {
+    throw new Error(`packetSha256 must be lowercase SHA-256 hex: ${packetSha256}`);
+  }
+
+  const publicKeyB64 = await derivePublicKey(privateKeyB64);
+
+  const payload: PacketSignaturePayload = {
+    algorithm: 'ed25519',
+    publicKey: publicKeyB64,
+    packetSha256,
+    signedAt: new Date().toISOString(),
+    signerId: options.signerId,
+    note: options.note,
+  };
+
+  const bytes = payloadBytes(payload);
+  const signature = await signBytes(privateKeyB64, bytes);
+
+  return { ...payload, signature };
+}
+
+/**
+ * Verify a detached packet signature against the expected canonical-Markdown
+ * SHA-256. Fails closed on algorithm mismatch, hash mismatch, or a bad
+ * signature; never throws (crypto errors are captured as an invalid result).
+ */
+export async function verifyPacketSignature(
+  signature: PacketSignature,
+  expectedPacketSha256: string
+): Promise<PacketVerificationResult> {
+  if (signature.algorithm !== 'ed25519') {
+    return { valid: false, signature, reason: `Unsupported algorithm: ${signature.algorithm}` };
+  }
+
+  if (signature.packetSha256 !== expectedPacketSha256) {
+    return {
+      valid: false,
+      signature,
+      reason: `Packet hash mismatch: signature is for ${signature.packetSha256}, packet hashes to ${expectedPacketSha256}`,
+    };
+  }
+
+  try {
+    const bytes = payloadBytes(signature);
+    const cryptoValid = await verifyBytes(signature.publicKey, signature.signature, bytes);
+    if (!cryptoValid) {
+      return { valid: false, signature, reason: 'Signature does not verify against the embedded payload' };
+    }
     return { valid: true, signature };
   } catch (err) {
     return {
