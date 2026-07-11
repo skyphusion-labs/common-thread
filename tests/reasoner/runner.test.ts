@@ -63,6 +63,7 @@ import {
 } from '../helpers/db';
 import { testDb, testReasonerEnv } from '../helpers/test-env';
 import {
+  mockGatewayHttpError,
   mockReasoningResponse,
   mockTriageResponse,
 } from '../helpers/llm';
@@ -344,6 +345,88 @@ describe('runAttribution', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].account_a).toBe('aardvark');
     expect(rows[0].account_b).toBe('zebra');
+  });
+
+  it('isolates a per-pair transport failure: the failing pair declines and later pairs still run (#96)', async () => {
+    // Three accounts -> three ordered pairs. With skipTriage the runner
+    // makes exactly one reasoning call per pair, so queued gateway
+    // intercepts map 1:1 to pairs in canonical order. We fail the
+    // middle pair's call with a non-retryable HTTP 400 and assert the
+    // loop continues past it (§7.2.3 per-pair isolation, verified in
+    // the #88 audit but previously unpinned): the failing pair gets a
+    // declined transport-failure row, the surrounding pairs still write
+    // rows, and runAttribution does not throw.
+    const investigationId = `inv_pair_isolation-${Date.now()}`;
+    const accounts = ['alice', 'bob', 'carol']; // already ascending
+
+    await createInvestigation(testDb(), { id: investigationId });
+    const erId = await startExtractorRun(testDb(), {
+      investigationId,
+      extractorName: 'isolation_test',
+      status: 'completed',
+    });
+    for (const acct of accounts) {
+      await addSeedAccount(testDb(), {
+        investigationId,
+        platform: 'twitter',
+        account: acct,
+        basisStatement: `seed reason for ${acct}`,
+      });
+      await insertAccountFeature(testDb(), {
+        investigationId,
+        platform: 'twitter',
+        account: acct,
+        category: 'stylometric',
+        name: 'function_word_distribution',
+        value: { kind: 'json', value: { the: 0.1, a: 0.05 } },
+        extractorRunId: erId,
+      });
+    }
+
+    // Three reasoning calls, one per pair (skipTriage). Exactly one of
+    // the three fails with a non-retryable HTTP 400; the other two
+    // succeed with an empty-claims (insufficient) reasoning output. The
+    // isolation contract does not depend on which pair the transport
+    // failure lands on, so the assertions pin the invariant (one
+    // declined, the rest processed, no throw) rather than a specific
+    // pair, which would over-couple to fetchMock interceptor ordering.
+    mockReasoningResponse({ claims: [] });
+    mockGatewayHttpError(400, "simulated non-retryable gateway failure");
+    mockReasoningResponse({ claims: [] });
+
+    const summaries = await runAttribution(testReasonerEnv(), {
+      investigationId,
+      skipTriage: true,
+    });
+
+    // No throw escaped runAttribution and every pair produced a summary.
+    expect(summaries).toHaveLength(3);
+
+    // Exactly one pair is the declined transport failure; the other two
+    // are not declined. This is the per-pair isolation invariant: a
+    // mid-batch transport error does not abort the remaining pairs.
+    const failed = summaries.filter((s) => s.reasoning_declined);
+    expect(failed).toHaveLength(1);
+    expect(failed[0].confidence_band).toBe("insufficient");
+
+    const survived = summaries.filter((s) => !s.reasoning_declined);
+    expect(survived).toHaveLength(2);
+
+    // One attribution_runs row per pair regardless of the mid-batch
+    // failure: exactly one transport-failure row, two clean rows.
+    const rows = await readAttributionRuns(testDb(), investigationId);
+    expect(rows).toHaveLength(3);
+
+    const transportRows = rows.filter((r) =>
+      /transport failure/i.test(r.output_summary)
+    );
+    expect(transportRows).toHaveLength(1);
+    expect(transportRows[0].confidence_band).toBe("insufficient");
+
+    const cleanRows = rows.filter(
+      (r) => !/transport failure/i.test(r.output_summary)
+    );
+    expect(cleanRows).toHaveLength(2);
   });
 });
 
