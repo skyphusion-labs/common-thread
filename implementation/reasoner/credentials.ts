@@ -15,12 +15,20 @@ export const DEFAULT_AI_GATEWAY_ALLOWED_HOSTS = [
 export interface AttributionCredentials {
   aiGatewayUrl: string;
   anthropicApiKey: string;
+  /**
+   * Keyless Unified Billing token (#111), set only from server env and only
+   * when the request did not supply its own (BYOK) credentials. When present
+   * it takes precedence over anthropicApiKey at the transport layer.
+   */
+  cfAigToken?: string;
   source: 'request' | 'environment';
 }
 
 export interface ResolveAttributionCredentialsInput {
   envAiGatewayUrl?: string;
   envAnthropicApiKey?: string;
+  /** Server-only keyless Unified Billing token (#111). Never sourced from a request. */
+  envCfAigToken?: string;
   requestHeaders: Headers;
   body?: Record<string, unknown>;
   /** Hostnames permitted for AI Gateway URLs (default: Cloudflare AI Gateway). */
@@ -170,11 +178,20 @@ export function resolveAttributionCredentials(
   const aiGatewayUrl = requestGateway || input.envAiGatewayUrl?.trim() || '';
   const anthropicApiKey = requestKey || input.envAnthropicApiKey?.trim() || '';
 
-  if (!aiGatewayUrl || !anthropicApiKey) {
+  // Keyless Unified Billing token (#111) is a server-only secret. It is used
+  // only when the request did not supply its own credentials, so BYOK stays
+  // on the x-api-key path and a user request can never present the house
+  // token. When configured it satisfies the auth requirement on its own and
+  // takes precedence over a server x-api-key at the transport layer.
+  const cfAigToken = usedRequest
+    ? undefined
+    : input.envCfAigToken?.trim() || undefined;
+
+  if (!aiGatewayUrl || !(cfAigToken || anthropicApiKey)) {
     return {
       error: usedRequest
         ? 'Attribution requires both AI Gateway URL and Anthropic API key. Provide X-AI-Gateway-Url and X-Anthropic-Api-Key headers, or aiGatewayUrl and anthropicApiKey in the request body.'
-        : 'Attribution requires AI Gateway URL and Anthropic API key. Configure server secrets or supply credentials with the request (BYOK).',
+        : 'Attribution requires an AI Gateway URL and server credentials. Configure AI_GATEWAY_URL plus either CF_AIG_TOKEN (keyless Unified Billing) or ANTHROPIC_API_KEY, or supply credentials with the request (BYOK).',
     };
   }
 
@@ -188,6 +205,7 @@ export function resolveAttributionCredentials(
   return {
     aiGatewayUrl: validated.url,
     anthropicApiKey,
+    cfAigToken,
     source: usedRequest ? 'request' : 'environment',
   };
 }

@@ -58,7 +58,8 @@ Header: `Authorization: Bearer $ATTRIBUTION_SECRET` (must match Worker
 | `R2_SECRET_ACCESS_KEY` | yes | R2 API token secret |
 | `R2_BUCKET_NAME` | yes | Archive bucket (e.g. `common-thread-archive`) |
 | `AI_GATEWAY_URL` | yes | Cloudflare AI Gateway base URL ending in `/anthropic` |
-| `ANTHROPIC_API_KEY` | yes | Anthropic API key (server credential) |
+| `CF_AIG_TOKEN` | one of | Keyless Unified Billing token (sent as `cf-aig-authorization`); preferred over `ANTHROPIC_API_KEY` when both are set (#111) |
+| `ANTHROPIC_API_KEY` | one of | Anthropic API key (`x-api-key` / BYOK billing); used when `CF_AIG_TOKEN` is unset |
 | `ATTRIBUTION_SECRET` | yes | Bearer token shared with Worker |
 | `TRIAGE_MODEL` | no | Triage model (default `claude-haiku-4-5`) |
 | `REASONING_MODEL` | no | Reasoning model (default `claude-opus-4-8`) |
