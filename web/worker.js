@@ -848,15 +848,28 @@ async function pollAttributionJob() {
   var maxInterval = 10000;     // cap each wait at 10s
   var budgetSeconds = 20 * 60; // stop polling after ~20 min; the job continues server-side
   var elapsed = 0;
+  var consecutiveFailures = 0;
+  var maxConsecutiveFailures = 3;
   while (elapsed < budgetSeconds) {
     var data;
     try {
       data = await api('GET', '/investigations/' + encodeURIComponent(state.investigationId) +
         '/attribution-jobs/' + encodeURIComponent(state.attributionJobId));
+      consecutiveFailures = 0; // a good read clears the transient-failure streak
     } catch (e) {
-      body.textContent = e.message;
-      showAlert('Attribution status check failed: ' + e.message, 'error');
-      return;
+      consecutiveFailures++;
+      // A transient status-check blip over a ~20 min window is the expected case;
+      // only give up after several in a row. The job keeps running server-side.
+      if (consecutiveFailures >= maxConsecutiveFailures) {
+        body.textContent = e.message;
+        showAlert('Attribution status checks failed ' + consecutiveFailures + ' times in a row; giving up polling. The job continues server-side; check Results shortly.', 'error');
+        return;
+      }
+      showAlert('Attribution status check failed (' + consecutiveFailures + ' of ' + maxConsecutiveFailures + '); retrying shortly.', 'error');
+      await new Promise(function(r) { setTimeout(r, interval); });
+      elapsed += Math.round(interval / 1000);
+      interval = Math.min(Math.round(interval * 1.5), maxInterval);
+      continue;
     }
     var job = data && data.job;
     var status = job && job.status;
@@ -865,6 +878,7 @@ async function pollAttributionJob() {
       '\n\nPolling every ' + Math.round(interval / 1000) + 's; safe to leave this tab, ' +
       'results land under Results.';
     if (status === 'completed' || status === 'failed') {
+      state.attributionJobId = null; // terminal: stop tracking this job
       if (status === 'completed') {
         var pairs = (job && typeof job.pair_count === 'number') ? job.pair_count : '?';
         showAlert('Attribution completed (' + pairs + ' pairs).', 'success');
