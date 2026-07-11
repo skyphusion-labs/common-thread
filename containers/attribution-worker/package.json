@@ -1,0 +1,9 @@
+{
+  "name": "common-thread-attribution-worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Self-hosted attribution executor container for Common Thread (VPC HTTP target)",
+  "scripts": {
+    "start": "npx tsx server.ts"
+  }
+}
