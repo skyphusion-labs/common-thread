@@ -81,3 +81,42 @@ export function investigationManifestPath(investigationId: string): string {
 export function investigationSignaturesPath(investigationId: string): string {
   return `${investigationManifestPath(investigationId)}.sigs.jsonl`;
 }
+
+/**
+ * Map a stored artifact's MIME type to the file extension the archive
+ * writers use for its content-addressed path.
+ *
+ * The content address is the hash (§3.1); the extension is only a path
+ * suffix (see pathForHash). Writers store artifacts with an extension
+ * derived from the artifact type, but the manifest entry records the
+ * mimeType, not the extension. This lets a reader reconstruct the suffix
+ * from the recorded mimeType so it can locate the object the writer
+ * stored. Returns undefined for an unknown or absent mimeType, in which
+ * case the caller should fall back to the bare-hash path.
+ *
+ * Any parameters on the mimeType (e.g. '; charset=utf-8') are ignored.
+ */
+export function extensionForMimeType(mimeType?: string): string | undefined {
+  if (!mimeType) return undefined;
+  const base = mimeType.split(';')[0].trim().toLowerCase();
+  switch (base) {
+    case 'application/json':
+      return 'json';
+    case 'text/html':
+      return 'html';
+    case 'text/plain':
+      return 'txt';
+    case 'text/csv':
+      return 'csv';
+    case 'image/png':
+      return 'png';
+    case 'image/jpeg':
+      return 'jpg';
+    case 'image/webp':
+      return 'webp';
+    case 'image/gif':
+      return 'gif';
+    default:
+      return undefined;
+  }
+}

@@ -76,6 +76,7 @@ export async function runEventExtractors(
     let inputCount = 0;
     let outputCount = 0;
     let unknownPlatformCount = 0;
+    let missingArtifactCount = 0;
 
     try {
       for (const entry of entries) {
@@ -88,8 +89,13 @@ export async function runEventExtractors(
         }
         if (extractor.filterEntry && !extractor.filterEntry(entry)) continue;
 
-        const artifact = await archive.get(entry.hash, undefined);
-        if (!artifact) continue;
+        // getForEntry resolves the storage extension from the entry's
+        // mimeType so writer '.json' objects are found (#108).
+        const artifact = await archive.getForEntry(entry);
+        if (!artifact) {
+          missingArtifactCount++;
+          continue;
+        }
 
         inputCount++;
         const events = extractor.extract({
@@ -122,14 +128,23 @@ export async function runEventExtractors(
         unknownPlatformCount > 0
           ? JSON.stringify({ unknown_platform_artifact_count: unknownPlatformCount })
           : null;
+      // A miss on a filter-passing entry means a manifest-present artifact
+      // is absent from the archive (#108): mark the run 'partial' + record
+      // the count rather than completing silently with fewer inputs.
+      const runStatus = missingArtifactCount > 0 ? 'partial' : 'completed';
+      const missingNote =
+        missingArtifactCount > 0
+          ? `${missingArtifactCount} artifact(s) referenced by the manifest were not found in the archive (possible archive key mismatch)`
+          : null;
       await env.DB.prepare(
         `UPDATE extractor_runs SET
-           completed_at = ?, status = 'completed',
+           completed_at = ?, status = ?,
            input_artifact_count = ?, output_feature_count = ?,
-           configuration_json = COALESCE(?, configuration_json)
+           configuration_json = COALESCE(?, configuration_json),
+           error_message = ?
          WHERE id = ?`
       )
-        .bind(completedAt, inputCount, outputCount, configurationJson, extractorRunId)
+        .bind(completedAt, runStatus, inputCount, outputCount, configurationJson, missingNote, extractorRunId)
         .run();
 
       results.push({

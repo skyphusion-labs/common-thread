@@ -10,7 +10,7 @@
  */
 
 import { sha256, isValidSha256Hex } from './hash';
-import { pathForHash } from './paths';
+import { pathForHash, extensionForMimeType } from './paths';
 import type { ArchiveWriteResult, ArchiveReadResult } from './types';
 
 /**
@@ -158,6 +158,46 @@ export class ArchiveStore {
       hash,
       size: bytes.length,
     };
+  }
+
+  /**
+   * Read an artifact for a manifest entry, tolerant of the storage-path
+   * extension. The content address is the hash (§3.1); the extension is
+   * only a path suffix. Writers store artifacts with an extension (e.g.
+   * '.json'), but the extension is not carried on the manifest entry, so a
+   * reader that reconstructs the bare-hash path misses the object. This
+   * resolves the object by trying, in order: an extension derived from the
+   * entry's mimeType, then the bare hash (legacy layout). The first match
+   * wins. Existing '.json'-keyed objects stay reachable (their entries
+   * record mimeType 'application/json'), and reads no longer depend on the
+   * reader guessing the writer's suffix.
+   *
+   * Returns null only when the artifact is genuinely absent under every
+   * candidate path; callers treat that as a missing artifact, not a silent
+   * skip.
+   *
+   * @param entry - Manifest entry (hash required; mimeType optional)
+   * @returns ArchiveReadResult with the bytes, or null if not found
+   * @throws Error if the artifact exists but bytes don't match the hash
+   */
+  async getForEntry(entry: {
+    hash: string;
+    mimeType?: string;
+  }): Promise<ArchiveReadResult | null> {
+    const candidates: Array<string | undefined> = [];
+    const fromMime = extensionForMimeType(entry.mimeType);
+    if (fromMime) candidates.push(fromMime);
+    candidates.push(undefined); // bare-hash legacy layout
+
+    const tried = new Set<string>();
+    for (const ext of candidates) {
+      const key = ext ?? '';
+      if (tried.has(key)) continue;
+      tried.add(key);
+      const found = await this.get(entry.hash, ext);
+      if (found) return found;
+    }
+    return null;
   }
 
   /**

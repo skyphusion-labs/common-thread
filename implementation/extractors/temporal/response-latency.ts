@@ -92,7 +92,9 @@ export async function runResponseLatencyExtraction(
       const tool = entry.collectionMethod.tool.toLowerCase();
       if (!tool.includes('timeline') && !tool.includes('tweets')) continue;
 
-      const artifact = await archive.get(entry.hash, undefined);
+      // getForEntry resolves the storage extension from the entry's
+      // mimeType so writer '.json' objects are found (#108).
+      const artifact = await archive.getForEntry(entry);
       if (!artifact) continue;
 
       const tweets = parseTimelineBytes(artifact.bytes);
