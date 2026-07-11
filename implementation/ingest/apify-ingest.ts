@@ -100,7 +100,7 @@ export async function ingestApifyTwitter(
 
   const db = resolveDatabase(env.DB);
   const result = await runTwitterIngestPipeline(
-    { db, archive: env.ARCHIVE },
+    { db, archive: env.ARCHIVE, manifestCoordinator: env.MANIFEST_COORDINATOR },
     {
       investigationId,
       payload,

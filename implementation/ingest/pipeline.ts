@@ -49,6 +49,8 @@ import { completeIngestJob } from './jobs';
 export interface IngestPipelineEnv {
   db: DatabaseClient;
   archive: R2BucketLike;
+  /** Optional per-investigation append serializer (issue #70). */
+  manifestCoordinator?: DurableObjectNamespace;
 }
 
 export interface RunTwitterIngestPipelineContext {
@@ -90,7 +92,7 @@ export async function runTwitterIngestPipeline(
   const parsedTweets = ctx.parsedTweets ?? parseApifyTwitterItems(ctx.payload);
   const handles = ctx.handles ?? extractAllHandlesFromApifyTwitter(ctx.payload);
 
-  const manifest = new ManifestStore({ bucket: env.archive, investigationId: ctx.investigationId });
+  const manifest = new ManifestStore({ bucket: env.archive, investigationId: ctx.investigationId, coordinator: env.manifestCoordinator });
 
   await manifest.append({
     hash: ctx.rawHash,
@@ -104,7 +106,7 @@ export async function runTwitterIngestPipeline(
 
   const timelines = aggregateParsedTweetsByAccount(parsedTweets);
   const timelineArchive = await archiveAccountTimelines(
-    { ARCHIVE: env.archive as R2Bucket },
+    { ARCHIVE: env.archive as R2Bucket, MANIFEST_COORDINATOR: env.manifestCoordinator },
     {
       investigationId: ctx.investigationId,
       timelines,
@@ -114,7 +116,7 @@ export async function runTwitterIngestPipeline(
 
   const profiles = aggregateProfilesFromParsedTweets(parsedTweets);
   const profileArchive = await archiveAccountProfiles(
-    { ARCHIVE: env.archive as R2Bucket },
+    { ARCHIVE: env.archive as R2Bucket, MANIFEST_COORDINATOR: env.manifestCoordinator },
     {
       investigationId: ctx.investigationId,
       profiles,
@@ -129,7 +131,7 @@ export async function runTwitterIngestPipeline(
     ...profileImageCorpora,
   ]);
   const imageCorpusArchive = await archivePostedImageCorpora(
-    { ARCHIVE: env.archive as R2Bucket },
+    { ARCHIVE: env.archive as R2Bucket, MANIFEST_COORDINATOR: env.manifestCoordinator },
     {
       investigationId: ctx.investigationId,
       corpora: allImageCorpora,
@@ -139,7 +141,7 @@ export async function runTwitterIngestPipeline(
 
   const networkLists = extractNetworkListsFromPayload(ctx.payload);
   const networkArchive = await archiveNetworkLists(
-    { ARCHIVE: env.archive as R2Bucket },
+    { ARCHIVE: env.archive as R2Bucket, MANIFEST_COORDINATOR: env.manifestCoordinator },
     {
       investigationId: ctx.investigationId,
       lists: networkLists,
