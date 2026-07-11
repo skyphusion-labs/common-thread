@@ -130,7 +130,7 @@ export interface ArchivePostedImageCorporaResult {
 }
 
 export async function archivePostedImageCorpora(
-  env: { ARCHIVE: R2Bucket },
+  env: { ARCHIVE: R2Bucket; MANIFEST_COORDINATOR?: DurableObjectNamespace },
   options: {
     investigationId: string;
     corpora: AccountPostedImageCorpus[];
@@ -139,7 +139,7 @@ export async function archivePostedImageCorpora(
   }
 ): Promise<ArchivePostedImageCorporaResult> {
   const archive = new ArchiveStore({ bucket: env.ARCHIVE });
-  const manifest = new ManifestStore({ bucket: env.ARCHIVE, investigationId: options.investigationId });
+  const manifest = new ManifestStore({ bucket: env.ARCHIVE, investigationId: options.investigationId, coordinator: env.MANIFEST_COORDINATOR });
   const toolVersion = options.toolVersion ?? '1';
   const manifestHashes: string[] = [];
 

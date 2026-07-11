@@ -86,9 +86,15 @@ account, `status: present|absent` tombstones, `supersedes`). `ManifestSigner`
 produces the keypair. The `manifestHash()` is captured into every extractor and
 attribution run for reproducibility (§3.4).
 
-> Known v1 limitation: manifest append is read-modify-write, so concurrent
-> appends can race (last-write-wins). Serialize via a Durable Object per
-> investigation if this matters.
+> Manifest append is read-modify-write. To close the last-write-wins race,
+> appends are serialized per investigation through the `MANIFEST_COORDINATOR`
+> Durable Object (`archive/manifest-coordinator.ts`, issue #70): `ManifestStore`
+> routes appends there by `investigationId` when the binding is present. Without
+> the binding (tests, local dev, migration tooling) it falls back to a
+> non-serialized inline read-modify-write. The manifest bytes are identical
+> either way, so `manifestHash()` and the §3.4 reproducibility contract are
+> unaffected. Note: the DO serializes the inline-Worker ingest path; the VPC
+> ingest container is a separate deployable and is out of the DO scope.
 
 ### 2. Extract (`implementation/extractors/`) -- deterministic features
 

@@ -154,7 +154,7 @@ export interface ArchiveNetworkListsResult {
 }
 
 export async function archiveNetworkLists(
-  env: { ARCHIVE: R2Bucket },
+  env: { ARCHIVE: R2Bucket; MANIFEST_COORDINATOR?: DurableObjectNamespace },
   options: {
     investigationId: string;
     lists: NetworkListArtifact[];
@@ -162,7 +162,7 @@ export async function archiveNetworkLists(
   }
 ): Promise<ArchiveNetworkListsResult> {
   const archive = new ArchiveStore({ bucket: env.ARCHIVE });
-  const manifest = new ManifestStore({ bucket: env.ARCHIVE, investigationId: options.investigationId });
+  const manifest = new ManifestStore({ bucket: env.ARCHIVE, investigationId: options.investigationId, coordinator: env.MANIFEST_COORDINATOR });
   const manifestHashes: string[] = [];
   let artifactsCreated = 0;
 
