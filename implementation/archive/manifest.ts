@@ -9,13 +9,17 @@
  *   - Corrections take the form of new entries that supersede prior
  *     entries with a reference to the superseded entry's hash
  *
- * Atomicity caveat: R2 does not provide native append. This implementation
- * performs append by reading the current manifest, concatenating the new
- * entry, and writing the result. Concurrent appends from multiple Worker
- * instances can produce last-write-wins races that lose entries. For v1,
- * the recommendation is to serialize appends through a single Worker
- * instance per investigation (a Durable Object would be the natural
- * primitive for this if scaling beyond single-Worker becomes needed).
+ * Atomicity: R2 does not provide native append. This implementation performs
+ * append by reading the current manifest, concatenating the new entry, and
+ * writing the result. Concurrent appends from multiple Worker instances would
+ * otherwise produce last-write-wins races that lose entries. To close that race
+ * (issue #70), pass a coordinator (the MANIFEST_COORDINATOR Durable Object
+ * namespace): appends are then routed by investigationId to a single DO instance
+ * that serializes the read-modify-write, so no entry is lost. Without a
+ * coordinator (tests, local dev, migration tooling) append falls back to the
+ * inline read-modify-write, which is NOT concurrency-safe. The manifest bytes are
+ * identical either way, so list() and manifestHash() (the reproducibility
+ * contract in the paper section 3.4) are unaffected; only the write path is gated.
  */
 
 import { sha256 } from './hash';
@@ -39,6 +43,14 @@ export interface ManifestStoreOptions {
    * investigationId instead.
    */
   manifestPath?: string;
+
+  /**
+   * Durable Object namespace (Env.MANIFEST_COORDINATOR) used to serialize
+   * appends per investigation and close the last-write-wins race (issue #70).
+   * Optional: when omitted, append falls back to a non-serialized inline
+   * read-modify-write. Only used together with investigationId.
+   */
+  coordinator?: DurableObjectNamespace;
 }
 
 export class ManifestStore {
@@ -73,19 +85,27 @@ export class ManifestStore {
     }
     const line = JSON.stringify(entry) + '\n';
 
-    const existing = await this.options.bucket.get(this.manifestPath);
-    const existingBytes = existing
-      ? new Uint8Array(await existing.arrayBuffer())
-      : new Uint8Array(0);
+    // Serialized path (issue #70): route the append through the per-investigation
+    // Durable Object so concurrent writers cannot lose each other entries. Only
+    // available when scoped by investigationId (the DO is keyed by it).
+    if (this.options.coordinator && this.investigationId) {
+      const id = this.options.coordinator.idFromName(this.investigationId);
+      const stub = this.options.coordinator.get(id);
+      const response = await stub.fetch('https://manifest-coordinator/append', {
+        method: 'POST',
+        body: JSON.stringify({ investigationId: this.investigationId, line }),
+      });
+      if (!response.ok) {
+        const detail = await response.text().catch(() => '');
+        throw new Error(
+          `Manifest append via coordinator failed: ${response.status} ${detail}`.trim()
+        );
+      }
+      return;
+    }
 
-    const newLineBytes = new TextEncoder().encode(line);
-    const combined = new Uint8Array(existingBytes.length + newLineBytes.length);
-    combined.set(existingBytes, 0);
-    combined.set(newLineBytes, existingBytes.length);
-
-    await this.options.bucket.put(this.manifestPath, combined, {
-      httpMetadata: { contentType: 'application/x-ndjson' },
-    });
+    // Fallback: inline read-modify-write. NOT concurrency-safe (see class docs).
+    await appendManifestLine(this.options.bucket, this.manifestPath, line);
   }
 
   /**
@@ -219,4 +239,35 @@ export class ManifestStore {
     if (filter.hash && entry.hash !== filter.hash) return false;
     return true;
   }
+}
+
+/**
+ * Read-modify-write a single already-serialized JSONL line onto the manifest at
+ * manifestPath in bucket. Shared by ManifestStore.append (fallback path) and the
+ * ManifestCoordinator Durable Object (serialized path) so both produce
+ * byte-identical manifest content. NOT concurrency-safe on its own; the caller
+ * provides serialization (the DO) when it is required (issue #70).
+ *
+ * @param bucket - R2 bucket binding
+ * @param manifestPath - key of the manifest JSONL object
+ * @param line - the entry serialized as a single line, including trailing newline
+ */
+export async function appendManifestLine(
+  bucket: R2BucketLike,
+  manifestPath: string,
+  line: string
+): Promise<void> {
+  const existing = await bucket.get(manifestPath);
+  const existingBytes = existing
+    ? new Uint8Array(await existing.arrayBuffer())
+    : new Uint8Array(0);
+
+  const newLineBytes = new TextEncoder().encode(line);
+  const combined = new Uint8Array(existingBytes.length + newLineBytes.length);
+  combined.set(existingBytes, 0);
+  combined.set(newLineBytes, existingBytes.length);
+
+  await bucket.put(manifestPath, combined, {
+    httpMetadata: { contentType: 'application/x-ndjson' },
+  });
 }

@@ -5,6 +5,9 @@
  */
 
 import { ManifestStore } from '../archive/manifest';
+// Durable Object that serializes manifest appends per investigation (issue #70).
+// Must be exported from the Worker entrypoint so wrangler can bind the class.
+export { ManifestCoordinator } from '../archive/manifest-coordinator';
 import { ManifestSigner } from '../archive/signing';
 import { execute, query, queryOne, resolveDatabase } from '../db';
 import type { InvestigationRow } from '../schema/db-types';
@@ -47,6 +50,10 @@ import {
 export interface Env {
   DB: Hyperdrive;
   ARCHIVE: R2Bucket;
+  /** Optional Durable Object namespace that serializes manifest appends per
+   * investigation (issue #70). When bound, ManifestStore routes appends here to
+   * close the last-write-wins race; when absent, appends fall back to inline. */
+  MANIFEST_COORDINATOR?: DurableObjectNamespace;
   ENVIRONMENT: string;
   TRIAGE_MODEL?: string;
   REASONING_MODEL?: string;

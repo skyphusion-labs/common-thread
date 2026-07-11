@@ -50,6 +50,21 @@ id = "YOUR_HYPERDRIVE_ID_HERE"
 binding = "ARCHIVE"
 bucket_name = "common-thread-archive"
 
+# =============================================================================
+# Durable Objects (manifest append serialization -- issue #70)
+# =============================================================================
+# MANIFEST_COORDINATOR serializes manifest appends per investigation so that
+# concurrent ingests / extractor runs cannot drop chain-of-custody entries
+# (the last-write-wins race). Optional: without this binding ManifestStore
+# falls back to a non-serialized inline read-modify-write.
+[[durable_objects.bindings]]
+name = "MANIFEST_COORDINATOR"
+class_name = "ManifestCoordinator"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ManifestCoordinator"]
+
 [limits]
 cpu_ms = 300000
 subrequests = 50000
@@ -99,6 +114,14 @@ id = "YOUR_DEV_HYPERDRIVE_ID_HERE"
 binding = "ARCHIVE"
 bucket_name = "common-thread-archive-dev"
 
+[[env.dev.durable_objects.bindings]]
+name = "MANIFEST_COORDINATOR"
+class_name = "ManifestCoordinator"
+
+[[env.dev.migrations]]
+tag = "v1"
+new_sqlite_classes = ["ManifestCoordinator"]
+
 # [[env.dev.vpc_services]]
 # binding = "VPC_INGEST"
 # service_id = "YOUR_VPC_INGEST_SERVICE_ID"
@@ -138,6 +161,14 @@ id = "YOUR_PROD_HYPERDRIVE_ID_HERE"
 [[env.production.r2_buckets]]
 binding = "ARCHIVE"
 bucket_name = "common-thread-archive-prod"
+
+[[env.production.durable_objects.bindings]]
+name = "MANIFEST_COORDINATOR"
+class_name = "ManifestCoordinator"
+
+[[env.production.migrations]]
+tag = "v1"
+new_sqlite_classes = ["ManifestCoordinator"]
 
 # [[env.production.vpc_services]]
 # binding = "VPC_INGEST"
