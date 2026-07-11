@@ -125,6 +125,39 @@ export async function queryOne<T = Record<string, unknown>>(
   return rows.length > 0 ? rows[0] : null;
 }
 
+/**
+ * Read a single row's committed value with an origin (uncached) read.
+ *
+ * Hyperdrive serves ordinary read-only SELECTs from its query cache (a
+ * configured TTL), so a plain query() can return a stale value for the TTL
+ * after a committed write. Queries issued inside an explicit transaction are
+ * never cached, and `SELECT ... FOR UPDATE` is a locking read that must reach
+ * the origin (and serializes against a concurrent UPDATE of the same row).
+ * This helper wraps such a read so write-time guards observe committed state
+ * rather than a cached copy. Returns null when the row does not exist.
+ */
+export async function readCommittedRow<T = Record<string, unknown>>(
+  hyperdrive: Hyperdrive,
+  sql: string,
+  params: unknown[] = []
+): Promise<T | null> {
+  const conn = await createMysqlConnection(hyperdriveToConfig(hyperdrive));
+  try {
+    await conn.query<ResultSetHeader>('START TRANSACTION');
+    let rows: RowDataPacket[];
+    try {
+      [rows] = await conn.query<RowDataPacket[]>(sql, params);
+      await conn.query<ResultSetHeader>('COMMIT');
+    } catch (err) {
+      await conn.query<ResultSetHeader>('ROLLBACK').catch(() => {});
+      throw err;
+    }
+    return rows.length > 0 ? (rows[0] as T) : null;
+  } finally {
+    await conn.end();
+  }
+}
+
 class MysqlDatabase implements DatabaseClient {
   constructor(private config: MysqlConnectionConfig) {}
 

@@ -21,7 +21,7 @@ import { ManifestStore } from '../archive/manifest';
 // Must be exported from the Worker entrypoint so wrangler can bind the class.
 export { ManifestCoordinator } from '../archive/manifest-coordinator';
 import { ManifestSigner } from '../archive/signing';
-import { execute, query, queryOne, resolveDatabase } from '../db';
+import { execute, query, queryOne, readCommittedRow, resolveDatabase } from '../db';
 import type { InvestigationRow } from '../schema/db-types';
 import {
   accessErrorStatus,
@@ -31,6 +31,12 @@ import {
   InvestigationAccessError,
   publicInvestigationView,
 } from '../investigations/access';
+import {
+  assertInvestigationActiveForWrite,
+  insertSeedIfActive,
+  sealInvestigationIfActive,
+  softDeleteSeedIfActive,
+} from '../investigations/write-guard';
 import {
   ingestApifyTwitter,
   TWITTER_ACCOUNT_EXTRACTORS,
@@ -371,20 +377,29 @@ async function handleSeal(ctx: RouteContext): Promise<Response> {
   const { env } = ctx;
   const auth = ctx.auth!;
   const investigationId = ctx.investigationId;
+  const now = new Date().toISOString();
 
-  if (auth.status === 'sealed') {
+  // Seal transactionally: the UPDATE only fires when the row is still active at
+  // the origin, so a stale-active cache read (the requireWrite guard reads
+  // status through Hyperdrive's query cache) can neither re-seal nor otherwise
+  // mutate an already-sealed investigation. Idempotent when already sealed
+  // (§3.1 chain of custody; §3.1.1 immutable archival).
+  const sealed = await sealInvestigationIfActive(env.DB, investigationId, now);
+  if (!sealed) {
+    const current = await readCommittedRow<{ status: string; updated_at: string }>(
+      env.DB,
+      'SELECT status, updated_at FROM investigations WHERE id = ? FOR UPDATE',
+      [investigationId]
+    );
     return jsonResponse({
-      investigation: publicInvestigationView(auth),
+      investigation: {
+        ...publicInvestigationView(auth),
+        status: current?.status ?? auth.status,
+        updated_at: current?.updated_at ?? auth.updated_at,
+      },
       message: 'Investigation is already sealed (read-only).',
     });
   }
-
-  const now = new Date().toISOString();
-  await execute(
-    env.DB,
-    `UPDATE investigations SET status = 'sealed', updated_at = ? WHERE id = ?`,
-    [now, investigationId]
-  );
 
   return jsonResponse({
     investigation: {
@@ -547,22 +562,21 @@ async function handleAddSeed(ctx: RouteContext): Promise<Response> {
   const basis = body.basis_statement ?? body.basisStatement ?? 'Added via API';
   const isControl = body.is_control ? 1 : 0;
 
-  await execute(
-    env.DB,
-    `INSERT INTO seed_accounts (
-       investigation_id, platform, account_identifier, basis_statement,
-       added_at, added_by, is_control
-     ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [
-      investigationId,
-      body.platform,
-      body.account,
-      basis,
-      now,
-      body.added_by ?? 'api',
-      isControl,
-    ]
-  );
+  // Gate the INSERT on committed-active status inside the write statement so a
+  // stale-active cache read cannot admit a seed onto a sealed investigation
+  // (§3.1 immutable archival). No insert => not active => refuse.
+  const inserted = await insertSeedIfActive(env.DB, {
+    investigationId,
+    platform: body.platform,
+    account: body.account,
+    basis,
+    now,
+    addedBy: body.added_by ?? 'api',
+    isControl,
+  });
+  if (!inserted) {
+    return readOnlyResponse();
+  }
 
   return jsonResponse(
     {
@@ -614,18 +628,21 @@ async function handleDeleteSeed(ctx: RouteContext): Promise<Response> {
   const reason =
     body.removed_reason ?? body.removedReason ?? 'Removed via API';
 
-  const db = resolveDatabase(env.DB);
-  const result = await db
-    .prepare(
-      `UPDATE seed_accounts
-       SET removed_at = ?, removed_reason = ?
-       WHERE investigation_id = ?
-         AND platform = ?
-         AND account_identifier = ?
-         AND removed_at IS NULL`
-    )
-    .bind(now, reason, investigationId, body.platform, body.account)
-    .run();
+  // The soft-delete UPDATE (§5.1) is gated on committed-active status via an
+  // EXISTS predicate so a stale-active cache read cannot mutate a sealed
+  // investigation (§3.1). The precheck above already confirmed an active seed
+  // exists, so 0 rows changed here means the investigation was sealed/archived
+  // at write time: refuse rather than silently no-op.
+  const changes = await softDeleteSeedIfActive(env.DB, {
+    investigationId,
+    platform: body.platform,
+    account: body.account,
+    now,
+    reason,
+  });
+  if (changes === 0) {
+    return readOnlyResponse();
+  }
 
   return jsonResponse({
     investigationId,
@@ -633,7 +650,7 @@ async function handleDeleteSeed(ctx: RouteContext): Promise<Response> {
     account: body.account,
     removed_at: now,
     removed_reason: reason,
-    removed_count: result.meta.changes,
+    removed_count: changes,
   });
 }
 
@@ -653,6 +670,14 @@ async function handleFeatures(ctx: RouteContext): Promise<Response> {
 async function handleAttribute(ctx: RouteContext): Promise<Response> {
   const { env, request, url } = ctx;
   const investigationId = ctx.investigationId;
+
+  // Attribution has no single gating statement (it fans out into many writes,
+  // or dispatches an async job), so re-check status at write time against an
+  // uncached committed read before doing any work. A stale-active cache read
+  // in the requireWrite guard must not launch a run on a sealed investigation
+  // (§3.1 immutable archival; observed as a seal-then-attribute race).
+  const guard = await guardWriteOrRespond(env, investigationId);
+  if (guard) return guard;
 
   let body: Record<string, unknown> = {};
   if (request.headers.get('content-type')?.includes('application/json')) {
@@ -849,6 +874,14 @@ async function handleIngestApify(ctx: RouteContext): Promise<Response> {
   const { env, request } = ctx;
   const investigationId = ctx.investigationId;
 
+  // Ingest archives artifacts and appends to the manifest across several
+  // writes, so re-check status at write time against an uncached committed
+  // read before touching the archive. A stale-active cache read in the
+  // requireWrite guard must not admit new artifacts onto a sealed
+  // investigation (§3.1 immutable archival).
+  const guard = await guardWriteOrRespond(env, investigationId);
+  if (guard) return guard;
+
   const contentType = request.headers.get('content-type') || '';
   let allItems: any[] = [];
 
@@ -953,6 +986,39 @@ async function authorizeOrRespond(
     }
     throw err;
   }
+}
+
+/**
+ * Write-time seal enforcement for mutations that cannot be expressed as one
+ * status-gated statement (attribution, ingest). Reads committed status through
+ * an uncached transactional read; returns a 403 read_only Response when the
+ * investigation is not active, or null to proceed (§3.1).
+ */
+async function guardWriteOrRespond(
+  env: Env,
+  investigationId: string
+): Promise<Response | null> {
+  try {
+    await assertInvestigationActiveForWrite(env.DB, investigationId);
+    return null;
+  } catch (err) {
+    if (err instanceof InvestigationAccessError) {
+      return jsonResponse({ error: err.message, code: err.code }, accessErrorStatus(err.code));
+    }
+    throw err;
+  }
+}
+
+/** Uniform 403 for a write refused because the investigation is not active. */
+function readOnlyResponse(): Response {
+  return jsonResponse(
+    {
+      error:
+        'Investigation is not active (sealed or archived) and cannot be modified. Unseal is not supported; create a new investigation to continue work.',
+      code: 'read_only',
+    },
+    accessErrorStatus('read_only')
+  );
 }
 
 /**
