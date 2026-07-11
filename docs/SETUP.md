@@ -141,8 +141,19 @@ Save the private key in your password manager or hardware token.
 For **in-Worker evidence-packet signing** (§8.1.3), set the private key as the
 `SIGNER_PRIVATE_KEY` secret (see step 10); the packet export route then attaches
 a detached Ed25519 signature over the canonical Markdown. Leaving it unset
-exports packets unsigned (you can sign the Markdown offline instead). Verify any
-exported packet with `npm run verify:packet -- packet.json`.
+exports packets unsigned; sign such a packet offline instead with `npm run
+sign:packet -- --key key.txt packet.json`, which reads the private key from a
+file (or `SIGNER_PRIVATE_KEY`), never prints it, and populates `packet_signature`
+identically to the Worker. Verify any exported or offline-signed packet with
+`npm run verify:packet -- packet.json`.
+
+A full offline round trip (keypair, sign, verify):
+
+```bash
+# npm run keygen  -> save the private-key seed into key.txt (chmod 600)
+npm run sign:packet -- --key key.txt packet.json > signed.json
+npm run verify:packet -- signed.json   # prints VALID, exits 0
+```
 
 ## 6. Configure local secrets
 
