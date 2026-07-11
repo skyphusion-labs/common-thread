@@ -8,6 +8,7 @@
  */
 
 import type { ManifestEntry } from '../archive/types';
+import type { PacketSignature } from '../archive/signing';
 // Source the implementation version from the single source of truth (the root
 // package.json) rather than a hardcoded literal, so the evidence packet's
 // reproducibility envelope tracks the real build. resolveJsonModule is enabled
@@ -58,6 +59,9 @@ export interface EvidencePacket {
   methodology_metadata: Record<string, unknown>;
   methodology_reference: typeof METHODOLOGY_REFERENCE;
   markdown: string;
+  /** Detached Ed25519 signature over the canonical Markdown (8.1.3), or
+   * null when no signing key is configured. */
+  packet_signature: PacketSignature | null;
 }
 
 export function fingerprintFromHashes(hashes: string[]): string {
@@ -92,7 +96,7 @@ export function collectCitedSignalIds(output: Record<string, unknown>): Set<stri
   return ids;
 }
 
-export function renderMarkdown(packet: Omit<EvidencePacket, 'markdown'>): string {
+export function renderMarkdown(packet: Omit<EvidencePacket, 'markdown' | 'packet_signature'>): string {
   const lines: string[] = [];
   const cover = packet.cover as {
     investigation_name?: string;

@@ -82,6 +82,7 @@ browser API use).
 | Secret | When |
 |--------|------|
 | `SIGNER_PUBLIC_KEY` | Manifest signing (recommended) |
+| `SIGNER_PRIVATE_KEY` | In-Worker evidence-packet signing (optional, §8.1.3); unset = packets unsigned |
 | `AI_GATEWAY_URL` | Server-side attribution (optional if users BYOK) |
 | `ANTHROPIC_API_KEY` | Server-side attribution (optional if users BYOK) |
 | `INGEST_SECRET` | VPC ingest container (required with `VPC_INGEST`) |
@@ -89,6 +90,8 @@ browser API use).
 
 ```bash
 wrangler secret put SIGNER_PUBLIC_KEY
+# Optional: enable in-Worker packet signing (else packets export unsigned):
+# wrangler secret put SIGNER_PRIVATE_KEY --env production
 wrangler secret put INGEST_SECRET --env production
 wrangler secret put PDF_SECRET --env production
 # Optional if not using web BYOK:

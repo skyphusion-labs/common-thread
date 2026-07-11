@@ -38,7 +38,8 @@
     "db:hyperdrive:create": "wrangler hyperdrive create common-thread --connection-string",
     "r2:create": "wrangler r2 bucket create common-thread-archive --binding ARCHIVE --update-config",
     "r2:create:prod": "wrangler r2 bucket create common-thread-archive-prod --binding ARCHIVE --env production --update-config",
-    "keygen": "node scripts/keygen.mjs"
+    "keygen": "node scripts/keygen.mjs",
+    "verify:packet": "node scripts/verify-packet.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1080.0",

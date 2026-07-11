@@ -10,6 +10,8 @@
 import type { R2Bucket } from '@cloudflare/workers-types';
 import { ManifestStore } from '../archive/manifest';
 import { ManifestSigner } from '../archive/signing';
+import type { PacketSignature } from '../archive/signing';
+import { signPacketMarkdown } from './packet-signing';
 import { getAttributionRun } from '../attribution/query';
 import { queryOne, resolveDatabase } from '../db';
 import { readFeatureValue } from '../schema/db-types';
@@ -212,7 +214,8 @@ export async function buildEvidencePacket(
   db: Hyperdrive,
   archive: R2Bucket,
   investigationId: string,
-  runId: number
+  runId: number,
+  packetSigner?: { privateKey: string; signerId?: string }
 ): Promise<EvidencePacket | null> {
   const run = await getAttributionRun(db, investigationId, runId);
   if (!run) return null;
@@ -304,7 +307,7 @@ export async function buildEvidencePacket(
     time_bounds: timeBounds,
   };
 
-  const base: Omit<EvidencePacket, 'markdown'> = {
+  const base: Omit<EvidencePacket, 'markdown' | 'packet_signature'> = {
     format_version: 'evidence-packet-v1',
     generated_at: generatedAt,
     investigation_id: investigationId,
@@ -327,8 +330,21 @@ export async function buildEvidencePacket(
     methodology_reference: METHODOLOGY_REFERENCE,
   };
 
+  const markdown = renderMarkdown(base);
+
+  // Detached Ed25519 signature over the canonical Markdown (paper 8.1.3),
+  // produced only when an in-Worker signing key is configured; otherwise the
+  // packet is exported unsigned (null) and can be signed offline instead.
+  let packetSignature: PacketSignature | null = null;
+  if (packetSigner?.privateKey) {
+    packetSignature = await signPacketMarkdown(packetSigner.privateKey, markdown, {
+      signerId: packetSigner.signerId,
+    });
+  }
+
   return {
     ...base,
-    markdown: renderMarkdown(base),
+    markdown,
+    packet_signature: packetSignature,
   };
 }

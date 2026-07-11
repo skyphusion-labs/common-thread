@@ -31,7 +31,7 @@ Implemented in `implementation/workers/index.ts`. Full reference:
 Still queued:
 
 - [ ] `DELETE /investigations/:id` (investigation + artifact purge policy TBD)
-- [ ] Detached Ed25519 signing on evidence-packet export route (§8.1.3)
+- [x] Detached Ed25519 signing on evidence-packet export route (§8.1.3) (issue #71: `SIGNER_PRIVATE_KEY` opt-in; verify via `npm run verify:packet`)
 
 ### Paper §8 evidence packet builder
 

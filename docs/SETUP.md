@@ -138,6 +138,12 @@ Private key (store securely, never commit):
 
 Save the private key in your password manager or hardware token.
 
+For **in-Worker evidence-packet signing** (§8.1.3), set the private key as the
+`SIGNER_PRIVATE_KEY` secret (see step 10); the packet export route then attaches
+a detached Ed25519 signature over the canonical Markdown. Leaving it unset
+exports packets unsigned (you can sign the Markdown offline instead). Verify any
+exported packet with `npm run verify:packet -- packet.json`.
+
 ## 6. Configure local secrets
 
 Copy the template:
