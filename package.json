@@ -39,6 +39,7 @@
     "r2:create": "wrangler r2 bucket create common-thread-archive --binding ARCHIVE --update-config",
     "r2:create:prod": "wrangler r2 bucket create common-thread-archive-prod --binding ARCHIVE --env production --update-config",
     "keygen": "node scripts/keygen.mjs",
+    "sign:packet": "node scripts/sign-packet.mjs",
     "verify:packet": "node scripts/verify-packet.mjs"
   },
   "dependencies": {

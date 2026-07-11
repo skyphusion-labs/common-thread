@@ -416,7 +416,9 @@ Per §8.1.3, when a signing key (`SIGNER_PRIVATE_KEY`) is configured the default
 JSON packet also carries a **detached Ed25519 signature** over that canonical
 Markdown in `packet_signature` (`{ algorithm, publicKey, packetSha256, signedAt,
 signerId?, signature }`); when no key is configured `packet_signature` is `null`
-and the Markdown can be signed offline instead. Verify an exported packet with
+and the Markdown can be signed offline with `npm run sign:packet -- --key
+key.txt packet.json` (same `packet_signature` shape as the Worker). Verify an
+exported or offline-signed packet with
 `npm run verify:packet -- packet.json` (or pipe the JSON on stdin); it recomputes
 the Markdown SHA-256 and checks the signature with no archive or Worker access.
 The `format=markdown` and `format=pdf` responses are derived views; verify the
