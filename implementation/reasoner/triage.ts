@@ -46,7 +46,9 @@ const DEFAULT_MAX_TOKENS = 512;
 const ESCALATE_ON_PARSE_FAILURE: TriageVerdict = 'warrants_further_analysis';
 
 export interface RunTriageOptions {
-  apiKey: string;
+  apiKey?: string;
+  /** Keyless Unified Billing token (#111); preferred over apiKey when set. */
+  cfAigToken?: string;
   gatewayUrl: string;
   /** Triage model identifier (e.g., 'claude-haiku-4-5'). */
   model: string;
@@ -77,6 +79,7 @@ export async function runTriage(opts: RunTriageOptions): Promise<TriageOutput> {
 
   const response = await callLLM({
     apiKey: opts.apiKey,
+    cfAigToken: opts.cfAigToken,
     gatewayUrl: opts.gatewayUrl,
     model: opts.model,
     systemPrompt: TRIAGE_SYSTEM_PROMPT,

@@ -63,8 +63,14 @@ export interface ReasonerRunnerEnv {
   ARCHIVE: R2Bucket;
   /** Cloudflare AI Gateway base URL ending in '/anthropic'. */
   AI_GATEWAY_URL: string;
-  /** Anthropic API key. */
-  ANTHROPIC_API_KEY: string;
+  /** Anthropic API key (x-api-key). Optional when CF_AIG_TOKEN is set. */
+  ANTHROPIC_API_KEY?: string;
+  /**
+   * Cloudflare AI Gateway token for keyless Unified Billing (#111). When
+   * set, LLM calls authenticate with cf-aig-authorization and omit
+   * x-api-key. Takes precedence over ANTHROPIC_API_KEY.
+   */
+  CF_AIG_TOKEN?: string;
   /** Triage model identifier. Default 'claude-haiku-4-5'. */
   TRIAGE_MODEL: string;
   /** Reasoning model identifier. Default 'claude-opus-4-7'. */
@@ -196,6 +202,7 @@ export async function runAttribution(
         if (!options.skipTriage) {
           triageOut = await runTriage({
             apiKey: env.ANTHROPIC_API_KEY,
+            cfAigToken: env.CF_AIG_TOKEN,
             gatewayUrl: env.AI_GATEWAY_URL,
             model: env.TRIAGE_MODEL,
             pair: {
@@ -212,6 +219,7 @@ export async function runAttribution(
         if (escalate) {
           const result = await runReasoning({
             apiKey: env.ANTHROPIC_API_KEY,
+            cfAigToken: env.CF_AIG_TOKEN,
             gatewayUrl: env.AI_GATEWAY_URL,
             model: env.REASONING_MODEL,
             signal_table: signalTable,

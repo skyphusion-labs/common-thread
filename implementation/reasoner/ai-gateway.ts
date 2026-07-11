@@ -33,7 +33,19 @@ export const DEFAULT_LLM_MAX_RETRIES = 3;
 const RETRYABLE_HTTP_STATUSES = new Set([429, 500, 502, 503, 504]);
 
 export interface LLMCallOptions {
-  apiKey: string;
+  /**
+   * Anthropic API key for the x-api-key header (BYOK / direct billing).
+   * Optional: omit when using keyless Unified Billing via cfAigToken.
+   */
+  apiKey?: string;
+  /**
+   * Cloudflare AI Gateway token for keyless Unified Billing (#111). When
+   * set, callLLM sends cf-aig-authorization and OMITS x-api-key, so the
+   * gateway injects the upstream provider key and bills the account credit
+   * instead of switching to BYOK/direct billing. Takes precedence over
+   * apiKey when both are supplied.
+   */
+  cfAigToken?: string;
   /** Full base URL ending in '/anthropic'; '/v1/messages' is appended. */
   gatewayUrl: string;
   /** Model identifier passed to the Anthropic API (the alias). */
@@ -106,6 +118,8 @@ export async function callLLM(opts: LLMCallOptions): Promise<LLMCallResult> {
     body.temperature = opts.temperature;
   }
 
+  const authHeaders = buildAuthHeaders(opts);
+
   let lastError: Error | undefined;
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -115,11 +129,7 @@ export async function callLLM(opts: LLMCallOptions): Promise<LLMCallResult> {
     try {
       const res = await fetch(url, {
         method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-api-key': opts.apiKey,
-          'anthropic-version': ANTHROPIC_VERSION,
-        },
+        headers: authHeaders,
         body: JSON.stringify(body),
         signal: controller.signal,
       });
@@ -176,6 +186,26 @@ export async function callLLM(opts: LLMCallOptions): Promise<LLMCallResult> {
 
 export class LlmTransportError extends Error {
   override name = 'LlmTransportError';
+}
+
+/**
+ * Build the request headers for one AI Gateway call, choosing the auth
+ * mode (#111). Keyless Unified Billing (cfAigToken) is preferred: send
+ * cf-aig-authorization and omit x-api-key so the gateway does not switch to
+ * BYOK/direct billing. Otherwise fall back to the x-api-key path, which is
+ * byte-identical to the prior behavior for external AGPL deployers.
+ */
+function buildAuthHeaders(opts: LLMCallOptions): Record<string, string> {
+  const headers: Record<string, string> = {
+    'content-type': 'application/json',
+    'anthropic-version': ANTHROPIC_VERSION,
+  };
+  if (opts.cfAigToken) {
+    headers['cf-aig-authorization'] = `Bearer ${opts.cfAigToken}`;
+  } else if (opts.apiKey) {
+    headers['x-api-key'] = opts.apiKey;
+  }
+  return headers;
 }
 
 function parseLlmResponse(json: unknown, modelAlias: string): LLMCallResult {

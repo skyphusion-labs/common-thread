@@ -73,6 +73,11 @@ export interface Env {
   REASONING_MODEL?: string;
   AI_GATEWAY_URL?: string;
   ANTHROPIC_API_KEY?: string;
+  /** Cloudflare AI Gateway token for keyless Unified Billing (#111). When set,
+   * server-side attribution authenticates with cf-aig-authorization and omits
+   * x-api-key; takes precedence over ANTHROPIC_API_KEY. Per-request BYOK is
+   * unaffected. */
+  CF_AIG_TOKEN?: string;
   /** Comma-separated hostnames allowed for AI Gateway URLs (BYOK + server secret). */
   AI_GATEWAY_ALLOWED_HOSTS?: string;
   SIGNER_PUBLIC_KEY?: string;
@@ -661,6 +666,7 @@ async function handleAttribute(ctx: RouteContext): Promise<Response> {
   const credentials = resolveAttributionCredentials({
     envAiGatewayUrl: env.AI_GATEWAY_URL,
     envAnthropicApiKey: env.ANTHROPIC_API_KEY,
+    envCfAigToken: env.CF_AIG_TOKEN,
     requestHeaders: request.headers,
     body,
     allowedGatewayHosts: parseAllowedGatewayHosts(env.AI_GATEWAY_ALLOWED_HOSTS),
@@ -711,6 +717,7 @@ async function handleAttribute(ctx: RouteContext): Promise<Response> {
       ARCHIVE: env.ARCHIVE,
       AI_GATEWAY_URL: credentials.aiGatewayUrl,
       ANTHROPIC_API_KEY: credentials.anthropicApiKey,
+      CF_AIG_TOKEN: credentials.cfAigToken,
       TRIAGE_MODEL: env.TRIAGE_MODEL ?? 'claude-haiku-4-5',
       REASONING_MODEL: env.REASONING_MODEL ?? 'claude-opus-4-8',
     },

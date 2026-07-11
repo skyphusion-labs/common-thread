@@ -35,6 +35,7 @@ const ATTRIBUTION_SECRET = process.env.ATTRIBUTION_SECRET ?? '';
 const MYSQL_URL = process.env.MYSQL_URL ?? '';
 const AI_GATEWAY_URL = process.env.AI_GATEWAY_URL ?? '';
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? '';
+const CF_AIG_TOKEN = process.env.CF_AIG_TOKEN ?? '';
 const TRIAGE_MODEL = process.env.TRIAGE_MODEL ?? 'claude-haiku-4-5';
 const REASONING_MODEL = process.env.REASONING_MODEL ?? 'claude-opus-4-8';
 const CONTAINER_NAME = process.env.CONTAINER_NAME ?? hostname();
@@ -99,8 +100,10 @@ async function processJob(handoff: AttributionJobHandoff): Promise<void> {
   if (!MYSQL_URL) {
     throw new Error('MYSQL_URL is required');
   }
-  if (!AI_GATEWAY_URL || !ANTHROPIC_API_KEY) {
-    throw new Error('AI_GATEWAY_URL and ANTHROPIC_API_KEY are required');
+  if (!AI_GATEWAY_URL || !(CF_AIG_TOKEN || ANTHROPIC_API_KEY)) {
+    throw new Error(
+      'AI_GATEWAY_URL and one of CF_AIG_TOKEN (keyless Unified Billing) or ANTHROPIC_API_KEY are required'
+    );
   }
 
   const db = createDatabaseClient(parseMysqlUrl(MYSQL_URL));
@@ -114,6 +117,7 @@ async function processJob(handoff: AttributionJobHandoff): Promise<void> {
       ARCHIVE: archive as unknown as R2Bucket,
       AI_GATEWAY_URL,
       ANTHROPIC_API_KEY,
+      CF_AIG_TOKEN: CF_AIG_TOKEN || undefined,
       TRIAGE_MODEL,
       REASONING_MODEL,
     },

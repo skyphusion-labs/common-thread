@@ -37,7 +37,9 @@ const DEFAULT_MAX_ATTEMPTS = 3;
 const DEFAULT_MAX_TOKENS = 8192;
 
 export interface RunReasoningOptions {
-  apiKey: string;
+  apiKey?: string;
+  /** Keyless Unified Billing token (#111); preferred over apiKey when set. */
+  cfAigToken?: string;
   gatewayUrl: string;
   /** Reasoning model identifier (e.g., 'claude-opus-4-7'). */
   model: string;
@@ -87,6 +89,7 @@ export async function runReasoning(opts: RunReasoningOptions): Promise<RunReason
 
     const response = await callLLM({
       apiKey: opts.apiKey,
+      cfAigToken: opts.cfAigToken,
       gatewayUrl: opts.gatewayUrl,
       model: opts.model,
       systemPrompt: REASONING_SYSTEM_PROMPT,
