@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { verifyEvidencePacket } from '../lib/crypto.mjs';
 
 function readInput(path) {
