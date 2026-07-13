@@ -5,7 +5,15 @@
  * OffscreenCanvas) to produce RGBA buffers for dHash computation.
  */
 
+import { sha256 } from '../archive/hash';
+import { parseJpegExif, type ParsedExif } from '../extractors/visual/exif-parser';
 import { dhash, dhashToHex } from '../extractors/visual/dhash';
+
+export interface FetchedImageFeatures {
+  dhash: string | null;
+  sha256: string | null;
+  exif: ParsedExif | null;
+}
 
 type WorkersCanvas = {
   width: number;
@@ -80,10 +88,10 @@ export async function decodeImageBytesToRgba(bytes: Uint8Array): Promise<Decoded
 }
 
 /**
- * Fetch a remote image URL and return its dHash hex string, or null
- * on any failure (network, decode, unsupported format).
+ * Fetch a remote image URL and return perceptual hash, content SHA-256,
+ * and parsed JPEG EXIF when available. Returns null on hard failure.
  */
-export async function fetchUrlDhash(url: string): Promise<string | null> {
+export async function fetchUrlImageFeatures(url: string): Promise<FetchedImageFeatures | null> {
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -97,9 +105,33 @@ export async function fetchUrlDhash(url: string): Promise<string | null> {
     const buf = new Uint8Array(await response.arrayBuffer());
     if (buf.length === 0 || buf.length > MAX_IMAGE_BYTES) return null;
 
-    const { rgba, width, height } = await decodeImageBytesToRgba(buf);
-    return dhashToHex(dhash(rgba, width, height));
+    const contentHash = await sha256(buf);
+    const exif = parseJpegExif(buf);
+
+    try {
+      const { rgba, width, height } = await decodeImageBytesToRgba(buf);
+      return {
+        dhash: dhashToHex(dhash(rgba, width, height)),
+        sha256: contentHash,
+        exif,
+      };
+    } catch {
+      return {
+        dhash: null,
+        sha256: contentHash,
+        exif,
+      };
+    }
   } catch {
     return null;
   }
+}
+
+/**
+ * Fetch a remote image URL and return its dHash hex string, or null
+ * on any failure (network, decode, unsupported format).
+ */
+export async function fetchUrlDhash(url: string): Promise<string | null> {
+  const features = await fetchUrlImageFeatures(url);
+  return features?.dhash ?? null;
 }

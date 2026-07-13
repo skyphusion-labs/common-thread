@@ -9,16 +9,19 @@
 
 import { ArchiveStore } from '../archive/store';
 import { ManifestStore } from '../archive/manifest';
-import { fetchUrlDhash } from '../collection/image-decode';
+import { fetchUrlImageFeatures } from '../collection/image-decode';
+import type { AccountExifCorpus } from './apify-exif-corpus';
 import type { AccountTimeline } from './apify-timeline';
 
 export const APIFY_TWITTER_POSTED_IMAGE_CORPUS_TOOL = 'apify-twitter-posted-image-corpus';
+export const APIFY_TWITTER_BANNER_IMAGE_CORPUS_TOOL = 'apify-twitter-banner-image-corpus';
 export const POSTED_IMAGE_CORPUS_MIME = 'application/x-image-hash-corpus';
 
 export interface PostedImageCorpusEntry {
   url: string;
   tweet_id?: string;
   dhash?: string;
+  sha256?: string;
 }
 
 export interface AccountPostedImageCorpus {
@@ -59,30 +62,58 @@ export function buildPostedImageCorpusFromTweets(
 
 const MAX_DHASH_FETCHES_PER_ACCOUNT = 12;
 
+export interface EnrichedImageCorporaResult {
+  corpora: AccountPostedImageCorpus[];
+  exifCorpora: AccountExifCorpus[];
+}
+
 /**
- * Best-effort dHash enrichment for corpus entries missing hashes.
- * Failures are skipped; URL-level overlap still works without dHash.
+ * Best-effort image fetch enrichment: dHash, content SHA-256, and EXIF
+ * parsing share one fetch per URL. Failures are skipped per entry.
  */
-export async function enrichPostedImageCorporaWithDhash(
+export async function enrichPostedImageCorpora(
   corpora: AccountPostedImageCorpus[]
-): Promise<AccountPostedImageCorpus[]> {
+): Promise<EnrichedImageCorporaResult> {
   const out: AccountPostedImageCorpus[] = [];
+  const exifCorpora: AccountExifCorpus[] = [];
 
   for (const corpus of corpora) {
     const hashes = [...corpus.hashes];
+    const exifImages: AccountExifCorpus['images'] = [];
     let fetches = 0;
 
     for (const entry of hashes) {
-      if (entry.dhash || fetches >= MAX_DHASH_FETCHES_PER_ACCOUNT) continue;
+      if (fetches >= MAX_DHASH_FETCHES_PER_ACCOUNT) break;
+      if (entry.dhash && entry.sha256) continue;
+
       fetches++;
-      const hex = await fetchUrlDhash(entry.url);
-      if (hex) entry.dhash = hex;
+      const features = await fetchUrlImageFeatures(entry.url);
+      if (!features) continue;
+
+      if (features.dhash) entry.dhash = features.dhash;
+      if (features.sha256) entry.sha256 = features.sha256;
+      exifImages.push({
+        url: entry.url,
+        tweet_id: entry.tweet_id,
+        exif: features.exif,
+      });
     }
 
     out.push({ account: corpus.account, hashes, imageType: corpus.imageType });
+    if (exifImages.length > 0) {
+      exifCorpora.push({ account: corpus.account, images: exifImages });
+    }
   }
 
-  return out;
+  return { corpora: out, exifCorpora };
+}
+
+/** @deprecated Use enrichPostedImageCorpora */
+export async function enrichPostedImageCorporaWithDhash(
+  corpora: AccountPostedImageCorpus[]
+): Promise<AccountPostedImageCorpus[]> {
+  const { corpora: enriched } = await enrichPostedImageCorpora(corpora);
+  return enriched;
 }
 
 export function buildPostedImageCorporaFromTimelines(
@@ -110,18 +141,46 @@ export function buildProfileImageCorporaFromProfiles(
 ): AccountPostedImageCorpus[] {
   const corpora: AccountPostedImageCorpus[] = [];
   for (const { account, profile } of profiles) {
-    const url =
-      (typeof profile.profilePicture === 'string' && profile.profilePicture) ||
-      (typeof profile.profile_image_url === 'string' && profile.profile_image_url) ||
-      (typeof profile.profile_image_url_https === 'string' &&
-        profile.profile_image_url_https) ||
-      null;
+    const url = profileImageUrlFromSnapshot(profile);
     if (!url) continue;
-    const normalized = normalizeMediaUrl(url);
-    if (!normalized) continue;
-    corpora.push({ account, hashes: [{ url: normalized }], imageType: 'profile' });
+    corpora.push({ account, hashes: [{ url }], imageType: 'profile' });
   }
   return corpora;
+}
+
+/**
+ * Build banner-image corpora from profile snapshots (§4.5.2).
+ */
+export function buildBannerImageCorporaFromProfiles(
+  profiles: ProfileImageSource[]
+): AccountPostedImageCorpus[] {
+  const corpora: AccountPostedImageCorpus[] = [];
+  for (const { account, profile } of profiles) {
+    const url = bannerImageUrlFromSnapshot(profile);
+    if (!url) continue;
+    corpora.push({ account, hashes: [{ url }], imageType: 'banner' });
+  }
+  return corpora;
+}
+
+function profileImageUrlFromSnapshot(profile: Record<string, unknown>): string | null {
+  const url =
+    (typeof profile.profilePicture === 'string' && profile.profilePicture) ||
+    (typeof profile.profile_image_url === 'string' && profile.profile_image_url) ||
+    (typeof profile.profile_image_url_https === 'string' &&
+      profile.profile_image_url_https) ||
+    null;
+  return url ? normalizeMediaUrl(url) : null;
+}
+
+function bannerImageUrlFromSnapshot(profile: Record<string, unknown>): string | null {
+  const url =
+    (typeof profile.profileBannerUrl === 'string' && profile.profileBannerUrl) ||
+    (typeof profile.profile_banner_url === 'string' && profile.profile_banner_url) ||
+    (typeof profile.coverPicture === 'string' && profile.coverPicture) ||
+    (typeof profile.banner_image_url === 'string' && profile.banner_image_url) ||
+    null;
+  return url ? normalizeMediaUrl(url) : null;
 }
 
 export interface ArchivePostedImageCorporaResult {
@@ -155,12 +214,16 @@ export async function archivePostedImageCorpora(
     const tool =
       resolvedType === 'profile'
         ? 'apify-twitter-profile-image-corpus'
-        : APIFY_TWITTER_POSTED_IMAGE_CORPUS_TOOL;
+        : resolvedType === 'banner'
+          ? APIFY_TWITTER_BANNER_IMAGE_CORPUS_TOOL
+          : APIFY_TWITTER_POSTED_IMAGE_CORPUS_TOOL;
 
     await manifest.append({
       hash,
       account,
-      source: `https://x.com/${account}/${resolvedType === 'profile' ? 'photo' : 'media'}`,
+      source: `https://x.com/${account}/${
+        resolvedType === 'profile' ? 'photo' : resolvedType === 'banner' ? 'header' : 'media'
+      }`,
       collectedAt: options.collectedAt,
       investigationId: options.investigationId,
       collectionMethod: {
