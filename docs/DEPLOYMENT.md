@@ -151,7 +151,7 @@ Cloudflare account as the Workers):
 | `common-thread-backend.skyphusion.org` | Backend (`common-thread-prod`) | Hosted HTTP API (contact **common-thread@skyphusion.org** before third-party use; see [API.md](API.md#using-the-hosted-api)) |
 | `common-thread.skyphusion.org` | Web (`common-thread-web-prod`) | Browser UI |
 
-**Backend API** — configured in root `wrangler.toml` under `[env.production]`:
+**Backend API**:  configured in root `wrangler.toml` under `[env.production]`:
 
 ```toml
 [[env.production.routes]]
@@ -165,7 +165,7 @@ custom_domain = true
 Deploy with `npm run deploy:backend:prod`. The first deploy creates the custom
 domain and SSL certificate.
 
-**Web UI** — configured in `web/wrangler.toml` under `[env.production]`:
+**Web UI**:  configured in `web/wrangler.toml` under `[env.production]`:
 
 ```toml
 [[env.production.routes]]

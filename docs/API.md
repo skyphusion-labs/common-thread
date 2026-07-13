@@ -15,8 +15,8 @@ The production API at **https://common-thread-backend.skyphusion.org** is
 operated by the project author for the public web UI and approved integrations.
 It is **not** a general-purpose open API for third-party projects.
 
-If you want to call the **hosted** API from your own application — whether from
-a browser, a backend service, or a script that runs as part of your product —
+If you want to call the **hosted** API from your own application,  whether from
+a browser, a backend service, or a script that runs as part of your product, 
 **contact the operator first** before building against it:
 
 - Email: **common-thread@skyphusion.org**
@@ -40,9 +40,9 @@ is listed in the Worker's `CORS_ALLOWED_ORIGINS` var
 
 | Client | CORS applies? |
 |--------|----------------|
-| `curl`, Python, Node (no `Origin` header) | No — but hosted use still requires prior contact |
-| Web UI via service binding | No — Worker-to-Worker, not browser CORS |
-| Browser app on another domain | Yes — origin must be allowlisted |
+| `curl`, Python, Node (no `Origin` header) | No,  but hosted use still requires prior contact |
+| Web UI via service binding | No,  Worker-to-Worker, not browser CORS |
+| Browser app on another domain | Yes,  origin must be allowlisted |
 
 Unknown browser origins receive `403` with `code: cors_forbidden`. Approved
 origins are added to `CORS_ALLOWED_ORIGINS` in production `wrangler.toml` after
@@ -135,7 +135,7 @@ Pass the token on every request scoped to an investigation (`/investigations/:id
 | `archived` | Allowed with token | Rejected (`read_only`) |
 
 Seal an active investigation with `POST /investigations/:id/seal`. Sealing is
-intended for “investigation complete” — review and export evidence packets, but
+intended for “investigation complete”,  review and export evidence packets, but
 no further ingest or attribution.
 
 **Security expectations (public hosting)**
@@ -273,8 +273,8 @@ Soft-delete active seeds for a platform + account (sets `removed_at`,
 }
 ```
 
-**Response `200`** — `{ removed_at, removed_count, ... }`  
-**Response `404`** — no active seed for that pair.
+**Response `200`**:  `{ removed_at, removed_count, ... }`  
+**Response `404`**:  no active seed for that pair.
 
 ---
 
@@ -323,11 +323,11 @@ extractor pipeline (container when `VPC_INGEST`, `INGEST_WORKER_URL`, and
 
 **Content types**
 
-- `application/json` — array of items, or `{ "items": [...] }` / `{ "data": [...] }`
-- `multipart/form-data` — one or more `file` fields containing JSON
+- `application/json`,  array of items, or `{ "items": [...] }` / `{ "data": [...] }`
+- `multipart/form-data`,  one or more `file` fields containing JSON
 
-**Response `202`** — job delegated to ingest container (`delegatedToContainer: true`).  
-**Response `200`** — inline pipeline completed.
+**Response `202`**:  job delegated to ingest container (`delegatedToContainer: true`).  
+**Response `200`**:  inline pipeline completed.
 
 Response includes `jobId` for status polling.
 
@@ -335,9 +335,10 @@ Response includes `jobId` for status polling.
 
 Requires capability token.
 
-Poll ingest job status.
+Poll ingest job status. Status reads bypass Hyperdrive query cache (fresh
+transaction) so `completed` is visible as soon as the job finishes.
 
-**Response `200`** — `{ job: { status, item_count, manifest_hashes, error_message, ... } }`
+**Response `200`**:  `{ job: { status, item_count, manifest_hashes, error_message, ... } }`
 
 ---
 
@@ -361,7 +362,7 @@ Requires Anthropic credentials via **server secrets** or **request BYOK**
 | `maxRetries` | Reasoning retry cap (default 3) |
 | `randomizationSeed` | Reproducible signal-table shuffle (§7.4.1) |
 
-**Bring-your-own-key (BYOK)** — for public deployments where the host
+**Bring-your-own-key (BYOK)**:  for public deployments where the host
 does not supply API keys:
 
 | Source | Fields |
@@ -375,7 +376,7 @@ access, or a Cloudflare AI Gateway base URL ending in `/anthropic`.
 Request credentials override server secrets when provided. Keys are used
 only for the attribution call and are not persisted.
 
-**Response `200`** — `{ investigationId, pair_count, credential_source, runs: [...] }` per-pair summaries.
+**Response `200`**:  `{ investigationId, pair_count, credential_source, runs: [...] }` per-pair summaries.
 
 ### `GET /investigations/:id/runs`
 

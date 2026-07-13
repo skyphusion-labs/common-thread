@@ -6,10 +6,10 @@ cover running and deploying the code.
 
 ## Getting started
 
-1. **[SETUP.md](SETUP.md)** — Install dependencies, MySQL + Hyperdrive + R2,
+1. **[SETUP.md](SETUP.md)**: Install dependencies, MySQL + Hyperdrive + R2,
    local secrets, first investigation (capability token).
-2. **[API.md](API.md)** — HTTP routes: create → ingest → features → attribute → packet; investigation access tokens.
-3. **[DEPLOYMENT.md](DEPLOYMENT.md)** — Deploy backend and web Workers,
+2. **[API.md](API.md)**: HTTP routes: create → ingest → features → attribute → packet; investigation access tokens.
+3. **[DEPLOYMENT.md](DEPLOYMENT.md)**: Deploy backend and web Workers,
    service bindings, VPC containers, production secrets.
 
 ## Reference
@@ -17,6 +17,7 @@ cover running and deploying the code.
 | Document | Description |
 |----------|-------------|
 | [API.md](API.md) | Full HTTP API (backend Worker) |
+| [ARCHIVE-BACKUP.md](ARCHIVE-BACKUP.md) | Operator guide for R2 archive replication (§5.4.4) |
 | [TESTING_SETUP.md](TESTING_SETUP.md) | Vitest, `TEST_MYSQL_URL`, LLM mocks |
 | [contact.md](contact.md) | Issue tracker vs private email |
 
@@ -29,6 +30,7 @@ cover running and deploying the code.
 | [../containers/ingest-worker/README.md](../containers/ingest-worker/README.md) | VPC ingest container |
 | [../containers/pdf-worker/README.md](../containers/pdf-worker/README.md) | VPC PDF/A renderer |
 | [../examples/README.md](../examples/README.md) | Case study placeholder |
+| [../packages/common-thread-verify/README.md](../packages/common-thread-verify/README.md) | Offline evidence packet verifier (npm) |
 
 ## Configuration templates
 

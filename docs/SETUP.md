@@ -209,7 +209,7 @@ Open the web Worker URL (Wrangler prints it). In **Setup**:
 
 1. Leave backend URL empty if the `BACKEND` service binding points at `npm run dev`.
 2. Or set backend URL to `http://127.0.0.1:8787` and uncomment `DEFAULT_BACKEND_URL` in `web/wrangler.toml`.
-3. Add **Anthropic API key** and **AI Gateway URL** (or `https://api.anthropic.com`) for attribution — see the "How to get API keys" section in the UI.
+3. Add **Anthropic API key** and **AI Gateway URL** (or `https://api.anthropic.com`) for attribution,  see the "How to get API keys" section in the UI.
 
 Attribution credentials stay in your browser (BYOK); they are not stored on the server.
 
@@ -235,7 +235,7 @@ curl -s http://localhost:8787/investigations/test-001/summary \
 ```
 
 You should get seed and artifact counts. `GET /investigations` (listing) returns
-`404` — investigations are not enumerable.
+`404`,  investigations are not enumerable.
 
 **PowerShell:**
 
@@ -305,7 +305,7 @@ All `/investigations/:id` routes require the capability token returned at
 creation. Pass `Authorization: Bearer ct_…` or `X-Investigation-Token: ct_…`.
 
 If you upgraded an old database without migration **0008**, the
-`access_token_hash` column may be missing — re-apply schema or run
+`access_token_hash` column may be missing,  re-apply schema or run
 `mysql-migrations/0008_investigation_access_token.sql`. Pre-migration
 investigations have no recoverable token.
 
@@ -342,11 +342,11 @@ You now have a working Worker with the full v1 HTTP API (see **`docs/API.md`**).
 
 Typical next steps:
 
-1. **Web UI or API** — create an investigation, **save the `access_token`**, upload Apify Twitter JSON.
-2. **Ingest** — `POST /investigations/:id/ingest/apify-twitter` (requires token; VPC container in production).
-3. **Attribution** — BYOK via web Setup tab, or set `AI_GATEWAY_URL` + `ANTHROPIC_API_KEY` secrets.
-4. **Evidence packet** — Results tab or `GET /investigations/:id/packet/:run_id` (`?format=pdf` with VPC PDF).
-5. **Seal** (optional) — `POST /investigations/:id/seal` when the investigation is complete (read-only thereafter).
+1. **Web UI or API**:  create an investigation, **save the `access_token`**, upload Apify Twitter JSON.
+2. **Ingest**:  `POST /investigations/:id/ingest/apify-twitter` (requires token; VPC container in production).
+3. **Attribution**:  BYOK via web Setup tab, or set `AI_GATEWAY_URL` + `ANTHROPIC_API_KEY` secrets.
+4. **Evidence packet**:  Results tab or `GET /investigations/:id/packet/:run_id` (`?format=pdf` with VPC PDF).
+5. **Seal** (optional),  `POST /investigations/:id/seal` when the investigation is complete (read-only thereafter).
 
 See **`docs/API.md`** for investigation access headers and error codes.
 

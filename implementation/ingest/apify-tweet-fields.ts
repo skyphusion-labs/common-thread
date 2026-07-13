@@ -14,6 +14,8 @@ export interface ApifyTweetLike {
   tweetId?: string;
   url?: string;
   twitterUrl?: string;
+  lang?: string;
+  language?: string;
   text?: string;
   full_text?: string;
   fullText?: string;
@@ -49,6 +51,14 @@ const STATUS_URL =
 /** Post body text across Apify / legacy field names. */
 export function tweetText(post: ApifyTweetLike): string {
   return post.fullText ?? post.full_text ?? post.text ?? '';
+}
+
+/** Tweet language code when the platform supplies it (§6.4.2). */
+export function tweetLanguage(post: ApifyTweetLike): string | null {
+  const raw = post.lang ?? post.language;
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim().toLowerCase();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 export function tweetId(post: ApifyTweetLike): string | null {

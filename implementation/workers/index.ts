@@ -1079,7 +1079,7 @@ async function handleIngestJobStatus(ctx: RouteContext): Promise<Response> {
   const investigationId = ctx.investigationId;
   const jobId = params[1] ?? '';
 
-  const row = await queryOne(
+  const row = await readCommittedRow(
     env.DB,
     `SELECT job_id, investigation_id, provider, status, item_count,
             manifest_hashes, raw_file_hashes, container_name,
@@ -1101,7 +1101,7 @@ async function handleAttributionJobStatus(ctx: RouteContext): Promise<Response> 
   const investigationId = ctx.investigationId;
   const jobId = params[1] ?? '';
 
-  const row = await queryOne(
+  const row = await readCommittedRow(
     env.DB,
     `SELECT job_id, investigation_id, status, pair_count,
             container_name, started_at, completed_at, error_message, created_at

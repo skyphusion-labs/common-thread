@@ -45,25 +45,18 @@ import type {
 } from '../types';
 import type { ManifestEntry } from '../../archive/types';
 import { sourceMatchesHost } from '../platform';
+import { isApifyTweetLike, tweetLanguage, tweetText } from '../../ingest/apify-tweet-fields';
+import { filterByDominantLanguage } from './corpus-language';
+import { computeInternalStylometricVariance } from './internal-variance';
 import {
-  FUNCTION_WORDS_150,
-  FUNCTION_WORD_INDEX,
-  FUNCTION_WORD_VECTOR_LENGTH,
-} from './function-words';
-import {
-  tokenize,
-  splitSentences,
-  computeCharBigrams,
-  shannonEntropyFromMap,
-  computeCharacterRatios,
-  countMatches,
-  median,
-  extractAndNormalizeUrls,
-} from './text-helpers';
-import { isApifyTweetLike, tweetText } from '../../ingest/apify-tweet-fields';
+  buildStylometricFeatures,
+  type PostStylometryInput,
+} from './stylometry-features';
+import { countMatches, extractAndNormalizeUrls, tokenize } from './text-helpers';
+import { selectRecentThirdWindow } from './windowing';
 
 const NAME = 'stylometric_twitter';
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 
 interface TwitterPost {
   createdAt?: string;
@@ -105,246 +98,105 @@ export class TwitterStylometricExtractor implements AccountFeatureExtractor {
     const posts = tryParseTimeline(input.bytes);
     if (!posts || posts.length === 0) return [];
 
-    // Extract post texts (handle RT prefix removal)
-    const rawTexts = posts
-      .map(p => tweetText(p))
-      .filter(t => t.length > 0)
-      .map(stripRetweetPrefix);
+    const langFilter = filterByDominantLanguage(posts, (p) => tweetLanguage(p));
+    const workingPosts = langFilter.items;
 
-    if (rawTexts.length === 0) return [];
+    const metrics = buildPostMetrics(workingPosts);
+    if (metrics.length === 0) return [];
 
-    // Per-post counts for Twitter-specific features
-    const hashtagCounts: number[] = [];
-    const mentionCounts: number[] = [];
-    const emojiCounts: number[] = [];
-    const urlCounts: number[] = [];
-    const charLengths: number[] = [];
-    const tokenLengths: number[] = [];
-
-    // Aggregate posted URL set across all posts (§4.6.3 input).
     const postedUrls = new Set<string>();
-
-    // Build the cleaned corpus for stylometric analysis
-    const cleanedTexts: string[] = [];
-
-    for (const raw of rawTexts) {
-      hashtagCounts.push(countMatches(raw, /#[\w\u00C0-\uFFFF]+/g));
-      mentionCounts.push(countMatches(raw, /@\w+/g));
-      emojiCounts.push(countMatches(raw, /\p{Extended_Pictographic}/gu));
-      urlCounts.push(countMatches(raw, /https?:\/\/\S+/gi));
-      for (const u of extractAndNormalizeUrls(raw)) postedUrls.add(u);
-      charLengths.push(raw.length);
-
-      const cleaned = cleanForStylometry(raw);
-      cleanedTexts.push(cleaned);
-      tokenLengths.push(tokenize(cleaned).length);
+    for (const m of metrics) {
+      for (const u of extractAndNormalizeUrls(m.rawText)) postedUrls.add(u);
     }
 
-    const corpus = cleanedTexts.join(' ');
-    const tokens = tokenize(corpus);
+    const features: ExtractedFeature[] = [
+      {
+        category: 'stylometric',
+        name: 'stylometric_corpus_language',
+        value: { kind: 'text', value: langFilter.dominant_language },
+      },
+      {
+        category: 'stylometric',
+        name: 'stylometric_corpus_post_count',
+        value: { kind: 'numeric', value: langFilter.total_count },
+      },
+      {
+        category: 'stylometric',
+        name: 'stylometric_corpus_filtered_post_count',
+        value: { kind: 'numeric', value: langFilter.filtered_count },
+      },
+      ...buildStylometricFeatures(metrics, {
+        includePostedUrls: true,
+        postedUrls,
+      }),
+    ];
 
-    if (tokens.length === 0) return [];
-
-    const features: ExtractedFeature[] = [];
-    const cat = 'stylometric' as const;
-    const totalTokens = tokens.length;
-
-    // ----- Function-word frequencies -----
-    const fwCounts = new Array(FUNCTION_WORD_VECTOR_LENGTH).fill(0) as number[];
-    let fwTotal = 0;
-    for (const tok of tokens) {
-      const idx = FUNCTION_WORD_INDEX.get(tok);
-      if (idx !== undefined) {
-        fwCounts[idx]++;
-        fwTotal++;
-      }
-    }
-    const fwFreq = fwCounts.map(c => c / totalTokens);
-
-    features.push({
-      category: cat,
-      name: 'function_word_frequencies',
-      value: { kind: 'json', value: fwFreq },
-    });
-    features.push({
-      category: cat,
-      name: 'function_word_total',
-      value: { kind: 'numeric', value: fwTotal },
-    });
-    features.push({
-      category: cat,
-      name: 'function_word_ratio',
-      value: { kind: 'numeric', value: fwTotal / totalTokens },
-    });
-
-    // ----- Character bigrams -----
-    const bigramCounts = computeCharBigrams(corpus);
-    const bigramTotal = Array.from(bigramCounts.values()).reduce((s, x) => s + x, 0);
-
-    // Top 50 bigrams as JSON map (sorted by count desc, then by bigram asc for determinism)
-    const top50 = Array.from(bigramCounts.entries())
-      .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
-      .slice(0, 50);
-    const top50Map: Record<string, number> = {};
-    for (const [bg, count] of top50) top50Map[bg] = count;
-
-    features.push({
-      category: cat,
-      name: 'character_bigram_top50',
-      value: { kind: 'json', value: top50Map },
-    });
-    features.push({
-      category: cat,
-      name: 'character_bigram_entropy',
-      value: { kind: 'numeric', value: shannonEntropyFromMap(bigramCounts, bigramTotal) },
-    });
-
-    // ----- Lexical richness -----
-    const typeCounts = new Map<string, number>();
-    for (const tok of tokens) {
-      typeCounts.set(tok, (typeCounts.get(tok) ?? 0) + 1);
-    }
-    const typeCount = typeCounts.size;
-    let hapaxCount = 0;
-    for (const c of typeCounts.values()) {
-      if (c === 1) hapaxCount++;
+    const internalVariance = computeInternalStylometricVariance(
+      metrics.map((m) => m.cleanedText)
+    );
+    if (internalVariance) {
+      features.push({
+        category: 'stylometric',
+        name: 'internal_stylometric_variance',
+        value: { kind: 'numeric', value: internalVariance.variance },
+      });
+      features.push({
+        category: 'stylometric',
+        name: 'internal_stylometric_variance_chunk_count',
+        value: { kind: 'numeric', value: internalVariance.chunk_count },
+      });
+      features.push({
+        category: 'stylometric',
+        name: 'high_internal_stylometric_variance',
+        value: {
+          kind: 'json',
+          value: { flag: internalVariance.high_internal_variance },
+        },
+      });
     }
 
-    features.push({ category: cat, name: 'token_count', value: { kind: 'numeric', value: totalTokens } });
-    features.push({ category: cat, name: 'type_count', value: { kind: 'numeric', value: typeCount } });
-    features.push({
-      category: cat,
-      name: 'type_token_ratio',
-      value: { kind: 'numeric', value: typeCount / totalTokens },
-    });
-    features.push({
-      category: cat,
-      name: 'hapax_legomena_count',
-      value: { kind: 'numeric', value: hapaxCount },
-    });
-    features.push({
-      category: cat,
-      name: 'hapax_legomena_ratio',
-      value: { kind: 'numeric', value: hapaxCount / totalTokens },
-    });
-
-    // ----- Word length -----
-    const wordLengths = tokens.map(t => t.length).sort((a, b) => a - b);
-    features.push({
-      category: cat,
-      name: 'mean_word_length',
-      value: { kind: 'numeric', value: wordLengths.reduce((s, x) => s + x, 0) / wordLengths.length },
-    });
-    features.push({
-      category: cat,
-      name: 'median_word_length',
-      value: { kind: 'numeric', value: median(wordLengths) },
-    });
-
-    // ----- Sentence-level (operates on the corpus before tokenization) -----
-    const sentences = splitSentences(corpus);
-    if (sentences.length > 0) {
-      const sentLengths = sentences.map(s => tokenize(s).length).filter(n => n > 0);
-      if (sentLengths.length > 0) {
-        const sortedSentLens = [...sentLengths].sort((a, b) => a - b);
-        const meanSent = sentLengths.reduce((s, x) => s + x, 0) / sentLengths.length;
-        const variance =
-          sentLengths.reduce((s, x) => s + (x - meanSent) ** 2, 0) / sentLengths.length;
-        features.push({
-          category: cat,
-          name: 'sentence_count',
-          value: { kind: 'numeric', value: sentLengths.length },
-        });
-        features.push({
-          category: cat,
-          name: 'mean_sentence_length',
-          value: { kind: 'numeric', value: meanSent },
-        });
-        features.push({
-          category: cat,
-          name: 'median_sentence_length',
-          value: { kind: 'numeric', value: median(sortedSentLens) },
-        });
-        features.push({
-          category: cat,
-          name: 'sentence_length_stdev',
-          value: { kind: 'numeric', value: Math.sqrt(variance) },
-        });
-      }
+    const recent = selectRecentThirdWindow(workingPosts, (p) =>
+      p.createdAt ?? p.created_at ?? null
+    );
+    if (recent.window === 'recent_third') {
+      const recentMetrics = buildPostMetrics(recent.items);
+      features.push(
+        ...buildStylometricFeatures(recentMetrics, { recentWindow: true })
+      );
+      features.push({
+        category: 'stylometric',
+        name: 'stylometric_recent_window_post_count',
+        value: { kind: 'numeric', value: recent.items.length },
+      });
+      features.push({
+        category: 'stylometric',
+        name: 'stylometric_recent_window_source_post_count',
+        value: { kind: 'numeric', value: recent.source_count },
+      });
     }
-
-    // ----- Character-level ratios (computed on raw text, not cleaned) -----
-    const allRawText = rawTexts.join(' ');
-    const charRatios = computeCharacterRatios(allRawText);
-    features.push({
-      category: cat,
-      name: 'uppercase_ratio',
-      value: { kind: 'numeric', value: charRatios.uppercase },
-    });
-    features.push({
-      category: cat,
-      name: 'digit_ratio',
-      value: { kind: 'numeric', value: charRatios.digit },
-    });
-    features.push({
-      category: cat,
-      name: 'punctuation_ratio',
-      value: { kind: 'numeric', value: charRatios.punctuation },
-    });
-
-    // ----- Twitter-specific aggregates -----
-    const postCount = rawTexts.length;
-    features.push({ category: cat, name: 'post_count', value: { kind: 'numeric', value: postCount } });
-    features.push({
-      category: cat,
-      name: 'avg_post_length_chars',
-      value: { kind: 'numeric', value: charLengths.reduce((s, x) => s + x, 0) / postCount },
-    });
-    features.push({
-      category: cat,
-      name: 'avg_post_length_tokens',
-      value: { kind: 'numeric', value: tokenLengths.reduce((s, x) => s + x, 0) / postCount },
-    });
-    features.push({
-      category: cat,
-      name: 'hashtag_per_post_mean',
-      value: { kind: 'numeric', value: hashtagCounts.reduce((s, x) => s + x, 0) / postCount },
-    });
-    features.push({
-      category: cat,
-      name: 'mention_per_post_mean',
-      value: { kind: 'numeric', value: mentionCounts.reduce((s, x) => s + x, 0) / postCount },
-    });
-    features.push({
-      category: cat,
-      name: 'emoji_per_post_mean',
-      value: { kind: 'numeric', value: emojiCounts.reduce((s, x) => s + x, 0) / postCount },
-    });
-    features.push({
-      category: cat,
-      name: 'url_per_post_mean',
-      value: { kind: 'numeric', value: urlCounts.reduce((s, x) => s + x, 0) / postCount },
-    });
-
-    // ----- Posted URLs (content_artifacts category per paper §4.6.3) -----
-    //
-    // The URL list is emitted regardless of count (including the empty
-    // case) so the pair extractor (external_link_overlap_cross_platform)
-    // can fire on every pair where both accounts have at least one post.
-    // Empty list is itself informative (no link-sharing pattern to compare).
-    features.push({
-      category: 'content_artifacts',
-      name: 'posted_urls',
-      value: { kind: 'json', value: [...postedUrls].sort() },
-    });
-    features.push({
-      category: 'content_artifacts',
-      name: 'posted_urls_unique_count',
-      value: { kind: 'numeric', value: postedUrls.size },
-    });
 
     return features;
   }
+}
+
+function buildPostMetrics(posts: TwitterPost[]): PostStylometryInput[] {
+  const out: PostStylometryInput[] = [];
+  for (const post of posts) {
+    const raw = stripRetweetPrefix(tweetText(post));
+    if (raw.length === 0) continue;
+    const cleaned = cleanForStylometry(raw);
+    out.push({
+      rawText: raw,
+      cleanedText: cleaned,
+      charLength: raw.length,
+      tokenLength: tokenize(cleaned).length,
+      hashtagCount: countMatches(raw, /#[\w\u00C0-\uFFFF]+/g),
+      mentionCount: countMatches(raw, /@\w+/g),
+      emojiCount: countMatches(raw, /\p{Extended_Pictographic}/gu),
+      urlCount: countMatches(raw, /https?:\/\/\S+/gi),
+    });
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------
