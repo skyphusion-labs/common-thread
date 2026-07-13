@@ -78,6 +78,7 @@ type ImageType = 'profile' | 'banner' | 'posted';
 
 interface CorpusEntry {
   dhash?: unknown;
+  sha256?: unknown;
   url?: unknown;
   width?: unknown;
   height?: unknown;
@@ -141,7 +142,7 @@ export class PostedImageCorpusExtractor implements AccountFeatureExtractor {
     const urlSetName = `${imageType}_image_url_set`;
     const urlCountName = `${imageType}_image_url_count`;
 
-    return [
+    const features: ExtractedFeature[] = [
       {
         category: 'visual',
         name: setName,
@@ -168,7 +169,48 @@ export class PostedImageCorpusExtractor implements AccountFeatureExtractor {
         value: { kind: 'numeric', value: uniqueUrls.length },
       },
     ];
+
+    // Profile and banner corpora are single-image; emit scalar features
+    // consumed by §4.5.1 / §4.5.2 pair overlap extractors.
+    if (imageType === 'profile' || imageType === 'banner') {
+      pushScalarImageFeatures(features, imageType, rawHashes);
+    }
+
+    return features;
   }
+}
+
+function pushScalarImageFeatures(
+  features: ExtractedFeature[],
+  imageType: 'profile' | 'banner',
+  rawHashes: CorpusEntry[]
+): void {
+  const first = rawHashes.find((entry) => entry && typeof entry === 'object');
+  if (!first) return;
+
+  const sha = readCorpusScalar(first, 'sha256');
+  if (sha) {
+    features.push({
+      category: 'visual',
+      name: `${imageType}_image_sha256`,
+      value: { kind: 'text', value: sha },
+    });
+  }
+
+  const dhashHex = readCorpusScalar(first, 'dhash');
+  if (dhashHex && /^[0-9a-f]{16}$/.test(dhashHex)) {
+    features.push({
+      category: 'visual',
+      name: `${imageType}_image_dhash`,
+      value: { kind: 'text', value: dhashHex },
+    });
+  }
+}
+
+function readCorpusScalar(entry: CorpusEntry, key: 'dhash' | 'sha256'): string | null {
+  const raw = entry[key];
+  if (typeof raw !== 'string' || raw.length === 0) return null;
+  return key === 'sha256' ? raw.toLowerCase() : raw.toLowerCase();
 }
 
 // ---------------------------------------------------------------------------

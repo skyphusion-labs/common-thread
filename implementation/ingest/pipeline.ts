@@ -24,10 +24,12 @@ import {
 } from './apify-profile';
 import {
   archivePostedImageCorpora,
+  buildBannerImageCorporaFromProfiles,
   buildPostedImageCorporaFromTimelines,
   buildProfileImageCorporaFromProfiles,
-  enrichPostedImageCorporaWithDhash,
+  enrichPostedImageCorpora,
 } from './apify-media-corpus';
+import { archiveExifCorpora } from './apify-exif-corpus';
 import {
   archiveNetworkLists,
   extractNetworkListsFromPayload,
@@ -126,15 +128,26 @@ export async function runTwitterIngestPipeline(
 
   const imageCorpora = buildPostedImageCorporaFromTimelines(timelines);
   const profileImageCorpora = buildProfileImageCorporaFromProfiles(profiles);
-  const allImageCorpora = await enrichPostedImageCorporaWithDhash([
+  const bannerImageCorpora = buildBannerImageCorporaFromProfiles(profiles);
+  const { corpora: allImageCorpora, exifCorpora } = await enrichPostedImageCorpora([
     ...imageCorpora,
     ...profileImageCorpora,
+    ...bannerImageCorpora,
   ]);
   const imageCorpusArchive = await archivePostedImageCorpora(
     { ARCHIVE: env.archive as R2Bucket, MANIFEST_COORDINATOR: env.manifestCoordinator },
     {
       investigationId: ctx.investigationId,
       corpora: allImageCorpora,
+      collectedAt: now,
+    }
+  );
+
+  const exifCorpusArchive = await archiveExifCorpora(
+    { ARCHIVE: env.archive as R2Bucket, MANIFEST_COORDINATOR: env.manifestCoordinator },
+    {
+      investigationId: ctx.investigationId,
+      corpora: exifCorpora,
       collectedAt: now,
     }
   );
@@ -153,12 +166,14 @@ export async function runTwitterIngestPipeline(
     ...timelineArchive.manifestHashes,
     ...profileArchive.manifestHashes,
     ...imageCorpusArchive.manifestHashes,
+    ...exifCorpusArchive.manifestHashes,
     ...networkArchive.manifestHashes,
   ];
   const artifactsCreated =
     timelineArchive.artifactsCreated +
     profileArchive.artifactsCreated +
     imageCorpusArchive.artifactsCreated +
+    exifCorpusArchive.artifactsCreated +
     networkArchive.artifactsCreated;
 
   let seedsRegistered = 0;
