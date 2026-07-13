@@ -243,7 +243,6 @@ export async function runAttribution(
             signal_table: signalTable,
             max_attempts: options.maxRetries,
           });
-          reasoningResult = result;
           reasoningOutput = result.output;
           reasoningAttempts = result.attempts;
           reasoningDeclined = result.declined;
