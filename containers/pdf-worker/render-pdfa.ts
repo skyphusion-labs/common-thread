@@ -4,12 +4,31 @@
 
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import { access } from 'node:fs/promises';
 import { unlink, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
+
+const SRGB_ICC_CANDIDATES = [
+  process.env.PDFA_SRGB_ICC_PROFILE,
+  '/usr/share/color/icc/colord/sRGB.icc',
+  '/usr/share/color/icc/icc/sRGB.icc',
+].filter((p): p is string => typeof p === 'string' && p.length > 0);
+
+async function resolveSrgbIccProfile(): Promise<string | null> {
+  for (const path of SRGB_ICC_CANDIDATES) {
+    try {
+      await access(path);
+      return path;
+    } catch {
+      // try next candidate
+    }
+  }
+  return null;
+}
 
 export async function renderHtmlToPdfA(html: string): Promise<Uint8Array> {
   const id = randomUUID();
@@ -54,21 +73,24 @@ export async function renderHtmlToPdfA(html: string): Promise<Uint8Array> {
       { maxBuffer: 16 * 1024 * 1024 }
     );
 
-    await execFileAsync(
-      'gs',
-      [
-        '-dPDFA=2',
-        '-dBATCH',
-        '-dNOPAUSE',
-        '-dNOOUTERSAVE',
-        '-sProcessColorModel=DeviceRGB',
-        '-sDEVICE=pdfwrite',
-        '-dPDFACompatibilityPolicy=1',
-        `-sOutputFile=${pdfaPath}`,
-        pdfPath,
-      ],
-      { maxBuffer: 16 * 1024 * 1024 }
-    );
+    const iccProfile = await resolveSrgbIccProfile();
+    const gsArgs = [
+      '-dPDFA=2',
+      '-dBATCH',
+      '-dNOPAUSE',
+      '-dNOOUTERSAVE',
+      '-sProcessColorModel=DeviceRGB',
+      '-sDEVICE=pdfwrite',
+      '-dPDFACompatibilityPolicy=1',
+      '-dEmbedAllFonts=true',
+      '-dSubsetFonts=true',
+    ];
+    if (iccProfile) {
+      gsArgs.push('-sColorConversionStrategy=RGB', `-sOutputICCProfile=${iccProfile}`);
+    }
+    gsArgs.push(`-sOutputFile=${pdfaPath}`, pdfPath);
+
+    await execFileAsync('gs', gsArgs, { maxBuffer: 16 * 1024 * 1024 });
 
     const bytes = await readFile(pdfaPath);
     return new Uint8Array(bytes);

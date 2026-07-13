@@ -8,6 +8,7 @@ RUN apt-get update \
     ghostscript \
     fontconfig \
     fonts-liberation \
+    icc-profiles-free \
   && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./

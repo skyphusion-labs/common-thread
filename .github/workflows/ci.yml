@@ -90,7 +90,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Install PDF toolchain
-        run: sudo apt-get update && sudo apt-get install -y wkhtmltopdf ghostscript
+        run: sudo apt-get update && sudo apt-get install -y wkhtmltopdf ghostscript icc-profiles-free
       - name: veraPDF validate sample PDF/A-2b
         run: npm run validate:pdfa
 
