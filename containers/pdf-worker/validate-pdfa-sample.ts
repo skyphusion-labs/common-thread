@@ -36,7 +36,7 @@ async function main() {
         '--rm',
         '-v',
         `${dir}:/data:ro`,
-        'verapdf/verapdf:latest',
+        'verapdf/cli:latest',
         '/data/sample.pdf',
       ],
       { maxBuffer: 8 * 1024 * 1024 }
