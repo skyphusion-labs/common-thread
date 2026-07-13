@@ -180,6 +180,25 @@ export class BurrowsDeltaExtractor implements PairFeatureExtractor {
       value: { kind: 'numeric', value: ctx.validIndices.length },
     });
 
+    const recentDelta = computeDeltaForFeature(
+      featuresA,
+      featuresB,
+      ctx,
+      'function_word_frequencies_recent'
+    );
+    if (recentDelta !== null) {
+      features.push({
+        category: 'stylometric',
+        name: 'burrows_delta_recent',
+        value: { kind: 'numeric', value: recentDelta.delta },
+      });
+      features.push({
+        category: 'stylometric',
+        name: 'burrows_delta_recent_dimensions_used',
+        value: { kind: 'numeric', value: recentDelta.dimensionsUsed },
+      });
+    }
+
     return features;
   }
 }
@@ -193,8 +212,11 @@ export class BurrowsDeltaExtractor implements PairFeatureExtractor {
  * Returns null if missing or malformed; the pair extractor returns empty in
  * that case so the runner records the pair attempt without emitting features.
  */
-function getFunctionWordVector(features: AccountFeatureMap): number[] | null {
-  const v = features.get('function_word_frequencies');
+function getFunctionWordVector(
+  features: AccountFeatureMap,
+  featureName = 'function_word_frequencies'
+): number[] | null {
+  const v = features.get(featureName);
   if (!v || v.kind !== 'json') return null;
   if (!Array.isArray(v.value)) return null;
   if (v.value.length !== FUNCTION_WORD_VECTOR_LENGTH) return null;
@@ -202,4 +224,27 @@ function getFunctionWordVector(features: AccountFeatureMap): number[] | null {
     if (typeof x !== 'number' || !Number.isFinite(x)) return null;
   }
   return v.value as number[];
+}
+
+function computeDeltaForFeature(
+  featuresA: AccountFeatureMap,
+  featuresB: AccountFeatureMap,
+  ctx: BurrowsDeltaContext,
+  featureName: string
+): { delta: number; dimensionsUsed: number } | null {
+  if (ctx.validIndices.length === 0) return null;
+  const vA = getFunctionWordVector(featuresA, featureName);
+  const vB = getFunctionWordVector(featuresB, featureName);
+  if (!vA || !vB) return null;
+
+  let sumAbsDiff = 0;
+  for (const j of ctx.validIndices) {
+    const zA = (vA[j] - ctx.meanFreq[j]) / ctx.stdevFreq[j];
+    const zB = (vB[j] - ctx.meanFreq[j]) / ctx.stdevFreq[j];
+    sumAbsDiff += Math.abs(zA - zB);
+  }
+  return {
+    delta: sumAbsDiff / ctx.validIndices.length,
+    dimensionsUsed: ctx.validIndices.length,
+  };
 }

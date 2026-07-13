@@ -27,7 +27,7 @@ For inquiries that should not be public, use email:
 Use this address for:
 
 - **Hosted API integration** (using https://common-thread-backend.skyphusion.org
-  in your application — include project summary and expected load)
+  in your application,  include project summary and expected load)
 - Sensitive case consultation (whether a proposed application of the methodology meets the methodology's standards)
 - Coordination on methodology extensions before public discussion
 - Security disclosures regarding the reference implementation

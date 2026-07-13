@@ -1,0 +1,33 @@
+name: publish-verify-npm
+
+# Publish @skyphusion/common-thread-verify on version tags.
+# Required secret: NPM_TOKEN (npmjs automation token with publish scope).
+
+on:
+  push:
+    tags:
+      - 'verify-v*'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          registry-url: https://registry.npmjs.org
+      - name: Set package version from tag
+        working-directory: packages/common-thread-verify
+        run: |
+          TAG="${GITHUB_REF_NAME#verify-v}"
+          npm version "$TAG" --no-git-tag-version --allow-same-version
+      - name: Publish
+        working-directory: packages/common-thread-verify
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

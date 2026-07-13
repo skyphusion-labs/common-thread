@@ -1,0 +1,40 @@
+{
+  "name": "@skyphusion/common-thread-verify",
+  "version": "0.1.0",
+  "description": "Offline Common Thread evidence-packet signature verifier (paper §8.1.3)",
+  "license": "MIT",
+  "author": "Conrad Rockenhaus <conrad@skyphusion.org>",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/skyphusion-labs/common-thread.git",
+    "directory": "packages/common-thread-verify"
+  },
+  "homepage": "https://github.com/skyphusion-labs/common-thread/tree/main/packages/common-thread-verify#readme",
+  "bugs": {
+    "url": "https://github.com/skyphusion-labs/common-thread/issues"
+  },
+  "keywords": [
+    "common-thread",
+    "evidence-packet",
+    "ed25519",
+    "verification",
+    "osint"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "bin": {
+    "common-thread-verify": "bin/common-thread-verify.mjs"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}
