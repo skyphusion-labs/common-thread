@@ -38,10 +38,12 @@ export interface SignalAppendixRow {
 }
 
 export interface EvidencePacket {
-  format_version: 'evidence-packet-v1';
+  format_version: 'evidence-packet-v1' | 'evidence-packet-v2';
+  /** pair (default v1) or investigation-level (v2). */
+  scope?: 'pair' | 'investigation';
   generated_at: string;
   investigation_id: string;
-  attribution_run_id: number;
+  attribution_run_id: number | null;
   cover: Record<string, unknown>;
   narrative: Record<string, unknown>;
   signal_appendix: SignalAppendixRow[];
@@ -58,6 +60,16 @@ export interface EvidencePacket {
   };
   methodology_metadata: Record<string, unknown>;
   methodology_reference: typeof METHODOLOGY_REFERENCE;
+  /** Present when redaction was applied (§8.3.5). */
+  redaction?: {
+    applied_at: string;
+    entries: Array<{
+      kind: string;
+      original: string;
+      replacement: string;
+    }>;
+    notes: string[];
+  };
   markdown: string;
   /** Detached Ed25519 signature over the canonical Markdown (8.1.3), or
    * null when no signing key is configured. */
@@ -101,12 +113,16 @@ export function renderMarkdown(packet: Omit<EvidencePacket, 'markdown' | 'packet
   const cover = packet.cover as {
     investigation_name?: string;
     investigation_id?: string;
+    practitioner_identity?: string;
     pair?: { account_a: string; account_b: string; platform_a: string; platform_b: string };
     confidence_band?: string;
+    confidence_band_summary?: Record<string, number>;
     output_summary?: string;
     generated_at?: string;
     seed_count?: number;
     time_bounds?: { start: string; end: string };
+    investigation_status?: string;
+    attribution_run_count?: number;
   };
 
   lines.push('# Common Thread Evidence Packet');
@@ -115,14 +131,31 @@ export function renderMarkdown(packet: Omit<EvidencePacket, 'markdown' | 'packet
   lines.push('');
   lines.push(`- **Investigation:** ${cover.investigation_name ?? cover.investigation_id}`);
   lines.push(`- **Investigation ID:** ${cover.investigation_id}`);
-  lines.push(`- **Attribution run ID:** ${packet.attribution_run_id}`);
+  if (cover.practitioner_identity) {
+    lines.push(`- **Practitioner:** ${cover.practitioner_identity}`);
+  }
+  if (packet.scope === 'investigation' || packet.format_version === 'evidence-packet-v2') {
+    lines.push(`- **Scope:** investigation-level (§8.1.1)`);
+    if (cover.attribution_run_count !== undefined) {
+      lines.push(`- **Attribution runs:** ${cover.attribution_run_count}`);
+    }
+  } else if (packet.attribution_run_id !== null) {
+    lines.push(`- **Attribution run ID:** ${packet.attribution_run_id}`);
+  }
   lines.push(`- **Generated:** ${cover.generated_at ?? packet.generated_at}`);
   if (cover.pair) {
     lines.push(
       `- **Pair:** ${cover.pair.platform_a}:${cover.pair.account_a} / ${cover.pair.platform_b}:${cover.pair.account_b}`
     );
   }
-  lines.push(`- **Confidence band:** ${cover.confidence_band ?? 'unknown'}`);
+  if (cover.confidence_band_summary) {
+    const summary = cover.confidence_band_summary;
+    lines.push(
+      `- **Confidence band summary:** insufficient=${summary.insufficient ?? 0}, consistent=${summary.consistent ?? 0}, strongly_consistent=${summary.strongly_consistent ?? 0}`
+    );
+  } else {
+    lines.push(`- **Confidence band:** ${cover.confidence_band ?? 'unknown'}`);
+  }
   if (cover.seed_count !== undefined) {
     lines.push(`- **Active seeds:** ${cover.seed_count}`);
   }
@@ -186,6 +219,19 @@ export function renderMarkdown(packet: Omit<EvidencePacket, 'markdown' | 'packet
   lines.push(`- Paper: ${packet.methodology_reference.paper}`);
   lines.push(`- Repository: ${packet.methodology_reference.repository}`);
   lines.push(`- Implementation version: ${packet.methodology_reference.implementation_version}`);
+
+  if (packet.redaction && packet.redaction.entries.length > 0) {
+    lines.push('');
+    lines.push('## Redaction');
+    lines.push('');
+    for (const note of packet.redaction.notes) {
+      lines.push(`- ${note}`);
+    }
+    lines.push('');
+    lines.push('```json');
+    lines.push(JSON.stringify(packet.redaction.entries, null, 2));
+    lines.push('```');
+  }
 
   return lines.join('\n');
 }

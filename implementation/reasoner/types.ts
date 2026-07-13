@@ -126,6 +126,10 @@ export interface SignalTable {
   time_bounds?: { start: string; end: string };
   /** Optional control accounts from §5.1.4. */
   control_accounts?: Array<{ account: string; platform: string }>;
+  /**
+   * When true, §7.6.5 caps achievable confidence at one band below normal.
+   */
+  non_english_investigation?: boolean;
   /** Signals in randomized presentation order. */
   signals: PresentedSignal[];
   /** Seed used to produce the signal order. */
@@ -141,6 +145,26 @@ export interface ReasoningOutput {
   alternative_explanations: AlternativeExplanation[];
   declined_pairs: DeclinedPair[];
   methodology_metadata: MethodologyMetadata;
+  /** §5.1.4(b): separate control comparison reporting. */
+  control_comparisons?: ControlComparison[];
+  /** §5.1.4(c): claim indices flagged as unreliable vs controls. */
+  unreliable_claim_indices?: number[];
+}
+
+/** §5.1.4: target-control signal pattern comparison for a claim. */
+export interface ControlComparison {
+  claim_index: number;
+  control_account: string;
+  control_platform: string;
+  target_account: string;
+  target_platform: string;
+  matching_features: Array<{
+    feature_name: string;
+    target_signal_id: string;
+    control_signal_id: string;
+    target_value_summary: string;
+    control_value_summary: string;
+  }>;
 }
 
 export type ClaimSubject =
