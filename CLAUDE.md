@@ -120,9 +120,9 @@ examples: stylometric `burrows-delta` / `jsd-bigrams`, visual `dhash` /
 
 `event_features` are populated by engagement event extractors (§4.4.3,
 §4.4.4) when the ingest pipeline archives per-account timelines with
-reply/repost/quote posts. Response-latency features (§4.2.2) and color-
-palette features (§4.5.6) are dormant on the default v1 path; see paper
-§6.4.6.
+reply/repost/quote posts. Response-latency features (§4.2.2) run when
+`triggering_events` is set in investigation metadata (#121). Color-palette
+features (§4.5.6) are built on default Twitter ingest (Sprint 6, #120).
 
 ### 3. Reason (`implementation/reasoner/`) -- LLM, citation-required
 
