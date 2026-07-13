@@ -18,18 +18,24 @@ const SRGB_ICC_CANDIDATES = [
   '/usr/share/color/icc/icc/sRGB.icc',
 ].filter((p): p is string => typeof p === 'string' && p.length > 0);
 
+async function findSrgbInDir(dir: string): Promise<string | null> {
+  try {
+    const files = await readdir(dir);
+    const match = files.find((f) => f.toLowerCase() === 'srgb.icc');
+    if (match) return join(dir, match);
+  } catch {
+    // directory missing
+  }
+  return null;
+}
+
 async function ghostscriptBundledSrgbProfile(): Promise<string | null> {
   const base = '/usr/share/ghostscript';
   try {
     const versions = await readdir(base);
     for (const version of versions.sort().reverse()) {
-      const candidate = join(base, version, 'Resource/ColorProfiles/sRGB.icc');
-      try {
-        await access(candidate);
-        return candidate;
-      } catch {
-        // try older ghostscript tree
-      }
+      const found = await findSrgbInDir(join(base, version, 'Resource/ColorProfiles'));
+      if (found) return found;
     }
   } catch {
     return null;
@@ -40,6 +46,7 @@ async function ghostscriptBundledSrgbProfile(): Promise<string | null> {
 async function resolveSrgbIccProfile(): Promise<string | null> {
   const bundled = await ghostscriptBundledSrgbProfile();
   if (bundled) return bundled;
+
   for (const path of SRGB_ICC_CANDIDATES) {
     try {
       await access(path);
@@ -48,6 +55,12 @@ async function resolveSrgbIccProfile(): Promise<string | null> {
       // try next candidate
     }
   }
+
+  for (const dir of ['/usr/share/color/icc/icc', '/usr/share/color/icc/colord']) {
+    const found = await findSrgbInDir(dir);
+    if (found) return found;
+  }
+
   return null;
 }
 
