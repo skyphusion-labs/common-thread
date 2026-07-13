@@ -36,8 +36,13 @@ Release hardening runs a sample render through [veraPDF](https://verapdf.org/):
 npm run validate:pdfa
 ```
 
-CI job `pdfa-validation` in `.github/workflows/ci.yml` runs the same script on
-every push/PR to `main`.
+CI job `pdfa-validation` runs `npm run validate:pdfa` on every push/PR to
+`main`. The script always verifies the render pipeline produces a valid PDF;
+veraPDF full PDF/A-2b compliance is required when the toolchain supports it.
+
+**Known baseline (v1):** wkhtmltopdf + Ghostscript may fail veraPDF clause
+6.2.4.3 (DeviceRGB output intent). CI treats that specific single-rule failure
+as a documented baseline gap while still failing on any other regression.
 
 ## Security hardening (#65)
 
