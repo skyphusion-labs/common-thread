@@ -21,7 +21,9 @@ const SRGB_ICC_CANDIDATES = [
 async function findSrgbInDir(dir: string): Promise<string | null> {
   try {
     const files = await readdir(dir);
-    const match = files.find((f) => f.toLowerCase() === 'srgb.icc');
+    const match = files.find(
+      (f) => f.toLowerCase().includes('srgb') && f.toLowerCase().endsWith('.icc')
+    );
     if (match) return join(dir, match);
   } catch {
     // directory missing
@@ -56,7 +58,11 @@ async function resolveSrgbIccProfile(): Promise<string | null> {
     }
   }
 
-  for (const dir of ['/usr/share/color/icc/icc', '/usr/share/color/icc/colord']) {
+  for (const dir of [
+    '/usr/share/color/icc/icc',
+    '/usr/share/color/icc/colord',
+    '/usr/share/color/icc',
+  ]) {
     const found = await findSrgbInDir(dir);
     if (found) return found;
   }

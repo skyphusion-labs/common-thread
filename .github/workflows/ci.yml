@@ -91,6 +91,8 @@ jobs:
       - run: npm ci
       - name: Install PDF toolchain
         run: sudo apt-get update && sudo apt-get install -y wkhtmltopdf ghostscript icc-profiles-free
+      - name: Locate sRGB ICC profile
+        run: find /usr/share/color /usr/share/ghostscript -iname '*srgb*.icc' 2>/dev/null | head -20 || true
       - name: veraPDF validate sample PDF/A-2b
         run: npm run validate:pdfa
 
