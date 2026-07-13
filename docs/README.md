@@ -18,6 +18,9 @@ cover running and deploying the code.
 |----------|-------------|
 | [API.md](API.md) | Full HTTP API (backend Worker) |
 | [ARCHIVE-BACKUP.md](ARCHIVE-BACKUP.md) | Operator guide for R2 archive replication (§5.4.4) |
+| [PDF-A.md](PDF-A.md) | PDF/A-2b export, court profiles, veraPDF CI validation |
+| [PROMPT-VERSIONS.md](PROMPT-VERSIONS.md) | Attribution prompt version registry (§7.4) |
+| [MAINTENANCE.md](MAINTENANCE.md) | Bounded maintenance window and community transition |
 | [TESTING_SETUP.md](TESTING_SETUP.md) | Vitest, `TEST_MYSQL_URL`, LLM mocks |
 | [contact.md](contact.md) | Issue tracker vs private email |
 
@@ -29,7 +32,7 @@ cover running and deploying the code.
 | [../implementation/schema/README.md](../implementation/schema/README.md) | MySQL schema and Hyperdrive |
 | [../containers/ingest-worker/README.md](../containers/ingest-worker/README.md) | VPC ingest container |
 | [../containers/pdf-worker/README.md](../containers/pdf-worker/README.md) | VPC PDF/A renderer |
-| [../examples/README.md](../examples/README.md) | Case study placeholder |
+| [../examples/README.md](../examples/README.md) | Case studies (synthetic §9 walkthrough) |
 | [../packages/common-thread-verify/README.md](../packages/common-thread-verify/README.md) | Offline evidence packet verifier (npm) |
 
 ## Configuration templates

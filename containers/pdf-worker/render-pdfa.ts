@@ -4,12 +4,72 @@
 
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import { access, readdir } from 'node:fs/promises';
 import { unlink, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
+
+const SRGB_ICC_CANDIDATES = [
+  process.env.PDFA_SRGB_ICC_PROFILE,
+  '/usr/share/color/icc/sRGB.icc',
+  '/usr/share/color/icc/colord/sRGB.icc',
+  '/usr/share/color/icc/icc/sRGB.icc',
+].filter((p): p is string => typeof p === 'string' && p.length > 0);
+
+async function findSrgbInDir(dir: string): Promise<string | null> {
+  try {
+    const files = await readdir(dir);
+    const match = files.find(
+      (f) => f.toLowerCase().includes('srgb') && f.toLowerCase().endsWith('.icc')
+    );
+    if (match) return join(dir, match);
+  } catch {
+    // directory missing
+  }
+  return null;
+}
+
+async function ghostscriptBundledSrgbProfile(): Promise<string | null> {
+  const base = '/usr/share/ghostscript';
+  try {
+    const versions = await readdir(base);
+    for (const version of versions.sort().reverse()) {
+      const found = await findSrgbInDir(join(base, version, 'Resource/ColorProfiles'));
+      if (found) return found;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+async function resolveSrgbIccProfile(): Promise<string | null> {
+  const bundled = await ghostscriptBundledSrgbProfile();
+  if (bundled) return bundled;
+
+  for (const path of SRGB_ICC_CANDIDATES) {
+    try {
+      await access(path);
+      return path;
+    } catch {
+      // try next candidate
+    }
+  }
+
+  for (const dir of [
+    '/usr/share/color/icc/icc',
+    '/usr/share/color/icc/colord',
+    '/usr/share/color/icc',
+  ]) {
+    const found = await findSrgbInDir(dir);
+    if (found) return found;
+  }
+
+  return null;
+}
 
 export async function renderHtmlToPdfA(html: string): Promise<Uint8Array> {
   const id = randomUUID();
@@ -54,21 +114,28 @@ export async function renderHtmlToPdfA(html: string): Promise<Uint8Array> {
       { maxBuffer: 16 * 1024 * 1024 }
     );
 
-    await execFileAsync(
-      'gs',
-      [
-        '-dPDFA=2',
-        '-dBATCH',
-        '-dNOPAUSE',
-        '-dNOOUTERSAVE',
-        '-sProcessColorModel=DeviceRGB',
-        '-sDEVICE=pdfwrite',
-        '-dPDFACompatibilityPolicy=1',
-        `-sOutputFile=${pdfaPath}`,
-        pdfPath,
-      ],
-      { maxBuffer: 16 * 1024 * 1024 }
-    );
+    const iccProfile = await resolveSrgbIccProfile();
+    if (!iccProfile) {
+      throw new Error(
+        'sRGB ICC profile not found (install icc-profiles-free or ghostscript Resource/ColorProfiles)'
+      );
+    }
+    const gsArgs = [
+      '-dPDFA=2',
+      '-dBATCH',
+      '-dNOPAUSE',
+      '-dNOOUTERSAVE',
+      '-sProcessColorModel=DeviceRGB',
+      '-sDEVICE=pdfwrite',
+      '-dPDFACompatibilityPolicy=1',
+      '-dEmbedAllFonts=true',
+      '-sColorConversionStrategy=RGB',
+      `-sOutputICCProfile=${iccProfile}`,
+      `-sOutputFile=${pdfaPath}`,
+      pdfPath,
+    ];
+
+    await execFileAsync('gs', gsArgs, { maxBuffer: 16 * 1024 * 1024 });
 
     const bytes = await readFile(pdfaPath);
     return new Uint8Array(bytes);

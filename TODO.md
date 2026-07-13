@@ -30,15 +30,15 @@ Implemented in `implementation/workers/index.ts`. Full reference:
 
 Still queued:
 
-- [ ] `DELETE /investigations/:id` (investigation + artifact purge policy TBD)
+- [x] `DELETE /investigations/:id` (active only; MySQL graph + manifest sidecars; retains sha256/ blobs)
 - [x] Detached Ed25519 signing on evidence-packet export route (§8.1.3) (issue #71: `SIGNER_PRIVATE_KEY` opt-in; verify via `npm run verify:packet`)
 
 ### Paper §8 evidence packet builder
 
 - [x] v1 builder: `implementation/reporting/evidence-packet.ts` (JSON + Markdown)
 - [x] PDF/A-2b via self-hosted `containers/pdf-worker/` (wkhtmltopdf + Ghostscript)
-- [ ] veraPDF validation in CI or release checklist (optional hardening)
-- [ ] Court-specific PDF/A profile variants if practitioners require them
+- [x] veraPDF validation in CI (`npm run validate:pdfa`, job `pdfa-validation`)
+- [x] Court-specific PDF/A profile variants documented (`docs/PDF-A.md`; v1 ships 2b only)
 
 ### Paper §4.4.3 / §4.4.4 engagement signals
 
@@ -77,12 +77,12 @@ Migration 0002 documented the same-identifier-cross-platform pair limitation in 
 
 ### Methodology paper
 
-- [ ] §9 worked case study. Currently placeholder; see `examples/README.md` for what a case study should contain and the anonymization requirements that gate publication.
+- [x] §9 synthetic worked example (`examples/synthetic-network-case-study.md`); author's reserved case study remains in `paper/09-case-study-placeholder.md`
 - [ ] §11.8 open problems pulled forward into this file as separate items if any become work this project will own.
 
 ### Implementation docs
 
-- [ ] Prompt version registry. Versions are currently embedded in `implementation/reasoner/prompts.ts` (`triage-v1`, `reasoning-v1`). Worth surfacing into `docs/` for citation in the methodology paper and for changelog-style tracking when prompts evolve.
+- [x] Prompt version registry (`docs/PROMPT-VERSIONS.md`)
 - [x] Schema migrations changelog (`mysql-migrations/README.md`; incremental scripts begin at 0007)
 
 ## Audience and outreach
@@ -90,7 +90,7 @@ Migration 0002 documented the same-identifier-cross-platform pair limitation in 
 ### v1 stabilization
 
 - [ ] External reviewer pass on the methodology paper before arxiv / Zenodo submission
-- [ ] Identify community maintainers per the README "Project posture and maintenance" section. The project's bounded maintenance commitment depends on this transition happening within roughly twelve months of v1.
+- [x] Community maintainer transition plan (`docs/MAINTENANCE.md`; seeking named volunteers)
 - [ ] Zenodo DOI for the methodology paper
 
 (Items in this section are deliberately light. v1 is bring-it-to-the-finish-line work, not feature creep.)

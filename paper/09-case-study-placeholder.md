@@ -34,8 +34,8 @@ The reference implementation's repository may, at the author's discretion, link 
 
 ## Reading without the case study
 
-The methodology paper is complete as a methodology specification without §9. Readers who reached this section looking for a worked demonstration may be disappointed; the disappointment is acknowledged and is not minimized.
+The methodology paper is complete as a methodology specification without the author's reserved §9 case study. A **synthetic** worked example ships in `examples/synthetic-network-case-study.md` for training purposes.
 
-Practitioners who want to apply the methodology before a worked case study is available can do so by following the specification in §3 through §8 and the ethical commitments in §10. The reference implementation provides the operational realization of the methodology that this paper specifies; practitioners who would otherwise wait for the case study can equivalently work from the implementation and the methodology specification together.
+Practitioners who want to apply the methodology before the author's case study is available can do so by following the specification in §3 through §8 and the ethical commitments in §10. The reference implementation provides the operational realization of the methodology that this paper specifies; practitioners who would otherwise wait for the case study can equivalently work from the implementation, the synthetic example, and the methodology specification together.
 
 The case study, when it lands, will be added to a subsequent version of the paper with a clear version-history note. Until then, this placeholder serves to acknowledge what is intended without overpromising what is delivered. The methodology is published in its current form because the methodology body is complete and useful, not because the case study is. Withholding the methodology until the case study is ready would have placed methodology specification behind case-anonymization timing, which is the wrong dependency direction.

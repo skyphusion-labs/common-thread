@@ -64,6 +64,7 @@ const nodeSuites = [
   'tests/investigation/access.test.ts',
   // Seal enforced at write time against a stale-active cache read (§3.1).
   'tests/investigation/seal-enforcement.test.ts',
+  'tests/investigation/delete-investigation.test.ts',
   'tests/reasoner/ai-gateway.test.ts',
   'tests/reasoner/reasoner.test.ts',
   'tests/reasoner/runner.test.ts',

@@ -79,6 +79,23 @@ jobs:
       - name: DB-backed (node) tests
         run: npx vitest run --project node-db
 
+  pdfa-validation:
+    # Sample PDF/A-2b render + veraPDF conformance check (§8.1.2 hardening).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Install PDF toolchain
+        run: sudo apt-get update && sudo apt-get install -y wkhtmltopdf ghostscript icc-profiles-free
+      - name: Locate sRGB ICC profile
+        run: find /usr/share/color /usr/share/ghostscript -iname '*srgb*.icc' 2>/dev/null | head -20 || true
+      - name: veraPDF validate sample PDF/A-2b
+        run: npm run validate:pdfa
+
   coverage:
     # Unified coverage across BOTH vitest projects in one process, so istanbul
     # merges per-file coverage maps (a line hit by the workers pool OR the

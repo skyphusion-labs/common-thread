@@ -37,6 +37,8 @@ import {
   sealInvestigationIfActive,
   softDeleteSeedIfActive,
 } from '../investigations/write-guard';
+import { deleteInvestigationData } from '../investigations/purge';
+import { purgeInvestigationArchive } from '../investigations/archive-purge';
 import {
   mergeInvestigationMetadata,
   publicMetadataView,
@@ -259,6 +261,14 @@ const ROUTES: Route[] = [
   // Get investigation metadata (requires capability token)
   { method: 'GET', pattern: /^\/investigations\/([^/]+)$/, auth: {}, handler: handleGetInvestigation },
 
+  // Hard-delete an active investigation (MySQL graph + manifest sidecars)
+  {
+    method: 'DELETE',
+    pattern: /^\/investigations\/([^/]+)$/,
+    auth: { requireWrite: true },
+    handler: handleDeleteInvestigation,
+  },
+
   // Update investigation metadata (triggering events, time bounds; §4.2.2, §5.2.1)
   {
     method: 'PATCH',
@@ -407,6 +417,32 @@ function handleGetInvestigation(ctx: RouteContext): Response {
     investigation: publicInvestigationView(ctx.auth!),
     metadata: publicMetadataView(ctx.auth!.metadata_json),
   });
+}
+
+async function handleDeleteInvestigation(ctx: RouteContext): Promise<Response> {
+  const { env } = ctx;
+  const investigationId = ctx.investigationId;
+
+  try {
+    const archive = await purgeInvestigationArchive(env.ARCHIVE, investigationId);
+    const result = await deleteInvestigationData(env.DB, investigationId);
+    if (!result.deleted) {
+      return jsonResponse({ error: `Investigation not found: ${investigationId}` }, 404);
+    }
+    return jsonResponse({
+      investigationId,
+      deleted: true,
+      tables_purged: result.tablesPurged,
+      archive_keys_deleted: archive.deletedKeys,
+      archive_policy:
+        'Content-addressed sha256/ blobs are retained (global deduplicated storage).',
+    });
+  } catch (err) {
+    if (err instanceof InvestigationAccessError) {
+      return jsonResponse({ error: err.message, code: err.code }, accessErrorStatus(err.code));
+    }
+    throw err;
+  }
 }
 
 async function handlePatchInvestigationMetadata(ctx: RouteContext): Promise<Response> {
