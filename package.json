@@ -40,7 +40,8 @@
     "r2:create:prod": "wrangler r2 bucket create common-thread-archive-prod --binding ARCHIVE --env production --update-config",
     "keygen": "node scripts/keygen.mjs",
     "sign:packet": "node scripts/sign-packet.mjs",
-    "verify:packet": "node scripts/verify-packet.mjs"
+    "verify:packet": "node scripts/verify-packet.mjs",
+    "validate:pdfa": "npx tsx containers/pdf-worker/validate-pdfa-sample.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1080.0",

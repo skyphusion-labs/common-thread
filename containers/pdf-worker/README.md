@@ -28,6 +28,8 @@ Header: `Authorization: Bearer $PDF_SECRET` (must match Worker `PDF_SECRET`).
 
 Pipeline: **wkhtmltopdf** (HTML → PDF) → **Ghostscript** (PDF/A-2b).
 
+CI validates a sample render with veraPDF; see [docs/PDF-A.md](../../docs/PDF-A.md).
+
 ## Environment
 
 | Variable | Required | Purpose |

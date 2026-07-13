@@ -90,6 +90,10 @@ export function createFakeR2(): R2Bucket {
       store.set(key, { bytes, contentType: options?.httpMetadata?.contentType });
       return { key, size: bytes.length };
     },
+
+    async delete(key: string): Promise<void> {
+      store.delete(key);
+    },
   };
 
   return bucket as unknown as R2Bucket;

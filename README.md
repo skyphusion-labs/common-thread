@@ -27,7 +27,7 @@ applying the methodology.
 | `docs/` | Setup, deployment, API, testing |
 | `containers/` | Optional VPC ingest and PDF workers |
 | `tests/` | Vitest suite (Workers pool + MySQL integration) |
-| `examples/` | Worked case studies (placeholder in v1) |
+| `examples/` | Worked case studies (synthetic §9 walkthrough in v1) |
 
 ## Quick start
 
@@ -105,6 +105,13 @@ BYOK. See `docs/API.md` and the web Setup tab.
 Bug reports and methodology questions: GitHub issues. Code contributions should
 reference the relevant paper section where applicable. See `docs/contact.md` for
 private inquiries.
+
+## Project posture and maintenance
+
+v1 maintenance is **bounded** (security, reproducibility, platform breakage on
+the default path). The twelve-month transition window to community maintainers
+is documented in [docs/MAINTENANCE.md](docs/MAINTENANCE.md). Maintainer
+volunteers are welcome via GitHub Discussions.
 
 ## Status
 

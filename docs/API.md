@@ -219,6 +219,34 @@ already sealed.
 }
 ```
 
+### `DELETE /investigations/:id`
+
+Hard-delete an **active** investigation. Requires write-capable capability token.
+Refused when `status` is `sealed` or `archived` (immutable evidence records).
+
+**Policy:**
+
+- Removes all MySQL rows for the investigation (seeds, features, runs, jobs).
+- Deletes per-investigation R2 manifest and signature sidecars under
+  `investigations/{id}/`.
+- **Retains** content-addressed `sha256/` blobs (global deduplicated storage; may
+  be shared across investigations).
+
+**Response `200`**
+
+```json
+{
+  "investigationId": "my-investigation-1",
+  "deleted": true,
+  "tables_purged": ["account_features", "..."],
+  "archive_keys_deleted": ["investigations/my-investigation-1/manifest.jsonl"],
+  "archive_policy": "Content-addressed sha256/ blobs are retained (global deduplicated storage)."
+}
+```
+
+**Response `403`**: investigation not active.  
+**Response `404`**: investigation not found after purge attempt.
+
 ### `GET /investigations/:id/summary`
 
 Active seed count and manifest artifact count. Requires capability token.
@@ -508,7 +536,6 @@ See `containers/ingest-worker/README.md` and `containers/pdf-worker/README.md`.
 
 | Route | Notes |
 |-------|-------|
-| `DELETE /investigations/:id` | No investigation or artifact purge API yet |
 | Token recovery / rotation | Lost tokens cannot be reset; create a new investigation |
 
 ---

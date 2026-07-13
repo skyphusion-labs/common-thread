@@ -1,8 +1,17 @@
 # Examples
 
-Worked examples of the Common Thread methodology applied to specific investigations will appear here in future versions. v1 ships without a case study.
+Worked examples of the Common Thread methodology applied to specific investigations.
 
-## Why v1 has no case study
+## Available in v1
+
+| Example | Type | Description |
+|---------|------|-------------|
+| [synthetic-network-case-study.md](./synthetic-network-case-study.md) | Fictional §9 walkthrough | End-to-end narrative with cluster labels; no real identities |
+
+The author's reserved real-world case study remains in progress; see
+`paper/09-case-study-placeholder.md` for why it is not published yet.
+
+## Why the primary §9 case study is still pending
 
 The methodology paper's §9 reserves a slot for a worked example but does not fill it. Two reasons:
 
