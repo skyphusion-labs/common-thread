@@ -70,9 +70,9 @@ jobs:
       # node project does not use it, but the config file references it, so provide it.
       - name: Materialize wrangler.toml
         run: cp wrangler.toml.example wrangler.toml
-      # The node project's globalSetup bootstraps the schema, but apply it
-      # explicitly first so a schema failure is an obvious, separate step.
-      - name: Apply schema
+      # Bootstrap squashed schema, then apply pending incremental migrations
+      # (vivijure-style: idempotent, only versions ahead of schema_version run).
+      - name: Apply schema and migrations
         run: npm run db:migrate
         env:
           MYSQL_URL: mysql://root@127.0.0.1:3306/common_thread_test
@@ -119,7 +119,7 @@ jobs:
       # wrangler.toml is gitignored; the workers pool needs it to start Miniflare.
       - name: Materialize wrangler.toml
         run: cp wrangler.toml.example wrangler.toml
-      - name: Apply schema
+      - name: Apply schema and migrations
         run: npm run db:migrate
         env:
           MYSQL_URL: mysql://root@127.0.0.1:3306/common_thread_test

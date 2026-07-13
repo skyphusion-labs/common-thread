@@ -1,15 +1,18 @@
 #!/usr/bin/env node
 /**
- * Apply mysql-schema.sql to a MySQL database.
+ * Apply mysql-schema.sql to a MySQL database, then pending incremental migrations.
  *
  * Usage:
  *   MYSQL_URL=mysql://user:pass@host:3306/common_thread npm run db:migrate
+ *
+ * `db:migrate` also runs scripts/apply-mysql-migrations.mjs after this file.
  */
 
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import mysql from 'mysql2/promise';
+import { parseMysqlUrl } from './lib/mysql-url.mjs';
 
 const url = process.env.MYSQL_URL ?? process.argv[2];
 if (!url) {
@@ -17,14 +20,7 @@ if (!url) {
   process.exit(1);
 }
 
-const parsed = new URL(url);
-const database = parsed.pathname.replace(/^\//, '');
-const config = {
-  host: parsed.hostname,
-  port: parsed.port ? Number(parsed.port) : 3306,
-  user: decodeURIComponent(parsed.username),
-  password: decodeURIComponent(parsed.password),
-};
+const { database, config } = parseMysqlUrl(url);
 
 const here = dirname(fileURLToPath(import.meta.url));
 const schemaPath = join(here, '..', 'mysql-schema.sql');
