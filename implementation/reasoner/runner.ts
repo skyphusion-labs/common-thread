@@ -209,7 +209,6 @@ export async function runAttribution(
       let triageOut: TriageOutput | undefined;
       let escalate = !!options.skipTriage;
       let reasoningOutput: ReasoningOutput | undefined;
-      let reasoningResult: Awaited<ReturnType<typeof runReasoning>> | undefined;
       let reasoningAttempts: number | undefined;
       let reasoningDeclined = false;
       let transportFailure = false;
