@@ -8,12 +8,12 @@ Planned and queued work for Common Thread. Items grouped by area; within each ar
 
 The reasoner module has full coverage in `tests/reasoner/`. Extractor integration suites exist for account-metadata-pair, engagement, engagement-parse, priority-features, runner, apify-tweet-fields, and twitter-scrapes (see `tests/extractors/`). Per-extractor checkbox coverage below reflects what is still missing beyond those suites.
 
-- [ ] Stylometric pair extractor (highest complexity, highest signal; start here)
+- [x] Stylometric account extractor: `tests/extractors/stylometric-twitter.test.ts` (+ burrows delta in `pair-extractors.test.ts`)
 - [x] Temporal extractors: burst, cadence-jsd, active-hour-jsd, quiet-period (partial; see `tests/extractors/`)
 - [x] Network extractors: follower-overlap, mutual-follow (partial; see engagement + runner suites)
-- [ ] Visual extractors: profile, banner, posted, color-palette (dedicated suites still open)
-- [ ] Cross-platform extractors: handle-reuse, bio-link, external-link
-- [ ] Metadata-leakage extractors: client-app, exif, profile-lang, tweet-language
+- [x] Visual extractors: profile, banner, posted (`profile-banner-visual.test.ts`); color-palette via ingest wiring in sprint tests
+- [x] Cross-platform extractors: `tests/extractors/cross-platform-pairs.test.ts`
+- [x] Metadata-leakage extractors: `tests/extractors/metadata-leakage-pairs.test.ts`
 
 ### Worker HTTP API
 
@@ -49,13 +49,13 @@ present. Likes/favorites are not collected in v1. See paper §6.4.6.
 
 ### Response latency (§4.2.2)
 
-Extractors implemented; dormant until `investigations.metadata_json`
-includes `triggering_events`. No v1 UI for configuring triggers.
+Active when `investigations.metadata_json` includes `triggering_events`
+(API + web UI shipped in Sprint 6, #121).
 
 ### Color palette (§4.5.6)
 
-Extractors registered; dormant until the collection layer builds
-`application/x-color-palette-corpus` artifacts.
+Active: ingest builds `application/x-color-palette-corpus` artifacts
+(Sprint 6, #120).
 
 ### Optional schema migration 0003 (tuple CHECK)
 
