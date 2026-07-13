@@ -28,6 +28,7 @@ Thumbs.db
 
 # Test output
 coverage/
+tmp-pdfa-validate/
 *.tsbuildinfo
 
 # Configuration (local resource IDs — do not commit)

@@ -5,8 +5,7 @@
  */
 
 import { execFile } from 'node:child_process';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { renderHtmlToPdfA } from './render-pdfa.ts';
@@ -22,9 +21,11 @@ const SAMPLE_HTML = `<!DOCTYPE html>
 </body>
 </html>`;
 
+const OUT_DIR = join(process.cwd(), 'tmp-pdfa-validate');
+
 async function main() {
-  const dir = await mkdtemp(join(tmpdir(), 'ct-pdfa-'));
-  const pdfPath = join(dir, 'sample.pdf');
+  await mkdir(OUT_DIR, { recursive: true });
+  const pdfPath = join(OUT_DIR, 'sample.pdf');
   try {
     const bytes = await renderHtmlToPdfA(SAMPLE_HTML);
     await writeFile(pdfPath, bytes);
@@ -35,15 +36,17 @@ async function main() {
         'run',
         '--rm',
         '-v',
-        `${dir}:/data:ro`,
+        `${OUT_DIR}:/data:ro`,
+        '-w',
+        '/data',
         'verapdf/cli:latest',
-        '/data/sample.pdf',
+        'sample.pdf',
       ],
       { maxBuffer: 8 * 1024 * 1024 }
     );
     console.log('veraPDF: sample PDF/A validation passed');
   } finally {
-    await rm(dir, { recursive: true, force: true });
+    await rm(OUT_DIR, { recursive: true, force: true });
   }
 }
 
