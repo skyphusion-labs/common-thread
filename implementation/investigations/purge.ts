@@ -7,7 +7,6 @@
  */
 
 import { execute } from '../db';
-import { InvestigationAccessError } from './access';
 import { assertInvestigationActiveForWrite } from './write-guard';
 
 const CHILD_TABLES = [
