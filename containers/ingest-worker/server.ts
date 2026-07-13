@@ -19,6 +19,7 @@ import {
 import { createDatabaseClient, parseMysqlUrl } from '../../implementation/db';
 import type { IngestJobHandoff } from '../../implementation/ingest/handoff';
 import { claimIngestJob, failIngestJob } from '../../implementation/ingest/jobs';
+import { buildManifestRemoteAppend } from '../../implementation/ingest/manifest-env';
 import { runTwitterIngestPipeline } from '../../implementation/ingest/pipeline';
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -99,8 +100,14 @@ async function processJob(handoff: IngestJobHandoff): Promise<void> {
 
   const payload = JSON.parse(new TextDecoder().decode(raw.bytes));
 
+  const manifestRemoteAppend = buildManifestRemoteAppend(
+    handoff.manifestAppendBaseUrl,
+    INGEST_SECRET,
+    handoff.investigationId
+  );
+
   await runTwitterIngestPipeline(
-    { db, archive },
+    { db, archive, manifestRemoteAppend },
     {
       investigationId: handoff.investigationId,
       payload,

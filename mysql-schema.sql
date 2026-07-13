@@ -244,6 +244,8 @@ CREATE TABLE attribution_runs (
   model_name               VARCHAR(128) NOT NULL,
   model_version            VARCHAR(64) NOT NULL,
   reasoning_prompt_version VARCHAR(64) NOT NULL,
+  prompt_sha256            VARCHAR(64),
+  randomization_seed       VARCHAR(128),
   input_feature_count      INT NOT NULL,
   confidence_band          VARCHAR(32) NOT NULL,
   output_summary           TEXT NOT NULL,
@@ -319,7 +321,7 @@ CREATE TABLE schema_metadata (
 ) ENGINE=InnoDB;
 
 INSERT INTO schema_metadata (`key`, value, updated_at) VALUES
-  ('schema_version', '0009', '1970-01-01T00:00:00.000Z'),
+  ('schema_version', '0010', '1970-01-01T00:00:00.000Z'),
   ('schema_initialized_at', '1970-01-01T00:00:00.000Z', '1970-01-01T00:00:00.000Z'),
   (
     'pair_features_same_identifier_cross_platform_limitation',

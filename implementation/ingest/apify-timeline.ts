@@ -7,7 +7,7 @@
  */
 
 import { ArchiveStore } from '../archive/store';
-import { ManifestStore } from '../archive/manifest';
+import { manifestStoreFor, type ArchiveManifestBinding } from './manifest-env';
 import type { ParsedTweet } from './apify-twitter-parser';
 import { tweetText } from './apify-tweet-fields';
 
@@ -86,7 +86,7 @@ export interface ArchiveTimelinesResult {
  * Write one content-addressed timeline artifact and manifest entry per account.
  */
 export async function archiveAccountTimelines(
-  env: { ARCHIVE: R2Bucket; MANIFEST_COORDINATOR?: DurableObjectNamespace },
+  env: ArchiveManifestBinding,
   options: {
     investigationId: string;
     timelines: AccountTimeline[];
@@ -95,7 +95,7 @@ export async function archiveAccountTimelines(
   }
 ): Promise<ArchiveTimelinesResult> {
   const archive = new ArchiveStore({ bucket: env.ARCHIVE });
-  const manifest = new ManifestStore({ bucket: env.ARCHIVE, investigationId: options.investigationId, coordinator: env.MANIFEST_COORDINATOR });
+  const manifest = manifestStoreFor(env, options.investigationId);
   const toolVersion = options.toolVersion ?? '1';
   const manifestHashes: string[] = [];
 

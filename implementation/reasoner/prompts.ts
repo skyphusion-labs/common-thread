@@ -16,6 +16,7 @@ import type {
   SignalTable,
   ValidationFailure,
 } from './types';
+import { sha256 } from '../archive/hash';
 
 // ---------------------------------------------------------------------------
 // Prompt versions (recorded on every attribution_runs row)
@@ -23,6 +24,15 @@ import type {
 
 export const TRIAGE_PROMPT_VERSION = 'triage-v1';
 export const REASONING_PROMPT_VERSION = 'reasoning-v1';
+
+/**
+ * SHA-256 hex digest of the prompt text sent to the model (§3.4.2).
+ * Concatenates system and user prompts with a fixed delimiter.
+ */
+export async function promptSha256(systemPrompt: string, userPrompt: string): Promise<string> {
+  const bytes = new TextEncoder().encode(`${systemPrompt}\n---\n${userPrompt}`);
+  return sha256(bytes);
+}
 
 // ---------------------------------------------------------------------------
 // Triage prompt (§7.5.2)

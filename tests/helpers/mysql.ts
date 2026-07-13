@@ -6,6 +6,8 @@
  */
 
 import { readFileSync } from 'node:fs';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { join } from 'node:path';
 import mysql from 'mysql2/promise';
 import {
@@ -17,6 +19,15 @@ import {
 
 const DEFAULT_TEST_URL =
   'mysql://root@127.0.0.1:3306/common_thread_test';
+
+const execFileAsync = promisify(execFile);
+
+async function applyPendingMigrations(): Promise<void> {
+  await execFileAsync('node', ['scripts/apply-mysql-migrations.mjs'], {
+    cwd: process.cwd(),
+    env: { ...process.env, MYSQL_URL: testMysqlUrl() },
+  });
+}
 
 let testDb: DatabaseClient | null = null;
 
@@ -36,8 +47,8 @@ export function getTestDatabase(): DatabaseClient {
 }
 
 /**
- * Ensure the test database exists and core tables are present.
- * Idempotent: skips when investigations already exists.
+ * Ensure the test database exists, core tables are present, and pending migrations applied.
+ * Idempotent: skips full schema bootstrap when investigations already exists.
  */
 export async function applyTestSchema(): Promise<void> {
   const config = testMysqlConfig();
@@ -68,29 +79,28 @@ export async function applyTestSchema(): Promise<void> {
     .bind(config.database)
     .first<{ name: string }>();
 
-  if (existing?.name === 'investigations') {
-    return;
+  if (existing?.name !== 'investigations') {
+    const schemaPath = join(process.cwd(), 'mysql-schema.sql');
+    let sql = readFileSync(schemaPath, 'utf8');
+    sql = sql
+      .replace(/CREATE DATABASE IF NOT EXISTS[\s\S]*?;/i, '')
+      .replace(/USE common_thread\s*;/i, '');
+
+    const conn = await mysql.createConnection({
+      host: config.host,
+      port: config.port,
+      user: config.user,
+      password: config.password,
+      database: config.database,
+      multipleStatements: true,
+    });
+
+    try {
+      await conn.query(sql);
+    } finally {
+      await conn.end();
+    }
   }
 
-  const schemaPath = join(process.cwd(), 'mysql-schema.sql');
-  let sql = readFileSync(schemaPath, 'utf8');
-  sql = sql
-    .replace(/CREATE DATABASE IF NOT EXISTS[\s\S]*?;/i, '')
-    .replace(/USE common_thread\s*;/i, '')
-    .replace(/INSERT INTO schema_metadata[\s\S]*?;/gi, '');
-
-  const conn = await mysql.createConnection({
-    host: config.host,
-    port: config.port,
-    user: config.user,
-    password: config.password,
-    database: config.database,
-    multipleStatements: true,
-  });
-
-  try {
-    await conn.query(sql);
-  } finally {
-    await conn.end();
-  }
+  await applyPendingMigrations();
 }

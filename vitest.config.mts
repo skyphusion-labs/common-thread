@@ -78,6 +78,9 @@ const nodeSuites = [
   // Async attribution jobs (#69): DB-backed + worker.fetch, node project.
   'tests/attribution/jobs.test.ts',
   'tests/attribution/async-dispatch.test.ts',
+  // Pure unit suites that import ingest/archive modules (avoid workers-pool mysql2 load).
+  'tests/extractors/profile-banner-visual.test.ts',
+  'tests/sprint/signal-parity-2.test.ts',
 ];
 
 // Note: the two apify ingest suites read the twitter_scrapes/ phatadvert probe,

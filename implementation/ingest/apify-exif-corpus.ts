@@ -3,7 +3,7 @@
  */
 
 import { ArchiveStore } from '../archive/store';
-import { ManifestStore } from '../archive/manifest';
+import { manifestStoreFor, type ArchiveManifestBinding } from './manifest-env';
 import type { ParsedExif } from '../extractors/visual/exif-parser';
 
 export const APIFY_TWITTER_EXIF_CORPUS_TOOL = 'apify-twitter-exif-corpus';
@@ -26,7 +26,7 @@ export interface ArchiveExifCorporaResult {
 }
 
 export async function archiveExifCorpora(
-  env: { ARCHIVE: R2Bucket; MANIFEST_COORDINATOR?: DurableObjectNamespace },
+  env: ArchiveManifestBinding,
   options: {
     investigationId: string;
     corpora: AccountExifCorpus[];
@@ -35,11 +35,7 @@ export async function archiveExifCorpora(
   }
 ): Promise<ArchiveExifCorporaResult> {
   const archive = new ArchiveStore({ bucket: env.ARCHIVE });
-  const manifest = new ManifestStore({
-    bucket: env.ARCHIVE,
-    investigationId: options.investigationId,
-    coordinator: env.MANIFEST_COORDINATOR,
-  });
+  const manifest = manifestStoreFor(env, options.investigationId);
   const toolVersion = options.toolVersion ?? '1';
   const manifestHashes: string[] = [];
 
