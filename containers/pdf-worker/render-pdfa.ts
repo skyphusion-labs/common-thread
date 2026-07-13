@@ -14,6 +14,7 @@ const execFileAsync = promisify(execFile);
 
 const SRGB_ICC_CANDIDATES = [
   process.env.PDFA_SRGB_ICC_PROFILE,
+  '/usr/share/color/icc/sRGB.icc',
   '/usr/share/color/icc/colord/sRGB.icc',
   '/usr/share/color/icc/icc/sRGB.icc',
 ].filter((p): p is string => typeof p === 'string' && p.length > 0);
@@ -128,11 +129,11 @@ export async function renderHtmlToPdfA(html: string): Promise<Uint8Array> {
       '-sDEVICE=pdfwrite',
       '-dPDFACompatibilityPolicy=1',
       '-dEmbedAllFonts=true',
-      '-dSubsetFonts=true',
-      '-sColorConversionStrategy=UseDeviceIndependentColor',
+      '-sColorConversionStrategy=RGB',
       `-sOutputICCProfile=${iccProfile}`,
+      `-sOutputFile=${pdfaPath}`,
+      pdfPath,
     ];
-    gsArgs.push(`-sOutputFile=${pdfaPath}`, pdfPath);
 
     await execFileAsync('gs', gsArgs, { maxBuffer: 16 * 1024 * 1024 });
 
