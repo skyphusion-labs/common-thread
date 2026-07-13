@@ -24,7 +24,11 @@ const { database, config } = parseMysqlUrl(url);
 
 const here = dirname(fileURLToPath(import.meta.url));
 const schemaPath = join(here, '..', 'mysql-schema.sql');
-const sql = readFileSync(schemaPath, 'utf8');
+let sql = readFileSync(schemaPath, 'utf8');
+// Target database comes from MYSQL_URL; strip hardcoded bootstrap directives.
+sql = sql
+  .replace(/CREATE DATABASE IF NOT EXISTS[\s\S]*?;/i, '')
+  .replace(/USE\s+[\w`]+\s*;/i, '');
 
 const admin = await mysql.createConnection({ ...config, multipleStatements: true });
 try {

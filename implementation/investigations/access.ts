@@ -8,6 +8,7 @@
  */
 
 import { queryOne } from '../db';
+import { timingSafeEqual } from '../crypto/timing-safe';
 import type { InvestigationRow } from '../schema/db-types';
 
 const TOKEN_PREFIX = 'ct_';
@@ -53,14 +54,7 @@ export async function hashAccessToken(token: string): Promise<string> {
     .join('');
 }
 
-export function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) {
-    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return diff === 0;
-}
+export { timingSafeEqual } from '../crypto/timing-safe';
 
 /** Extract bearer token from Authorization, X-Investigation-Token, or ?access_token= */
 export function extractAccessToken(request: Request, url: URL): string | null {

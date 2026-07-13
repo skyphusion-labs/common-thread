@@ -7,7 +7,7 @@
  */
 
 import type { ManifestEntry } from './types';
-import { timingSafeEqual } from '../investigations/access';
+import { timingSafeEqual } from '../crypto/timing-safe';
 
 export interface RemoteManifestAppendOptions {
   appendUrl: string;
