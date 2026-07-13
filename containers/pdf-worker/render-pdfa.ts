@@ -4,7 +4,7 @@
 
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { access } from 'node:fs/promises';
+import { access, readdir } from 'node:fs/promises';
 import { unlink, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -18,7 +18,28 @@ const SRGB_ICC_CANDIDATES = [
   '/usr/share/color/icc/icc/sRGB.icc',
 ].filter((p): p is string => typeof p === 'string' && p.length > 0);
 
+async function ghostscriptBundledSrgbProfile(): Promise<string | null> {
+  const base = '/usr/share/ghostscript';
+  try {
+    const versions = await readdir(base);
+    for (const version of versions.sort().reverse()) {
+      const candidate = join(base, version, 'Resource/ColorProfiles/sRGB.icc');
+      try {
+        await access(candidate);
+        return candidate;
+      } catch {
+        // try older ghostscript tree
+      }
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 async function resolveSrgbIccProfile(): Promise<string | null> {
+  const bundled = await ghostscriptBundledSrgbProfile();
+  if (bundled) return bundled;
   for (const path of SRGB_ICC_CANDIDATES) {
     try {
       await access(path);
@@ -74,6 +95,11 @@ export async function renderHtmlToPdfA(html: string): Promise<Uint8Array> {
     );
 
     const iccProfile = await resolveSrgbIccProfile();
+    if (!iccProfile) {
+      throw new Error(
+        'sRGB ICC profile not found (install icc-profiles-free or ghostscript Resource/ColorProfiles)'
+      );
+    }
     const gsArgs = [
       '-dPDFA=2',
       '-dBATCH',
@@ -84,10 +110,9 @@ export async function renderHtmlToPdfA(html: string): Promise<Uint8Array> {
       '-dPDFACompatibilityPolicy=1',
       '-dEmbedAllFonts=true',
       '-dSubsetFonts=true',
+      '-sColorConversionStrategy=UseDeviceIndependentColor',
+      `-sOutputICCProfile=${iccProfile}`,
     ];
-    if (iccProfile) {
-      gsArgs.push('-sColorConversionStrategy=RGB', `-sOutputICCProfile=${iccProfile}`);
-    }
     gsArgs.push(`-sOutputFile=${pdfaPath}`, pdfPath);
 
     await execFileAsync('gs', gsArgs, { maxBuffer: 16 * 1024 * 1024 });
