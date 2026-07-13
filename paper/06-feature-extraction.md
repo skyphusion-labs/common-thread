@@ -207,7 +207,7 @@ Extractors for the full §4 taxonomy are present in the reference implementation
 | §4.4.1–§4.4.2 | Active when follower/following lists are in the ingest payload | Skipped when network lists are absent. |
 | §4.4.3–§4.4.4 | Active when ≥2 accounts ingested | Engagement events are derived from reply, repost, and quote posts in per-account timeline artifacts. Likes and other non-authored engagements are not collected in v1. |
 | §4.2.2 response latency | **Dormant** | Extractors run, but features are written only when the practitioner populates `triggering_events` in investigation metadata. v1 has no UI for this; default investigations produce no response-latency rows. |
-| §4.5.6 color palette | **Dormant** | Account and pair extractors are registered, but the v1 collection layer does not build `application/x-color-palette-corpus` artifacts (unlike image-hash corpora). No palette histograms are emitted until collection supplies decoded image bytes. |
+| §4.5.6 color palette | **Active** | Default Twitter ingest builds `application/x-color-palette-corpus` artifacts when posted images decode; account and pair extractors run on the corpus. |
 | §4.6.3 posted URLs | Active | Emitted as `content_artifacts` account features; pair overlap under `cross_platform`. |
 
 Practitioners auditing an investigation should treat the signal table as authoritative: a category listed in §4 but absent from the table for a given run was either not collected, not configured, or not applicable to that payload.

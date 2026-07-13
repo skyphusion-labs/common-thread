@@ -9,31 +9,11 @@ ahead if you've already done a step.
 
 ## Prerequisites
 
+- **macOS or Linux** (bash or zsh). Windows is not a supported platform for local development or deployment.
 - Node.js 18 or later
 - A Cloudflare account with Workers, R2, and Hyperdrive enabled
 - A MySQL 8+ instance (local Docker, managed Cloud SQL, PlanetScale, etc.)
 - Wrangler authenticated to your account (`wrangler login`)
-
-## A note on shells
-
-This guide shows commands for bash (macOS, Linux, WSL). Windows users
-have three working options:
-
-1. **WSL** (recommended for Windows users). Run all commands from a WSL
-   shell. `localhost:8787` from WSL reaches the Worker running on
-   Windows via WSL2's auto-forwarding, so even if Wrangler runs on
-   Windows you can curl from WSL.
-2. **PowerShell**. Native to Windows. The big gotcha is that PowerShell
-   aliases `curl` to `Invoke-WebRequest`, which has different semantics.
-   Either use `curl.exe` explicitly or use `Invoke-RestMethod` (cleaner
-   for JSON). Where the bash commands below need a Windows alternative,
-   PowerShell is shown.
-3. **cmd.exe**. Works but quote-escaping JSON bodies is painful. Where
-   it differs from PowerShell, a cmd version is shown too.
-
-For commands without a Windows alternative shown, the bash version
-works on all three (this is the case for `npm`, `wrangler`, and simple
-GET requests).
 
 ## 1. Install dependencies
 
@@ -215,8 +195,6 @@ Attribution credentials stay in your browser (BYOK); they are not stored on the 
 
 ## 9. Create your first investigation
 
-**bash / WSL:**
-
 ```bash
 curl -s -X POST http://localhost:8787/investigations \
   -H "Content-Type: application/json" \
@@ -237,33 +215,6 @@ curl -s http://localhost:8787/investigations/test-001/summary \
 You should get seed and artifact counts. `GET /investigations` (listing) returns
 `404`,  investigations are not enumerable.
 
-**PowerShell:**
-
-```powershell
-$created = Invoke-RestMethod -Method Post -Uri http://localhost:8787/investigations `
-  -ContentType "application/json" `
-  -Body '{"id": "test-001", "name": "Test investigation", "description": "Verifying setup"}'
-$created.access_token
-
-Invoke-RestMethod -Uri http://localhost:8787/investigations/test-001/summary `
-  -Headers @{ Authorization = "Bearer $($created.access_token)" }
-```
-
-**Windows cmd.exe:**
-
-```cmd
-curl -X POST http://localhost:8787/investigations -H "Content-Type: application/json" -d "{\"id\": \"test-001\", \"name\": \"Test investigation\", \"description\": \"Verifying setup\"}"
-```
-
-Copy `access_token` from the response, then:
-
-```cmd
-curl http://localhost:8787/investigations/test-001/summary -H "Authorization: Bearer ct_…"
-```
-
-If the summary request succeeds, the full stack (Worker + MySQL + schema) is
-working.
-
 **Web UI:** Creating an investigation shows the token once with copy/share-link
 buttons. The UI can save tokens in this browser's `localStorage`; see the
 honest security note on the Investigation tab.
@@ -283,13 +234,7 @@ MYSQL_URL='mysql://USER:PASS@HOST:3306/common_thread' npm run db:migrate
 npm run r2:create:prod
 
 # Set the public key as a Worker secret
-# bash/WSL:
 echo "<your public key>" | npx wrangler secret put SIGNER_PUBLIC_KEY --env production
-
-# PowerShell:
-# "<your public key>" | npx wrangler secret put SIGNER_PUBLIC_KEY --env production
-# (Or run `npx wrangler secret put SIGNER_PUBLIC_KEY --env production`
-#  and paste the key when prompted; works in all shells.)
 
 # Deploy
 npm run deploy:prod

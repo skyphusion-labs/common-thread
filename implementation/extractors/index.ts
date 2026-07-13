@@ -2,9 +2,8 @@
  * Top-level extractor registry.
  *
  * v1 signal availability (paper §6.4.6): most extractors populate on
- * default Apify Twitter ingest. Dormant unless configured or collected:
- *   - §4.2.2 response latency (needs metadata_json.triggering_events)
- *   - §4.5.6 color palette (needs color-palette corpus artifacts)
+ * default Apify Twitter ingest. Response latency needs metadata_json.triggering_events.
+ * Color palette corpora are built on default Twitter ingest (#120).
  * Active with v1 timeline data when ≥2 accounts:
  *   - §4.4.3 co-engagement, §4.4.4 amplification (reply/repost/quote
  *     from timeline artifacts; not likes)

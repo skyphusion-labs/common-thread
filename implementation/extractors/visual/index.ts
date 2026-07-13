@@ -24,8 +24,7 @@
  *       layer using computeHistogram())
  *     - pair-level: ColorPaletteOverlapExtractor (JSD on aligned
  *       histograms plus cosine and top-K Jaccard)
- *     - v1: extractors registered; dormant until the collection layer
- *       builds color-palette corpus artifacts (paper §6.4.6).
+ *     - Active on default Twitter ingest (ingest builds color-palette corpus).
  *
  *   §4.5.5 EXIF metadata leakage
  *     - parser: parseJpegExif() in exif-parser.ts (pure-TS, reusable

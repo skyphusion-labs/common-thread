@@ -201,6 +201,22 @@ Fetch investigation metadata. Requires capability token.
 }
 ```
 
+### `PATCH /investigations/:id/metadata`
+
+Update practitioner-controlled metadata (paper §4.2.2, §5.2.1). Requires
+capability token. Requires `status: active`.
+
+**JSON body** (all fields optional; omitted fields are unchanged):
+
+| Field | Description |
+|-------|-------------|
+| `triggering_events` | Array of `{ id, timestamp, description?, platform_post_id? }` for response-latency extractors |
+| `time_bounds` | `{ start, end, justification }` ISO 8601 window, or `null` to clear |
+
+**Response `200`**: `{ investigation: { … }, metadata: { triggering_events?, time_bounds? } }`
+
+**Response `400`**: validation error (invalid ISO timestamps, missing justification).
+
 ### `POST /investigations/:id/seal`
 
 Mark an investigation read-only. Requires capability token. Idempotent when
@@ -406,6 +422,19 @@ only for the attribution call and are not persisted.
 
 **Response `200`**:  `{ investigationId, pair_count, credential_source, runs: [...] }` per-pair summaries.
 
+**Response `202`** (VPC with attribution executor, server credentials only):
+`{ investigationId, jobId, status, mode: "async" }`. Poll
+`GET /investigations/:id/attribution-jobs/:job_id` for completion. BYOK
+requests and environments without the executor use the synchronous `200` path.
+
+### `GET /investigations/:id/attribution-jobs/:job_id`
+
+Requires capability token.
+
+Poll async attribution job status.
+
+**Response `200`**: `{ job: { status, pair_count, error_message, … } }`
+
 ### `GET /investigations/:id/runs`
 
 Requires capability token.
@@ -425,6 +454,23 @@ declined pairs, triage, methodology metadata). Does not include raw
 ---
 
 ## Evidence packet (§8.1)
+
+### `GET /investigations/:id/packet`
+
+Requires capability token.
+
+Build an investigation-level evidence packet from the **latest** attribution
+run (convenience route; same JSON shape as the per-run packet below).
+
+| Query | Response |
+|-------|----------|
+| _(default)_ | JSON packet |
+| `format=markdown` | `text/markdown` body |
+| `practitioner` | Practitioner identity string for cover metadata |
+| `redact=false` | Disable control-account pseudonymization |
+| `redact_account` | Repeatable; redact specific account handles |
+
+**Response `404`**: no attribution runs exist for this investigation.
 
 ### `GET /investigations/:id/packet/:run_id`
 
