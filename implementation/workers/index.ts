@@ -61,7 +61,7 @@ import {
   parseFeaturesQueryParams,
   queryInvestigationFeatures,
 } from '../features/query';
-import { buildEvidencePacket } from '../reporting/evidence-packet';
+import { buildEvidencePacket, buildInvestigationEvidencePacket } from '../reporting/evidence-packet';
 import { packetDocumentTitle, packetMarkdownToHtml } from '../reporting/packet-html';
 // Single source of truth for the version (issue #43); resolveJsonModule inlines
 // this at build time, matching the evidence packet (#32).
@@ -315,6 +315,9 @@ const ROUTES: Route[] = [
 
   // Single attribution run with full output (validates run_id before auth)
   { method: 'GET', pattern: /^\/investigations\/([^/]+)\/runs\/([^/]+)$/, handler: handleSingleRun },
+
+  // Investigation-level evidence packet (§8.1.1)
+  { method: 'GET', pattern: /^\/investigations\/([^/]+)\/packet$/, handler: handleInvestigationPacket },
 
   // Evidence packet for an attribution run (§8.1; validates run_id before auth)
   { method: 'GET', pattern: /^\/investigations\/([^/]+)\/packet\/([^/]+)$/, handler: handlePacket },
@@ -890,6 +893,54 @@ async function handleSingleRun(ctx: RouteContext): Promise<Response> {
   }
 
   return jsonResponse({ investigationId, run });
+}
+
+async function handleInvestigationPacket(ctx: RouteContext): Promise<Response> {
+  const { env, request, url, params } = ctx;
+  const investigationId = params[0] ?? '';
+
+  const auth = await authorizeOrRespond(env, request, url, investigationId);
+  if (auth instanceof Response) return auth;
+
+  const practitioner = url.searchParams.get('practitioner')?.trim() || undefined;
+  const redactParam = url.searchParams.get('redact');
+  const practitionerRedactions = url.searchParams
+    .getAll('redact_account')
+    .map((v) => v.trim())
+    .filter(Boolean);
+
+  const packet = await buildInvestigationEvidencePacket(
+    env.DB,
+    env.ARCHIVE,
+    investigationId,
+    {
+      practitionerIdentity: practitioner,
+      redaction: {
+        pseudonymizeControls: redactParam !== 'false',
+        practitionerRedactions:
+          practitionerRedactions.length > 0 ? practitionerRedactions : undefined,
+      },
+      packetSigner: env.SIGNER_PRIVATE_KEY
+        ? { privateKey: env.SIGNER_PRIVATE_KEY, signerId: env.SIGNER_ID }
+        : undefined,
+    }
+  );
+
+  if (!packet) {
+    return jsonResponse(
+      { error: 'No attribution runs found for investigation-level packet' },
+      404
+    );
+  }
+
+  if (url.searchParams.get('format') === 'markdown') {
+    return new Response(packet.markdown + '\n', {
+      status: 200,
+      headers: { 'Content-Type': 'text/markdown; charset=utf-8' },
+    });
+  }
+
+  return jsonResponse(packet);
 }
 
 async function handlePacket(ctx: RouteContext): Promise<Response> {

@@ -81,6 +81,7 @@ const nodeSuites = [
   // Pure unit suites that import ingest/archive modules (avoid workers-pool mysql2 load).
   'tests/extractors/profile-banner-visual.test.ts',
   'tests/sprint/signal-parity-2.test.ts',
+  'tests/sprint/reasoning-reporting.test.ts',
 ];
 
 // Note: the two apify ingest suites read the twitter_scrapes/ phatadvert probe,

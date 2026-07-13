@@ -225,6 +225,12 @@ export function buildReasoningUserPrompt(args: {
     }
     parts.push('');
   }
+  if (signal_table.non_english_investigation) {
+    parts.push(
+      'Non-English investigation (§7.6.5): maximum achievable confidence band is capped one level below normal (strongly_consistent becomes consistent; consistent becomes insufficient).'
+    );
+    parts.push('');
+  }
   parts.push(`Signal table (${signal_table.signals.length} rows, randomization_seed: ${signal_table.randomization_seed}):`);
   parts.push('');
   parts.push(JSON.stringify(signal_table.signals, null, 2));

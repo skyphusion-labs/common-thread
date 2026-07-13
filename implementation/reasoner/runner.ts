@@ -50,7 +50,15 @@ import {
 import { isLlmTransportError } from './ai-gateway';
 import { runReasoning } from './reasoner';
 import { runTriage } from './triage';
+import { persistAttributionMetadata } from '../investigations/attribution-metadata';
 import { toPresentationConfidence } from '../extractors/confidence';
+import { capBandForNonEnglish, bandValue } from './bands';
+import {
+  composeInvestigationClusters,
+  type CompositionRunInput,
+} from './cluster-composition';
+import { annotateControlComparisons } from './control-comparison';
+import { determineInvestigationLanguage } from './investigation-language';
 import type {
   PresentedSignal,
   ReasoningClaim,
@@ -170,6 +178,13 @@ export async function runAttribution(
   );
   const timeBounds = await loadTimeBounds(env.DB, options.investigationId);
   const controlAccounts = await loadControlAccounts(env.DB, options.investigationId);
+  const languageProfile = await determineInvestigationLanguage(
+    env.DB,
+    options.investigationId
+  );
+  const controlKeys = new Set(
+    controlAccounts.map((c) => `${c.platform}:${c.account}`)
+  );
 
   const summaries: AttributionRunSummary[] = [];
 
@@ -195,6 +210,7 @@ export async function runAttribution(
         timeBounds,
         controlAccounts,
         randomizationSeed: seed,
+        nonEnglishInvestigation: languageProfile.is_non_english,
       });
 
       const triageUserPrompt = buildTriageUserPrompt({
@@ -247,6 +263,21 @@ export async function runAttribution(
           reasoningDeclined = result.declined;
           recordedPromptSha = result.prompt_sha256;
           recordedPromptVersion = REASONING_PROMPT_VERSION;
+
+          if (reasoningOutput) {
+            reasoningOutput = await annotateControlComparisons(
+              env.DB,
+              options.investigationId,
+              {
+                account_a: left.account,
+                account_b: right.account,
+                platform_a: left.platform,
+                platform_b: right.platform,
+              },
+              controlAccounts,
+              reasoningOutput
+            );
+          }
         }
       } catch (err) {
         if (!isLlmTransportError(err)) throw err;
@@ -278,6 +309,7 @@ export async function runAttribution(
               platform_a: left.platform,
               platform_b: right.platform,
             },
+            isNonEnglish: languageProfile.is_non_english,
           });
 
       const attributionRunId = await writeAttributionRun(env.DB, {
@@ -320,6 +352,26 @@ export async function runAttribution(
     }
   }
 
+  const runRows = await env.DB
+    .prepare(
+      `SELECT id, account_a, account_b, platform_a, platform_b, confidence_band
+       FROM attribution_runs
+       WHERE investigation_id = ?
+       ORDER BY id ASC`
+    )
+    .bind(options.investigationId)
+    .all<CompositionRunInput>();
+
+  const composition = composeInvestigationClusters(
+    runRows.results ?? [],
+    controlKeys
+  );
+
+  await persistAttributionMetadata(env.DB, options.investigationId, {
+    investigation_language: languageProfile,
+    cluster_composition: composition,
+  });
+
   return summaries;
 }
 
@@ -336,6 +388,7 @@ interface SynthesizeArgs {
     platform_a: string;
     platform_b: string;
   };
+  isNonEnglish?: boolean;
 }
 
 interface SynthesizedOutput {
@@ -376,7 +429,10 @@ function synthesizeAttributionOutput(args: SynthesizeArgs): SynthesizedOutput {
 
   // Case 2: reasoning ran (with or without triage upstream).
   if (args.reasoningOutput) {
-    const band = derivePairBand(args.reasoningOutput, args.pair);
+    let band = derivePairBand(args.reasoningOutput, args.pair);
+    if (args.isNonEnglish) {
+      band = capBandForNonEnglish(band, true);
+    }
     const summary = buildReasoningSummary(args.reasoningOutput, args.pair, band);
     return {
       band,
@@ -488,10 +544,6 @@ function synthesizeTransportFailureOutput(args: {
   };
 }
 
-function bandValue(b: ConfidenceBand): number {
-  return b === 'strongly_consistent' ? 2 : b === 'consistent' ? 1 : 0;
-}
-
 function buildReasoningSummary(
   output: ReasoningOutput,
   pair: { account_a: string; account_b: string; platform_a: string; platform_b: string },
@@ -550,6 +602,7 @@ interface BuildSignalTableArgs {
   timeBounds?: { start: string; end: string };
   controlAccounts?: Array<{ account: string; platform: string }>;
   randomizationSeed: string;
+  nonEnglishInvestigation?: boolean;
 }
 
 async function buildSignalTable(
@@ -577,6 +630,7 @@ async function buildSignalTable(
       args.controlAccounts && args.controlAccounts.length > 0
         ? args.controlAccounts
         : undefined,
+    non_english_investigation: args.nonEnglishInvestigation ? true : undefined,
     signals: ordered,
     randomization_seed: args.randomizationSeed,
   };
