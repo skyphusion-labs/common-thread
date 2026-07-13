@@ -7,7 +7,7 @@
 
 import { sha256 } from '../archive/hash';
 import { parseJpegExif, type ParsedExif } from '../extractors/visual/exif-parser';
-import { computeHistogram, mergeHistograms } from '../extractors/visual/color-palette';
+import { computeHistogram } from '../extractors/visual/color-palette';
 import { dhash, dhashToHex } from '../extractors/visual/dhash';
 
 export interface FetchedImageFeatures {
