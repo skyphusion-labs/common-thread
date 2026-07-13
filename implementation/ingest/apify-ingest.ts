@@ -9,8 +9,6 @@ import {
 } from './apify-twitter-parser';
 import { runTwitterIngestPipeline } from './pipeline';
 import type { Env } from '../workers/index';
-
-export type { ApifyIngestResult } from './apify-ingest-types';
 export {
   TWITTER_ACCOUNT_EXTRACTORS,
   TWITTER_PAIR_EXTRACTORS,
@@ -73,6 +71,9 @@ export async function ingestApifyTwitter(
       rawFileHash: rawHash,
       itemCount: parsedTweets.length,
       accounts: handles,
+      manifestAppendBaseUrl: env.PUBLIC_API_BASE_URL
+        ? `${env.PUBLIC_API_BASE_URL.replace(/\/$/, '')}/internal/manifest`
+        : undefined,
     });
 
     if (!dispatchResponse.ok) {

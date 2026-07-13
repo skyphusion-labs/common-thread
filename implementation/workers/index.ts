@@ -38,6 +38,16 @@ import {
   softDeleteSeedIfActive,
 } from '../investigations/write-guard';
 import {
+  mergeInvestigationMetadata,
+  publicMetadataView,
+  serializeInvestigationMetadata,
+  validateMetadataPatch,
+  type InvestigationMetadataPatch,
+} from '../investigations/metadata';
+import { authorizeIngestSecret } from '../archive/manifest-remote';
+import type { ManifestEntry } from '../archive/types';
+import { manifestStoreFor } from '../ingest/manifest-env';
+import {
   ingestApifyTwitter,
   TWITTER_ACCOUNT_EXTRACTORS,
   TWITTER_PAIR_EXTRACTORS,
@@ -103,6 +113,11 @@ export interface Env {
   INGEST_WORKER_URL?: string;
   /** Required when delegating ingest to the VPC container (wrangler secret put INGEST_SECRET). */
   INGEST_SECRET?: string;
+  /**
+   * Public backend base URL for VPC callbacks (manifest append proxy, #110).
+   * Example: https://common-thread-backend.skyphusion.org
+   */
+  PUBLIC_API_BASE_URL?: string;
   /** Workers VPC binding to the PDF/A renderer (common-thread-pdf / json-pdf). */
   VPC_PDF?: Fetcher;
   /** PDF/A renderer on VPC, e.g. http://json-pdf:8081/render */
@@ -244,6 +259,21 @@ const ROUTES: Route[] = [
   // Get investigation metadata (requires capability token)
   { method: 'GET', pattern: /^\/investigations\/([^/]+)$/, auth: {}, handler: handleGetInvestigation },
 
+  // Update investigation metadata (triggering events, time bounds; §4.2.2, §5.2.1)
+  {
+    method: 'PATCH',
+    pattern: /^\/investigations\/([^/]+)\/metadata$/,
+    auth: { requireWrite: true },
+    handler: handlePatchInvestigationMetadata,
+  },
+
+  // VPC ingest container manifest append proxy (issue #110; INGEST_SECRET auth)
+  {
+    method: 'POST',
+    pattern: /^\/internal\/manifest\/([^/]+)\/append$/,
+    handler: handleInternalManifestAppend,
+  },
+
   // Seal investigation (read-only thereafter; requires capability token)
   { method: 'POST', pattern: /^\/investigations\/([^/]+)\/seal$/, auth: { requireWrite: true }, handler: handleSeal },
 
@@ -370,7 +400,78 @@ async function handleCreateInvestigation(ctx: RouteContext): Promise<Response> {
 }
 
 function handleGetInvestigation(ctx: RouteContext): Response {
-  return jsonResponse({ investigation: publicInvestigationView(ctx.auth!) });
+  return jsonResponse({
+    investigation: publicInvestigationView(ctx.auth!),
+    metadata: publicMetadataView(ctx.auth!.metadata_json),
+  });
+}
+
+async function handlePatchInvestigationMetadata(ctx: RouteContext): Promise<Response> {
+  const { env, request } = ctx;
+  const investigationId = ctx.investigationId;
+  const body = await parseJsonBody<InvestigationMetadataPatch>(request);
+  if (body instanceof Response) return body;
+
+  const validationError = validateMetadataPatch(body);
+  if (validationError) {
+    return jsonResponse({ error: validationError }, 400);
+  }
+
+  await assertInvestigationActiveForWrite(env.DB, investigationId);
+
+  const row = await queryOne<{ metadata_json: string | null }>(
+    env.DB,
+    'SELECT metadata_json FROM investigations WHERE id = ?',
+    [investigationId]
+  );
+
+  const merged = mergeInvestigationMetadata(row?.metadata_json ?? null, body);
+  const metadataJson = serializeInvestigationMetadata(merged);
+  const now = new Date().toISOString();
+
+  await execute(
+    env.DB,
+    `UPDATE investigations SET metadata_json = ?, updated_at = ? WHERE id = ?`,
+    [metadataJson.length > 0 ? metadataJson : null, now, investigationId]
+  );
+
+  return jsonResponse({
+    investigation: {
+      ...publicInvestigationView(ctx.auth!),
+      updated_at: now,
+    },
+    metadata: merged,
+  });
+}
+
+async function handleInternalManifestAppend(ctx: RouteContext): Promise<Response> {
+  const { env, request } = ctx;
+  const investigationId = ctx.params[0] ?? '';
+  if (!investigationId) {
+    return jsonResponse({ error: 'investigation id required' }, 400);
+  }
+
+  const authHeader = request.headers.get('Authorization');
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice('Bearer '.length).trim() : '';
+  if (!authorizeIngestSecret(token, env.INGEST_SECRET)) {
+    return jsonResponse({ error: 'Unauthorized' }, 401);
+  }
+
+  const body = await parseJsonBody<{ entry?: ManifestEntry }>(request);
+  if (body instanceof Response) return body;
+  if (!body.entry || typeof body.entry !== 'object') {
+    return jsonResponse({ error: 'entry is required' }, 400);
+  }
+  if (body.entry.investigationId !== investigationId) {
+    return jsonResponse({ error: 'entry.investigationId mismatch' }, 400);
+  }
+
+  const manifest = manifestStoreFor(
+    { ARCHIVE: env.ARCHIVE, MANIFEST_COORDINATOR: env.MANIFEST_COORDINATOR },
+    investigationId
+  );
+  await manifest.append(body.entry);
+  return new Response(null, { status: 204 });
 }
 
 async function handleSeal(ctx: RouteContext): Promise<Response> {

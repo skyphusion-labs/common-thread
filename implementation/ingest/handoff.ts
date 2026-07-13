@@ -6,4 +6,9 @@ export interface IngestJobHandoff {
   rawFileHash: string;
   itemCount: number;
   accounts: string[];
+  /**
+   * Base URL for manifest appends through the Worker DO proxy (#110).
+   * Example: https://common-thread-backend.skyphusion.org/internal/manifest
+   */
+  manifestAppendBaseUrl?: string;
 }

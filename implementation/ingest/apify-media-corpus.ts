@@ -8,9 +8,14 @@
  */
 
 import { ArchiveStore } from '../archive/store';
-import { ManifestStore } from '../archive/manifest';
+import { mergeHistograms } from '../extractors/visual/color-palette';
+import { manifestStoreFor, type ArchiveManifestBinding } from './manifest-env';
 import { fetchUrlImageFeatures } from '../collection/image-decode';
 import type { AccountExifCorpus } from './apify-exif-corpus';
+import {
+  buildColorPaletteCorpusFromHistogram,
+  type AccountColorPaletteCorpus,
+} from './apify-color-palette-corpus';
 import type { AccountTimeline } from './apify-timeline';
 
 export const APIFY_TWITTER_POSTED_IMAGE_CORPUS_TOOL = 'apify-twitter-posted-image-corpus';
@@ -65,6 +70,7 @@ const MAX_DHASH_FETCHES_PER_ACCOUNT = 12;
 export interface EnrichedImageCorporaResult {
   corpora: AccountPostedImageCorpus[];
   exifCorpora: AccountExifCorpus[];
+  colorPaletteCorpora: AccountColorPaletteCorpus[];
 }
 
 /**
@@ -76,11 +82,16 @@ export async function enrichPostedImageCorpora(
 ): Promise<EnrichedImageCorporaResult> {
   const out: AccountPostedImageCorpus[] = [];
   const exifCorpora: AccountExifCorpus[] = [];
+  const paletteState = new Map<
+    string,
+    { hist: Map<number, number>; imageCount: number; imageType: 'posted' | 'profile' | 'banner' }
+  >();
 
   for (const corpus of corpora) {
     const hashes = [...corpus.hashes];
     const exifImages: AccountExifCorpus['images'] = [];
     let fetches = 0;
+    const resolvedType = corpus.imageType ?? 'posted';
 
     for (const entry of hashes) {
       if (fetches >= MAX_DHASH_FETCHES_PER_ACCOUNT) break;
@@ -97,6 +108,21 @@ export async function enrichPostedImageCorpora(
         tweet_id: entry.tweet_id,
         exif: features.exif,
       });
+
+      if (
+        resolvedType === 'posted' &&
+        features.paletteHist &&
+        features.paletteHist.size > 0
+      ) {
+        const state = paletteState.get(corpus.account) ?? {
+          hist: new Map<number, number>(),
+          imageCount: 0,
+          imageType: resolvedType,
+        };
+        state.hist = mergeHistograms(state.hist, features.paletteHist);
+        state.imageCount += 1;
+        paletteState.set(corpus.account, state);
+      }
     }
 
     out.push({ account: corpus.account, hashes, imageType: corpus.imageType });
@@ -105,7 +131,20 @@ export async function enrichPostedImageCorpora(
     }
   }
 
-  return { corpora: out, exifCorpora };
+  const colorPaletteCorpora: AccountColorPaletteCorpus[] = [];
+  for (const [account, state] of paletteState) {
+    if (state.hist.size === 0) continue;
+    colorPaletteCorpora.push(
+      buildColorPaletteCorpusFromHistogram(
+        account,
+        state.imageCount,
+        state.hist,
+        state.imageType
+      )
+    );
+  }
+
+  return { corpora: out, exifCorpora, colorPaletteCorpora };
 }
 
 /** @deprecated Use enrichPostedImageCorpora */
@@ -189,7 +228,7 @@ export interface ArchivePostedImageCorporaResult {
 }
 
 export async function archivePostedImageCorpora(
-  env: { ARCHIVE: R2Bucket; MANIFEST_COORDINATOR?: DurableObjectNamespace },
+  env: ArchiveManifestBinding,
   options: {
     investigationId: string;
     corpora: AccountPostedImageCorpus[];
@@ -198,7 +237,7 @@ export async function archivePostedImageCorpora(
   }
 ): Promise<ArchivePostedImageCorporaResult> {
   const archive = new ArchiveStore({ bucket: env.ARCHIVE });
-  const manifest = new ManifestStore({ bucket: env.ARCHIVE, investigationId: options.investigationId, coordinator: env.MANIFEST_COORDINATOR });
+  const manifest = manifestStoreFor(env, options.investigationId);
   const toolVersion = options.toolVersion ?? '1';
   const manifestHashes: string[] = [];
 

@@ -6,7 +6,8 @@
  * registers seeds, and runs extractors.
  */
 
-import { ManifestStore } from '../archive/manifest';
+import { manifestStoreFor, type ArchiveManifestBinding } from './manifest-env';
+import { archiveColorPaletteCorpora } from './apify-color-palette-corpus';
 import type { R2BucketLike } from '../archive/store';
 import type { DatabaseClient } from '../db';
 import { runAccountExtractors } from '../extractors/runner';
@@ -53,6 +54,8 @@ export interface IngestPipelineEnv {
   archive: R2BucketLike;
   /** Optional per-investigation append serializer (issue #70). */
   manifestCoordinator?: DurableObjectNamespace;
+  /** Remote manifest append via Worker DO proxy (issue #110, VPC ingest). */
+  manifestRemoteAppend?: ArchiveManifestBinding['MANIFEST_REMOTE_APPEND'];
 }
 
 export interface RunTwitterIngestPipelineContext {
@@ -86,6 +89,14 @@ function hasNetworkData(payload: unknown): boolean {
   return payloadHasNetworkLists(payload);
 }
 
+function manifestBinding(env: IngestPipelineEnv): ArchiveManifestBinding {
+  return {
+    ARCHIVE: env.archive as R2Bucket,
+    MANIFEST_COORDINATOR: env.manifestCoordinator,
+    MANIFEST_REMOTE_APPEND: env.manifestRemoteAppend,
+  };
+}
+
 export async function runTwitterIngestPipeline(
   env: IngestPipelineEnv,
   ctx: RunTwitterIngestPipelineContext
@@ -93,8 +104,9 @@ export async function runTwitterIngestPipeline(
   const now = ctx.now ?? new Date().toISOString();
   const parsedTweets = ctx.parsedTweets ?? parseApifyTwitterItems(ctx.payload);
   const handles = ctx.handles ?? extractAllHandlesFromApifyTwitter(ctx.payload);
+  const archiveEnv = manifestBinding(env);
 
-  const manifest = new ManifestStore({ bucket: env.archive, investigationId: ctx.investigationId, coordinator: env.manifestCoordinator });
+  const manifest = manifestStoreFor(archiveEnv, ctx.investigationId);
 
   await manifest.append({
     hash: ctx.rawHash,
@@ -107,9 +119,7 @@ export async function runTwitterIngestPipeline(
   } as never);
 
   const timelines = aggregateParsedTweetsByAccount(parsedTweets);
-  const timelineArchive = await archiveAccountTimelines(
-    { ARCHIVE: env.archive as R2Bucket, MANIFEST_COORDINATOR: env.manifestCoordinator },
-    {
+  const timelineArchive = await archiveAccountTimelines(archiveEnv, {
       investigationId: ctx.investigationId,
       timelines,
       collectedAt: now,
@@ -117,9 +127,7 @@ export async function runTwitterIngestPipeline(
   );
 
   const profiles = aggregateProfilesFromParsedTweets(parsedTweets);
-  const profileArchive = await archiveAccountProfiles(
-    { ARCHIVE: env.archive as R2Bucket, MANIFEST_COORDINATOR: env.manifestCoordinator },
-    {
+  const profileArchive = await archiveAccountProfiles(archiveEnv, {
       investigationId: ctx.investigationId,
       profiles,
       collectedAt: now,
@@ -129,33 +137,34 @@ export async function runTwitterIngestPipeline(
   const imageCorpora = buildPostedImageCorporaFromTimelines(timelines);
   const profileImageCorpora = buildProfileImageCorporaFromProfiles(profiles);
   const bannerImageCorpora = buildBannerImageCorporaFromProfiles(profiles);
-  const { corpora: allImageCorpora, exifCorpora } = await enrichPostedImageCorpora([
+  const { corpora: allImageCorpora, exifCorpora, colorPaletteCorpora } =
+    await enrichPostedImageCorpora([
     ...imageCorpora,
     ...profileImageCorpora,
     ...bannerImageCorpora,
   ]);
-  const imageCorpusArchive = await archivePostedImageCorpora(
-    { ARCHIVE: env.archive as R2Bucket, MANIFEST_COORDINATOR: env.manifestCoordinator },
-    {
+  const imageCorpusArchive = await archivePostedImageCorpora(archiveEnv, {
       investigationId: ctx.investigationId,
       corpora: allImageCorpora,
       collectedAt: now,
     }
   );
 
-  const exifCorpusArchive = await archiveExifCorpora(
-    { ARCHIVE: env.archive as R2Bucket, MANIFEST_COORDINATOR: env.manifestCoordinator },
-    {
+  const exifCorpusArchive = await archiveExifCorpora(archiveEnv, {
       investigationId: ctx.investigationId,
       corpora: exifCorpora,
       collectedAt: now,
     }
   );
 
+  const colorPaletteArchive = await archiveColorPaletteCorpora(archiveEnv, {
+    investigationId: ctx.investigationId,
+    corpora: colorPaletteCorpora,
+    collectedAt: now,
+  });
+
   const networkLists = extractNetworkListsFromPayload(ctx.payload);
-  const networkArchive = await archiveNetworkLists(
-    { ARCHIVE: env.archive as R2Bucket, MANIFEST_COORDINATOR: env.manifestCoordinator },
-    {
+  const networkArchive = await archiveNetworkLists(archiveEnv, {
       investigationId: ctx.investigationId,
       lists: networkLists,
       collectedAt: now,
@@ -167,6 +176,7 @@ export async function runTwitterIngestPipeline(
     ...profileArchive.manifestHashes,
     ...imageCorpusArchive.manifestHashes,
     ...exifCorpusArchive.manifestHashes,
+    ...colorPaletteArchive.manifestHashes,
     ...networkArchive.manifestHashes,
   ];
   const artifactsCreated =
@@ -174,6 +184,7 @@ export async function runTwitterIngestPipeline(
     profileArchive.artifactsCreated +
     imageCorpusArchive.artifactsCreated +
     exifCorpusArchive.artifactsCreated +
+    colorPaletteArchive.artifactsCreated +
     networkArchive.artifactsCreated;
 
   let seedsRegistered = 0;

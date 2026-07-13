@@ -6,7 +6,7 @@
  */
 
 import { ArchiveStore } from '../archive/store';
-import { ManifestStore } from '../archive/manifest';
+import { manifestStoreFor, type ArchiveManifestBinding } from './manifest-env';
 
 export const APIFY_TWITTER_FOLLOWERS_TOOL = 'apify-twitter-followers';
 export const APIFY_TWITTER_FOLLOWING_TOOL = 'apify-twitter-following';
@@ -154,7 +154,7 @@ export interface ArchiveNetworkListsResult {
 }
 
 export async function archiveNetworkLists(
-  env: { ARCHIVE: R2Bucket; MANIFEST_COORDINATOR?: DurableObjectNamespace },
+  env: ArchiveManifestBinding,
   options: {
     investigationId: string;
     lists: NetworkListArtifact[];
@@ -162,7 +162,7 @@ export async function archiveNetworkLists(
   }
 ): Promise<ArchiveNetworkListsResult> {
   const archive = new ArchiveStore({ bucket: env.ARCHIVE });
-  const manifest = new ManifestStore({ bucket: env.ARCHIVE, investigationId: options.investigationId, coordinator: env.MANIFEST_COORDINATOR });
+  const manifest = manifestStoreFor(env, options.investigationId);
   const manifestHashes: string[] = [];
   let artifactsCreated = 0;
 

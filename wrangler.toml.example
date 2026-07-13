@@ -79,6 +79,7 @@ REASONING_MODEL = "claude-opus-4-8"
 # Uncomment when Workers VPC containers are deployed (see docs/DEPLOYMENT.md):
 # INGEST_WORKER_URL = "http://json-ingest:8080/trigger"
 # PDF_WORKER_URL = "http://json-pdf:8081/render"
+# PUBLIC_API_BASE_URL = "https://common-thread-backend.skyphusion.org"
 
 # =============================================================================
 # Workers VPC (optional — ingest + PDF containers)
@@ -105,6 +106,7 @@ TRIAGE_MODEL = "claude-haiku-4-5"
 REASONING_MODEL = "claude-opus-4-8"
 # INGEST_WORKER_URL = "http://json-ingest:8080/trigger"
 # PDF_WORKER_URL = "http://json-pdf:8081/render"
+# PUBLIC_API_BASE_URL = "https://common-thread-backend.skyphusion.org"
 
 [[env.dev.hyperdrive]]
 binding = "DB"
@@ -153,6 +155,7 @@ REASONING_MODEL = "claude-opus-4-8"
 # CORS_ALLOWED_ORIGINS = "https://your-approved-app.example.com"
 # INGEST_WORKER_URL = "http://json-ingest:8080/trigger"
 # PDF_WORKER_URL = "http://json-pdf:8081/render"
+# PUBLIC_API_BASE_URL = "https://common-thread-backend.skyphusion.org"
 
 [[env.production.hyperdrive]]
 binding = "DB"

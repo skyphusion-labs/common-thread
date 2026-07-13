@@ -7,12 +7,14 @@
 
 import { sha256 } from '../archive/hash';
 import { parseJpegExif, type ParsedExif } from '../extractors/visual/exif-parser';
+import { computeHistogram, mergeHistograms } from '../extractors/visual/color-palette';
 import { dhash, dhashToHex } from '../extractors/visual/dhash';
 
 export interface FetchedImageFeatures {
   dhash: string | null;
   sha256: string | null;
   exif: ParsedExif | null;
+  paletteHist: Map<number, number> | null;
 }
 
 type WorkersCanvas = {
@@ -110,16 +112,24 @@ export async function fetchUrlImageFeatures(url: string): Promise<FetchedImageFe
 
     try {
       const { rgba, width, height } = await decodeImageBytesToRgba(buf);
+      let paletteHist: Map<number, number> | null = null;
+      try {
+        paletteHist = computeHistogram(rgba, width, height);
+      } catch {
+        paletteHist = null;
+      }
       return {
         dhash: dhashToHex(dhash(rgba, width, height)),
         sha256: contentHash,
         exif,
+        paletteHist,
       };
     } catch {
       return {
         dhash: null,
         sha256: contentHash,
         exif,
+        paletteHist: null,
       };
     }
   } catch {

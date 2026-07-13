@@ -169,6 +169,8 @@ export interface AttributionRunRow {
   model_name: string;
   model_version: string;
   reasoning_prompt_version: string;
+  prompt_sha256: string | null;
+  randomization_seed: string | null;
   input_feature_count: number;
   confidence_band: ConfidenceBand;
   output_summary: string;
@@ -281,6 +283,8 @@ export interface NewAttributionRun {
   model_name: string;
   model_version: string;
   reasoning_prompt_version: string;
+  prompt_sha256?: string;
+  randomization_seed: string;
   input_feature_count: number;
   confidence_band: ConfidenceBand;
   output_summary: string;

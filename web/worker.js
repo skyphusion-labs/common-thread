@@ -179,6 +179,12 @@ body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Ro
             </div>
             <div id="seeds-list" class="max-h-48 overflow-auto text-xs font-mono"></div>
           </div>
+          <div class="mt-4">
+            <h4 class="font-medium text-sm mb-1">Triggering events (§4.2.2)</h4>
+            <p class="text-xs text-slate-500 mb-2">Configure practitioner-supplied events for response-latency extractors. Save before ingest when latency signals matter.</p>
+            <textarea id="triggering-events-json" class="w-full border rounded-xl px-3 py-2 text-xs font-mono h-28" placeholder='[{"id":"evt1","timestamp":"2025-01-01T12:00:00.000Z","label":"optional label"}]'></textarea>
+            <button onclick="saveTriggeringEvents()" class="mt-2 text-xs px-3 py-1.5 border rounded-lg hover:bg-slate-50">Save triggering events</button>
+          </div>
         </div>
       </section>
 
@@ -573,7 +579,33 @@ async function openInvestigationWith(id, token, meta) {
   });
   document.getElementById('open-inv-id').value = id;
   document.getElementById('open-inv-token').value = token;
+  renderInvestigationMetadata(data.metadata || {});
   selectInvestigation(id);
+}
+
+function renderInvestigationMetadata(metadata) {
+  var ta = document.getElementById('triggering-events-json');
+  if (!ta) return;
+  var events = metadata && metadata.triggering_events ? metadata.triggering_events : [];
+  ta.value = events.length ? JSON.stringify(events, null, 2) : '';
+}
+
+async function saveTriggeringEvents() {
+  if (!requireWritableInvestigation()) return;
+  try {
+    var raw = document.getElementById('triggering-events-json').value.trim();
+    var events = [];
+    if (raw) {
+      events = JSON.parse(raw);
+      if (!Array.isArray(events)) throw new Error('Triggering events must be a JSON array');
+    }
+    await api('PATCH', '/investigations/' + encodeURIComponent(state.investigationId) + '/metadata', {
+      json: { triggering_events: events },
+    });
+    showAlert('Triggering events saved.', 'success');
+  } catch (e) {
+    showAlert(e.message, 'error');
+  }
 }
 
 function copyRevealedToken() {

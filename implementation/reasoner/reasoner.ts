@@ -23,6 +23,7 @@ import {
   REASONING_SYSTEM_PROMPT,
   buildReasoningUserPrompt,
   buildRetryPromptAddition,
+  promptSha256,
 } from './prompts';
 import { validateReasoningOutput } from './validator';
 import type {
@@ -63,12 +64,15 @@ export interface RunReasoningResult {
   declined: boolean;
   /** Failures from the final attempt (if any). Empty when declined=false. */
   final_failures: ValidationFailure[];
+  /** SHA-256 of system + initial user prompt (§3.4.2). */
+  prompt_sha256: string;
 }
 
 export async function runReasoning(opts: RunReasoningOptions): Promise<RunReasoningResult> {
   const maxAttempts = opts.max_attempts ?? DEFAULT_MAX_ATTEMPTS;
   const maxTokens = opts.max_tokens ?? DEFAULT_MAX_TOKENS;
   const baseUserPrompt = buildReasoningUserPrompt({ signal_table: opts.signal_table });
+  const basePromptSha = await promptSha256(REASONING_SYSTEM_PROMPT, baseUserPrompt);
 
   let attempt = 0;
   let lastFailures: ValidationFailure[] = [];
@@ -131,6 +135,7 @@ export async function runReasoning(opts: RunReasoningOptions): Promise<RunReason
         attempts: attempt,
         declined: false,
         final_failures: [],
+        prompt_sha256: basePromptSha,
       };
     }
 
@@ -154,6 +159,7 @@ export async function runReasoning(opts: RunReasoningOptions): Promise<RunReason
     attempts: attempt,
     declined: true,
     final_failures: lastFailures,
+    prompt_sha256: basePromptSha,
   };
 }
 

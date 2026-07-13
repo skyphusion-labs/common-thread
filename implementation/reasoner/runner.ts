@@ -40,7 +40,13 @@ import type {
   FeatureValue,
   NewAttributionRun,
 } from '../schema/db-types';
-import { REASONING_PROMPT_VERSION, TRIAGE_PROMPT_VERSION } from './prompts';
+import {
+  REASONING_PROMPT_VERSION,
+  TRIAGE_PROMPT_VERSION,
+  TRIAGE_SYSTEM_PROMPT,
+  buildTriageUserPrompt,
+  promptSha256,
+} from './prompts';
 import { isLlmTransportError } from './ai-gateway';
 import { runReasoning } from './reasoner';
 import { runTriage } from './triage';
@@ -191,12 +197,24 @@ export async function runAttribution(
         randomizationSeed: seed,
       });
 
+      const triageUserPrompt = buildTriageUserPrompt({
+        account_a: left.account,
+        account_b: right.account,
+        platform_a: left.platform,
+        platform_b: right.platform,
+        signal_table: signalTable,
+      });
+      const triagePromptSha = await promptSha256(TRIAGE_SYSTEM_PROMPT, triageUserPrompt);
+
       let triageOut: TriageOutput | undefined;
       let escalate = !!options.skipTriage;
       let reasoningOutput: ReasoningOutput | undefined;
+      let reasoningResult: Awaited<ReturnType<typeof runReasoning>> | undefined;
       let reasoningAttempts: number | undefined;
       let reasoningDeclined = false;
       let transportFailure = false;
+      let recordedPromptSha = triagePromptSha;
+      let recordedPromptVersion = TRIAGE_PROMPT_VERSION;
 
       try {
         if (!options.skipTriage) {
@@ -225,9 +243,12 @@ export async function runAttribution(
             signal_table: signalTable,
             max_attempts: options.maxRetries,
           });
+          reasoningResult = result;
           reasoningOutput = result.output;
           reasoningAttempts = result.attempts;
           reasoningDeclined = result.declined;
+          recordedPromptSha = result.prompt_sha256;
+          recordedPromptVersion = REASONING_PROMPT_VERSION;
         }
       } catch (err) {
         if (!isLlmTransportError(err)) throw err;
@@ -273,9 +294,9 @@ export async function runAttribution(
           reasoningOutput?.methodology_metadata.model_version ??
           triageOut?.methodology_metadata.model_version ??
           '',
-        reasoning_prompt_version: reasoningOutput
-          ? REASONING_PROMPT_VERSION
-          : TRIAGE_PROMPT_VERSION,
+        reasoning_prompt_version: recordedPromptVersion,
+        prompt_sha256: recordedPromptSha,
+        randomization_seed: seed,
         input_feature_count: signalTable.signals.length,
         confidence_band: band,
         output_summary: summary,
@@ -1028,10 +1049,11 @@ async function writeAttributionRun(
       `INSERT INTO attribution_runs (
          investigation_id, account_a, account_b, platform_a, platform_b,
          model_name, model_version, reasoning_prompt_version,
+         prompt_sha256, randomization_seed,
          input_feature_count, confidence_band,
          output_summary, output_json,
          started_at, completed_at, manifest_hash_at_run
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       row.investigation_id,
@@ -1042,6 +1064,8 @@ async function writeAttributionRun(
       row.model_name,
       row.model_version,
       row.reasoning_prompt_version,
+      row.prompt_sha256 ?? null,
+      row.randomization_seed,
       row.input_feature_count,
       row.confidence_band,
       row.output_summary,

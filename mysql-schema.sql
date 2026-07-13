@@ -244,6 +244,8 @@ CREATE TABLE attribution_runs (
   model_name               VARCHAR(128) NOT NULL,
   model_version            VARCHAR(64) NOT NULL,
   reasoning_prompt_version VARCHAR(64) NOT NULL,
+  prompt_sha256            VARCHAR(64),
+  randomization_seed       VARCHAR(128),
   input_feature_count      INT NOT NULL,
   confidence_band          VARCHAR(32) NOT NULL,
   output_summary           TEXT NOT NULL,

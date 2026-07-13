@@ -23,6 +23,7 @@
  */
 
 import { sha256 } from './hash';
+import { appendManifestEntryRemote } from './manifest-remote';
 import { investigationManifestPath } from './paths';
 import type { R2BucketLike } from './store';
 import type { ManifestEntry, ManifestFilter } from './types';
@@ -51,6 +52,15 @@ export interface ManifestStoreOptions {
    * read-modify-write. Only used together with investigationId.
    */
   coordinator?: DurableObjectNamespace;
+
+  /**
+   * Remote append endpoint for out-of-Worker writers (VPC ingest container,
+   * issue #110). When set, appends POST to the Worker which fronts the DO.
+   */
+  remoteAppend?: {
+    appendUrl: string;
+    secret: string;
+  };
 }
 
 export class ManifestStore {
@@ -84,6 +94,15 @@ export class ManifestStore {
       );
     }
     const line = JSON.stringify(entry) + '\n';
+
+    if (this.options.remoteAppend) {
+      await appendManifestEntryRemote({
+        appendUrl: this.options.remoteAppend.appendUrl,
+        secret: this.options.remoteAppend.secret,
+        entry,
+      });
+      return;
+    }
 
     // Serialized path (issue #70): route the append through the per-investigation
     // Durable Object so concurrent writers cannot lose each other entries. Only
