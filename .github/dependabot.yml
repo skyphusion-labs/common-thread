@@ -1,7 +1,7 @@
 version: 2
 
-# Dependency lifecycle. PRs only (never auto-merge); the maintainer reviews,
-# and typecheck + the vitest suite gate every bump before it can land.
+# skyphusion-labs Dependabot standard — see fleet-chezmoi/docs/runbooks/dependabot-standard.md
+# PRs only (never auto-merge). Group minor/patch; majors stay separate. Peer families bump together.
 updates:
   - package-ecosystem: github-actions
     directory: /
@@ -12,7 +12,6 @@ updates:
     groups:
       actions:
         patterns: ["*"]
-
   - package-ecosystem: npm
     directory: /
     schedule:
@@ -21,14 +20,31 @@ updates:
     commit-message:
       prefix: deps
     groups:
+      worker-test-toolchain:
+        patterns:
+          - "wrangler"
+          - "@cloudflare/workers-types"
+          - "@cloudflare/vitest-pool-workers"
+          - "vitest"
+          - "@vitest/*"
       npm-minor-patch:
+        patterns: ["*"]
+        exclude-patterns:
+          - "wrangler"
+          - "@cloudflare/workers-types"
+          - "@cloudflare/vitest-pool-workers"
+          - "vitest"
+          - "@vitest/*"
         update-types: ["minor", "patch"]
-
-  # Self-hosted extraction container (Dockerfile).
   - package-ecosystem: docker
     directories:
-      - /containers/ingest-worker
+      - "/containers/ingest-worker"
+      - "/containers/attribution-worker"
+      - "/containers/pdf-worker"
     schedule:
       interval: weekly
     commit-message:
       prefix: build
+    groups:
+      docker-images:
+        patterns: ["*"]
