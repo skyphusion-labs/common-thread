@@ -24,11 +24,9 @@
 
     "noEmit": true,
     "rootDir": ".",
-    "baseUrl": ".",
-    "ignoreDeprecations": "6.0",
     "paths": {
-      "@archive/*": ["implementation/archive/*"],
-      "@schema/*": ["implementation/schema/*"]
+      "@archive/*": ["./implementation/archive/*"],
+      "@schema/*": ["./implementation/schema/*"]
     }
   },
   "include": [
