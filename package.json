@@ -44,7 +44,7 @@
     "validate:pdfa": "npx tsx containers/pdf-worker/validate-pdfa-sample.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1087.0",
+    "@aws-sdk/client-s3": "^3.1088.0",
     "marked": "^18.0.6",
     "mysql2": "^3.23.0"
   },
