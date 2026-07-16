@@ -15,7 +15,8 @@ export const TWITTER_ACCOUNT_EXTRACTORS: AccountFeatureExtractor[] =
       /twitter/i.test(e.name) ||
       e.name === 'posted_image_corpus' ||
       e.name === 'exif_corpus' ||
-      e.name === 'color_palette_corpus'
+      e.name === 'color_palette_corpus' ||
+      e.name === 'image_hash'
   );
 
 export const TWITTER_PAIR_EXTRACTORS: PairFeatureExtractor[] =
@@ -44,6 +45,7 @@ export const TWITTER_PAIR_EXTRACTORS: PairFeatureExtractor[] =
       /posted_image_overlap/i.test(e.name) ||
       /profile_image_overlap/i.test(e.name) ||
       /banner_image_overlap/i.test(e.name) ||
+      /image_source_class_overlap/i.test(e.name) ||
       /exif_overlap/i.test(e.name) ||
       /color_palette_overlap/i.test(e.name) ||
       /topic_phrase_overlap/i.test(e.name) ||
