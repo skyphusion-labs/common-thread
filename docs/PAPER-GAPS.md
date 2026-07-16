@@ -53,7 +53,7 @@ Paper §6.4.6 table must stay consistent with the rows above when extractors shi
 | [#148](https://github.com/skyphusion-labs/common-thread/issues/148) | §4.5.4 | Image `source_class` from manifest | Visual / collection |
 | [#149](https://github.com/skyphusion-labs/common-thread/issues/149) | §4.7.4 | Link shortener fingerprint | Metadata leakage |
 | [#150](https://github.com/skyphusion-labs/common-thread/issues/150) | §5.2.1 | Enforce `time_bounds` at ingest | Ingest |
-| [#151](https://github.com/skyphusion-labs/common-thread/issues/151) | §5.5 | Re-collection + tombstones | Ingest / archive |
+| [#151](https://github.com/skyphusion-labs/common-thread/issues/151) | §5.5 | Re-collection + tombstones — **done** (`recollection.ts`, `tombstones.ts`) | Ingest / archive |
 | [#152](https://github.com/skyphusion-labs/common-thread/issues/152) | §6.1.2 | Refuse silent overwrite across extractor versions | Schema / extractors |
 | [#153](https://github.com/skyphusion-labs/common-thread/issues/153) | §4.5.3 / §4.6 | Same-identifier cross-platform `pair_features` | Schema / pairs |
 | [#154](https://github.com/skyphusion-labs/common-thread/issues/154) | §5.4.4 | Optional archive dual-write / sync | Archive |

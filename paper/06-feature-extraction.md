@@ -219,6 +219,7 @@ Extractors for the full §4 taxonomy are present in the reference implementation
 | §6.2.6 rarity-weighted bio/URL overlap | Active | Bio-link, bio-text, and posted-URL pair extractors emit rarity-weighted Jaccard from investigation corpus DF. |
 | §4.5.5 AI-generated face detection | **Deferred** | No Workers-hosted detector in v1; practitioners may set `source_class` at collection (#148). See issue #147. |
 | §4.1.6 stated location geocoding | **Active** | Offline bundled city table (`docs/GEOCODING.md`); account `location_lat` / `location_lon` when matched; pair `location_geo_distance_km` and `location_geo_near_match` when both accounts geocode. |
+| §5.5 re-collection / tombstones | **Active on re-ingest** | Second and later timeline ingests diff against the prior present collection; manifest tombstones and `tweet_deletion` event_features for absent tweets. Engagement extractors use the latest timeline per account and stamp `collection_window` on events (§6.4.5). |
 
 Practitioners auditing an investigation should treat the signal table as authoritative: a category listed in §4 but absent from the table for a given run was either not collected, not configured, or not applicable to that payload.
 
