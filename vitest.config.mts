@@ -87,6 +87,7 @@ const nodeSuites = [
   'tests/extractors/jsd-distributions.test.ts',
   'tests/extractors/code-switching.test.ts',
   'tests/extractors/typo-error.test.ts',
+  'tests/extractors/background-novelty.test.ts',
   'tests/sprint/signal-parity-2.test.ts',
   'tests/sprint/reasoning-reporting.test.ts',
   'tests/sprint/extractor-ops.test.ts',

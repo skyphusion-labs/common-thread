@@ -16,7 +16,8 @@ export const TWITTER_ACCOUNT_EXTRACTORS: AccountFeatureExtractor[] =
       e.name === 'posted_image_corpus' ||
       e.name === 'exif_corpus' ||
       e.name === 'color_palette_corpus' ||
-      e.name === 'image_hash'
+      e.name === 'image_hash' ||
+      e.name === 'background_corpus_stylometric'
   );
 
 export const TWITTER_PAIR_EXTRACTORS: PairFeatureExtractor[] =
@@ -52,6 +53,7 @@ export const TWITTER_PAIR_EXTRACTORS: PairFeatureExtractor[] =
       /register_pattern/i.test(e.name) ||
       /code_switch_pattern/i.test(e.name) ||
       /typo_error/i.test(e.name) ||
+      /background_novelty/i.test(e.name) ||
       /response_latency/i.test(e.name)
   );
 
