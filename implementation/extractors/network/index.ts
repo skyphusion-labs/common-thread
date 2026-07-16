@@ -26,6 +26,8 @@
  *   §4.4.4 Cross-account amplification:
  *     - pair-level: AmplificationExtractor (via engagement-pair runner;
  *       shares the engagement event prerequisite with §4.4.3)
+ *     - v1.1.0: control-account pair-fraction baseline + z-scores when
+ *       seed_accounts.is_control is set and baseline stdev > 0
  *
  * Platform parity:
  *

@@ -5,6 +5,11 @@
  * seeds (replies, reposts, quotes on their content). High in-seed
  * amplification fraction is a coordination signal when organic following
  * is low.
+ *
+ * Community baseline: when seed_accounts includes is_control=1 rows,
+ * the baseline uses only control-account pair fractions (§5.1.4).
+ * Otherwise falls back to leave-it-in across all seeds (conservative bias).
+ * Z-scores are emitted only when explicit controls exist and stdev > 0.
  */
 
 import type {
@@ -12,14 +17,26 @@ import type {
   EngagementPairFeatureExtractor,
 } from '../event-types';
 import type { ExtractedFeature } from '../types';
+import { populationMean, populationStdev } from './co-engagement-helpers';
 
 const NAME = 'amplification_network';
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 
 interface AmplificationContext {
   seedSet: Set<string>;
   /** target_author → engagements from any seed account */
   onTarget: Map<string, EngagementEventRecord[]>;
+  baseline: {
+    meanFraction: number;
+    stdevFraction: number;
+    sampleCount: number;
+    hasControls: boolean;
+  };
+}
+
+interface PairFractions {
+  bOfA: number | null;
+  aOfB: number | null;
 }
 
 export class AmplificationExtractor implements EngagementPairFeatureExtractor {
@@ -29,7 +46,11 @@ export class AmplificationExtractor implements EngagementPairFeatureExtractor {
   readonly requiredEventTypes = ['reply', 'repost', 'quote'] as const;
 
   buildContext(
-    seedAccounts: ReadonlyArray<{ account: string; events: EngagementEventRecord[] }>
+    seedAccounts: ReadonlyArray<{
+      account: string;
+      events: EngagementEventRecord[];
+      isControl?: boolean;
+    }>
   ): AmplificationContext {
     const seedSet = new Set(seedAccounts.map(s => s.account));
     const onTarget = new Map<string, EngagementEventRecord[]>();
@@ -46,7 +67,39 @@ export class AmplificationExtractor implements EngagementPairFeatureExtractor {
       }
     }
 
-    return { seedSet, onTarget };
+    const hasControls = seedAccounts.some(a => a.isControl);
+    const baselineAccounts = hasControls
+      ? seedAccounts.filter(a => a.isControl)
+      : seedAccounts;
+
+    const fractions: number[] = [];
+    for (let i = 0; i < baselineAccounts.length - 1; i++) {
+      for (let j = i + 1; j < baselineAccounts.length; j++) {
+        const a = baselineAccounts[i].account;
+        const b = baselineAccounts[j].account;
+        const pair = computePairFractions(a, b, seedSet, onTarget);
+        if (pair.bOfA !== null) fractions.push(pair.bOfA);
+        if (pair.aOfB !== null) fractions.push(pair.aOfB);
+      }
+    }
+
+    let meanFraction = 0;
+    let stdevFraction = 0;
+    if (fractions.length > 0) {
+      meanFraction = populationMean(fractions);
+      stdevFraction = populationStdev(fractions, meanFraction);
+    }
+
+    return {
+      seedSet,
+      onTarget,
+      baseline: {
+        meanFraction,
+        stdevFraction,
+        sampleCount: fractions.length,
+        hasControls,
+      },
+    };
   }
 
   extract(
@@ -59,17 +112,15 @@ export class AmplificationExtractor implements EngagementPairFeatureExtractor {
     const ctx = context as AmplificationContext | undefined;
     if (!ctx) return [];
 
-    const onA = (ctx.onTarget.get(accountA) ?? []).filter(e => e.account !== accountA);
-    const onB = (ctx.onTarget.get(accountB) ?? []).filter(e => e.account !== accountB);
-
-    const fromSeedsOnA = onA.filter(e => ctx.seedSet.has(e.account));
-    const fromSeedsOnB = onB.filter(e => ctx.seedSet.has(e.account));
-
-    const bAmplifiesA = fromSeedsOnA.filter(e => e.account === accountB).length;
-    const aAmplifiesB = fromSeedsOnB.filter(e => e.account === accountA).length;
-
-    const totalSeedOnA = fromSeedsOnA.length;
-    const totalSeedOnB = fromSeedsOnB.length;
+    const pair = computePairFractions(accountA, accountB, ctx.seedSet, ctx.onTarget);
+    const {
+      bAmplifiesA,
+      aAmplifiesB,
+      totalSeedOnA,
+      totalSeedOnB,
+      bOfA,
+      aOfB,
+    } = pair;
 
     const cat = 'network' as const;
     const features: ExtractedFeature[] = [
@@ -95,18 +146,18 @@ export class AmplificationExtractor implements EngagementPairFeatureExtractor {
       },
     ];
 
-    if (totalSeedOnA > 0) {
+    if (bOfA !== null) {
       features.push({
         category: cat,
         name: 'amplification_b_of_a_fraction',
-        value: { kind: 'numeric', value: bAmplifiesA / totalSeedOnA },
+        value: { kind: 'numeric', value: bOfA },
       });
     }
-    if (totalSeedOnB > 0) {
+    if (aOfB !== null) {
       features.push({
         category: cat,
         name: 'amplification_a_of_b_fraction',
-        value: { kind: 'numeric', value: aAmplifiesB / totalSeedOnB },
+        value: { kind: 'numeric', value: aOfB },
       });
     }
 
@@ -114,6 +165,75 @@ export class AmplificationExtractor implements EngagementPairFeatureExtractor {
       bAmplifiesA > 0 || aAmplifiesB > 0 || totalSeedOnA > 0 || totalSeedOnB > 0;
     if (!anySignal) return [];
 
+    features.push(
+      {
+        category: cat,
+        name: 'amplification_baseline_mean',
+        value: { kind: 'numeric', value: ctx.baseline.meanFraction },
+      },
+      {
+        category: cat,
+        name: 'amplification_baseline_stdev',
+        value: { kind: 'numeric', value: ctx.baseline.stdevFraction },
+      }
+    );
+
+    if (ctx.baseline.hasControls && ctx.baseline.stdevFraction > 0) {
+      if (bOfA !== null) {
+        features.push({
+          category: cat,
+          name: 'amplification_b_of_a_fraction_zscore',
+          value: {
+            kind: 'numeric',
+            value: (bOfA - ctx.baseline.meanFraction) / ctx.baseline.stdevFraction,
+          },
+        });
+      }
+      if (aOfB !== null) {
+        features.push({
+          category: cat,
+          name: 'amplification_a_of_b_fraction_zscore',
+          value: {
+            kind: 'numeric',
+            value: (aOfB - ctx.baseline.meanFraction) / ctx.baseline.stdevFraction,
+          },
+        });
+      }
+    }
+
     return features;
   }
+}
+
+function computePairFractions(
+  accountA: string,
+  accountB: string,
+  seedSet: ReadonlySet<string>,
+  onTarget: ReadonlyMap<string, EngagementEventRecord[]>
+): PairFractions & {
+  bAmplifiesA: number;
+  aAmplifiesB: number;
+  totalSeedOnA: number;
+  totalSeedOnB: number;
+} {
+  const onA = (onTarget.get(accountA) ?? []).filter(e => e.account !== accountA);
+  const onB = (onTarget.get(accountB) ?? []).filter(e => e.account !== accountB);
+
+  const fromSeedsOnA = onA.filter(e => seedSet.has(e.account));
+  const fromSeedsOnB = onB.filter(e => seedSet.has(e.account));
+
+  const bAmplifiesA = fromSeedsOnA.filter(e => e.account === accountB).length;
+  const aAmplifiesB = fromSeedsOnB.filter(e => e.account === accountA).length;
+
+  const totalSeedOnA = fromSeedsOnA.length;
+  const totalSeedOnB = fromSeedsOnB.length;
+
+  return {
+    bAmplifiesA,
+    aAmplifiesB,
+    totalSeedOnA,
+    totalSeedOnB,
+    bOfA: totalSeedOnA > 0 ? bAmplifiesA / totalSeedOnA : null,
+    aOfB: totalSeedOnB > 0 ? aAmplifiesB / totalSeedOnB : null,
+  };
 }
