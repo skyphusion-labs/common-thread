@@ -83,11 +83,11 @@ share-card crawling, likes/favorites collection.
 
 | Issue | Paper § |
 |-------|---------|
-| #139 | §4.3.4 code-switching / register patterns |
-| #140 | §4.3.5 typo and error patterns |
+| #139 | §4.3.4 code-switching / register patterns (**done**) |
+| #140 | §4.3.5 typo and error patterns (**done**) |
 | #141 | §4.5.1 / §6.2.5 pHash (**done**) |
 | #142 | §6.2.3 pairwise JSD (sentence/punct/caps) (**done**) |
-| #143 | §4.3.2–3 background TF-IDF / novelty n-grams |
+| #143 | §4.3.2–3 background TF-IDF / novelty n-grams (**done**) |
 | #144 | §6.2.6 rarity-weighted bio / URL overlap (**done**) |
 | #145 | §4.4.4 amplification vs control baseline (**done**) |
 | #146 | §4.1.6 location geocoding (**done**) |
