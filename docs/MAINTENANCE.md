@@ -65,6 +65,18 @@ in `CONTRIBUTORS` or release notes is expected.
 Self-hosters should not depend on the public API for production workflows without
 prior contact (`common-thread@skyphusion.org`). See `docs/DEPLOYMENT.md`.
 
+## Archive replication (§5.4.4)
+
+Default deploy: single `ARCHIVE` R2 bucket. For a second live copy, either:
+
+- **Optional dual-write:** bind `ARCHIVE_REPLICA` and set
+  `ARCHIVE_DUAL_WRITE=true` (see `wrangler.toml.example` and
+  `docs/ARCHIVE-BACKUP.md`). No change required for single-bucket installs.
+- **Operator sync:** scheduled `rclone sync` / provider lifecycle rules
+  (documented in `docs/ARCHIVE-BACKUP.md`).
+
+MySQL/Hyperdrive backups remain a separate operator duty.
+
 ## What maintainers are not expected to do
 
 - Provide legal advice or case strategy.

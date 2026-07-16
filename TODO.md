@@ -98,7 +98,7 @@ share-card crawling, likes/favorites collection.
 | #151 | §5.5 re-collection + tombstones |
 | #152 | §6.1.2 extractor version overwrite guard (**done**) |
 | #153 | §4.5.3 / §4.6 same-identifier cross-platform pairs | done (migration 0011) |
-| #154 | §5.4.4 optional archive dual-write |
+| #154 | §5.4.4 optional archive dual-write | done (ARCHIVE_REPLICA + flag) |
 
 ### Methodology paper
 
