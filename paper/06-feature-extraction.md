@@ -203,7 +203,7 @@ Extractors for the full §4 taxonomy are present in the reference implementation
 
 | Signal | Paper | v1 default ingest | Notes |
 |--------|-------|-------------------|-------|
-| §4.1, §4.2.1, §4.2.3–§4.2.5, §4.3, §4.5.1–§4.5.3, §4.6, §4.7 (partial) | Active | Timeline and profile artifacts drive account and pair features. |
+| §4.1, §4.2.1, §4.2.3–§4.2.5, §4.3, §4.5.1–§4.5.3, §4.6, §4.7 (partial) | Active | Timeline and profile artifacts drive account and pair features. Visual overlap uses both dHash and pHash (§6.2.5). |
 | §4.4.1–§4.4.2 | Active when follower/following lists are in the ingest payload | Skipped when network lists are absent. |
 | §4.4.3–§4.4.4 | Active when ≥2 accounts ingested | Engagement events are derived from reply, repost, and quote posts in per-account timeline artifacts. Likes and other non-authored engagements are not collected in v1. |
 | §4.2.2 response latency | **Configured** | Extractors run when the practitioner populates `triggering_events` via `PATCH /investigations/:id/metadata` or the web UI. Default investigations without triggering events produce no response-latency rows. |
@@ -215,6 +215,7 @@ Extractors for the full §4 taxonomy are present in the reference implementation
 | §4.3.4 code-switching / register | **Active** | Twitter timeline ingest runs `code_switching_twitter` (rule-based register + script/stopword code-switch classifiers). Pair features: `jsd_register`, switch-rate abs diffs, optional `jsd_code_switch_pattern`. |
 | §4.3.5 typo / error patterns | **Active** | Twitter timeline ingest runs `typo_error_twitter` (rule-based hard-error taxonomy + confusion-form fingerprints). Pair: `typo_error_rate_abs_diff`, optional `jsd_typo_error` / `jsd_confusion_form`. FP modes: shared autocorrect / L1 transfer (paper §4.3.5). |
 | §4.3.2–3 background TF-IDF / novelty n-grams | **Active when configured** | Upload `application/x-background-corpus` on a control seed (`docs/BACKGROUND-CORPUS.md`). Seeds emit `account_term_tf` / `account_ngram_tf`; pair extractor emits background-weighted term and novelty n-gram overlap. Dormant without a background artifact. |
+| §6.2.5 dual hash families | Active | Collection emits dHash and pHash; profile/banner/posted pair extractors compare both families. |
 
 Practitioners auditing an investigation should treat the signal table as authoritative: a category listed in §4 but absent from the table for a given run was either not collected, not configured, or not applicable to that payload.
 

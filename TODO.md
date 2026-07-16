@@ -84,7 +84,7 @@ share-card crawling, likes/favorites collection.
 |-------|---------|
 | #139 | §4.3.4 code-switching / register patterns |
 | #140 | §4.3.5 typo and error patterns |
-| #141 | §4.5.1 / §6.2.5 pHash |
+| #141 | §4.5.1 / §6.2.5 pHash (**done**) |
 | #142 | §6.2.3 pairwise JSD (sentence/punct/caps) (**done**) |
 | #143 | §4.3.2–3 background TF-IDF / novelty n-grams |
 | #144 | §6.2.6 rarity-weighted bio / URL overlap |

@@ -15,6 +15,7 @@ import { HandleReuseExtractor } from '../../implementation/extractors/cross-plat
 import { runAccountExtractors } from '../../implementation/extractors/runner';
 import { runPairExtractors } from '../../implementation/extractors/pair-runner';
 import { dhash, dhashToHex } from '../../implementation/extractors/visual/dhash';
+import { phash, phashToHex } from '../../implementation/extractors/visual/phash';
 import {
   addSeedAccount,
   createInvestigation,
@@ -133,6 +134,7 @@ describe('runAccountExtractors', () => {
     const height = 8;
     const rgba = rgba9x8();
     const expectedDhash = dhashToHex(dhash(rgba, width, height));
+    const expectedPhash = phashToHex(phash(rgba, width, height));
 
     const entry = await collectArtifact(env, rgba, {
       source: 'https://twitter.com/alice/profile_images/avatar.png',
@@ -174,6 +176,7 @@ describe('runAccountExtractors', () => {
     );
     expect(byName.profile_image_sha256.feature_value_text).toBe(entry.hash);
     expect(byName.profile_image_dhash.feature_value_text).toBe(expectedDhash);
+    expect(byName.profile_image_phash.feature_value_text).toBe(expectedPhash);
     expect(byName.profile_image_width.feature_value_numeric).toBe(width);
     expect(byName.profile_image_height.feature_value_numeric).toBe(height);
   });

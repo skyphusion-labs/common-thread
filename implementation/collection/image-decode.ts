@@ -9,9 +9,11 @@ import { sha256 } from '../archive/hash';
 import { parseJpegExif, type ParsedExif } from '../extractors/visual/exif-parser';
 import { computeHistogram } from '../extractors/visual/color-palette';
 import { dhash, dhashToHex } from '../extractors/visual/dhash';
+import { phash, phashToHex } from '../extractors/visual/phash';
 
 export interface FetchedImageFeatures {
   dhash: string | null;
+  phash: string | null;
   sha256: string | null;
   exif: ParsedExif | null;
   paletteHist: Map<number, number> | null;
@@ -120,6 +122,7 @@ export async function fetchUrlImageFeatures(url: string): Promise<FetchedImageFe
       }
       return {
         dhash: dhashToHex(dhash(rgba, width, height)),
+        phash: phashToHex(phash(rgba, width, height)),
         sha256: contentHash,
         exif,
         paletteHist,
@@ -127,6 +130,7 @@ export async function fetchUrlImageFeatures(url: string): Promise<FetchedImageFe
     } catch {
       return {
         dhash: null,
+        phash: null,
         sha256: contentHash,
         exif,
         paletteHist: null,

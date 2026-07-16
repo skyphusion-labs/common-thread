@@ -57,12 +57,13 @@
  *                         artifact is application/x-rgba8 with
  *                         dimensions sufficient to compute a
  *                         meaningful hash)
+ *   ${type}_image_phash  (text, hex 16-char; §6.2.5 second family)
  *   ${type}_image_width  (numeric)
  *   ${type}_image_height (numeric)
  *   ${type}_image_source_class (text; §4.5.4; only when the collection
  *                         layer set platformMetadata.source_class)
  *
- * Determinism: pure pixel arithmetic from the dhash module; no
+ * Determinism: pure pixel arithmetic from the dhash/phash modules; no
  * randomness, no clock, no I/O beyond reading the artifact bytes.
  */
 
@@ -73,10 +74,11 @@ import type {
 } from '../types';
 import type { ManifestEntry } from '../../archive/types';
 import { dhash, dhashToHex } from './dhash';
+import { phash, phashToHex } from './phash';
 import { readManifestSourceClass } from './source-class';
 
 const NAME = 'image_hash';
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 
 const RGBA_MIME = 'application/x-rgba8';
 
@@ -169,6 +171,16 @@ export class ImageHashExtractor implements AccountFeatureExtractor {
           });
         } catch {
           // Defensive: suppress dhash only
+        }
+        try {
+          const hash = phash(input.bytes, width, height);
+          features.push({
+            category: 'visual',
+            name: `${imageType}_image_phash`,
+            value: { kind: 'text', value: phashToHex(hash) },
+          });
+        } catch {
+          // Defensive: suppress phash only
         }
       }
     }

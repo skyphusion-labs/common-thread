@@ -70,7 +70,7 @@ import type {
 import type { ManifestEntry } from '../../archive/types';
 
 const NAME = 'posted_image_corpus';
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 
 const CORPUS_MIME = 'application/x-image-hash-corpus';
 
@@ -78,6 +78,7 @@ type ImageType = 'profile' | 'banner' | 'posted';
 
 interface CorpusEntry {
   dhash?: unknown;
+  phash?: unknown;
   sha256?: unknown;
   url?: unknown;
   width?: unknown;
@@ -116,6 +117,7 @@ export class PostedImageCorpusExtractor implements AccountFeatureExtractor {
     const rawHashes = Array.isArray(body.hashes) ? body.hashes : [];
 
     const allHashes: string[] = [];
+    const allPhashes: string[] = [];
     const allUrls: string[] = [];
     for (const entry of rawHashes) {
       if (!entry || typeof entry !== 'object') continue;
@@ -126,6 +128,13 @@ export class PostedImageCorpusExtractor implements AccountFeatureExtractor {
           allHashes.push(normalized);
         }
       }
+      const rawP = entry.phash;
+      if (typeof rawP === 'string') {
+        const normalized = rawP.toLowerCase();
+        if (/^[0-9a-f]{16}$/.test(normalized)) {
+          allPhashes.push(normalized);
+        }
+      }
       const rawUrl = entry.url;
       if (typeof rawUrl === 'string' && rawUrl.length > 0) {
         allUrls.push(rawUrl);
@@ -134,11 +143,15 @@ export class PostedImageCorpusExtractor implements AccountFeatureExtractor {
 
     const uniqueSet = new Set(allHashes);
     const uniqueSorted = [...uniqueSet].sort();
+    const uniquePhashSet = new Set(allPhashes);
+    const uniquePhashSorted = [...uniquePhashSet].sort();
     const uniqueUrls = [...new Set(allUrls)].sort();
 
     const setName = `${imageType}_image_dhash_set`;
+    const phashSetName = `${imageType}_image_phash_set`;
     const countName = `${imageType}_image_count`;
     const uniqueName = `${imageType}_image_unique_dhash_count`;
+    const uniquePhashName = `${imageType}_image_unique_phash_count`;
     const urlSetName = `${imageType}_image_url_set`;
     const urlCountName = `${imageType}_image_url_count`;
 
@@ -150,13 +163,26 @@ export class PostedImageCorpusExtractor implements AccountFeatureExtractor {
       },
       {
         category: 'visual',
+        name: phashSetName,
+        value: { kind: 'json', value: uniquePhashSorted },
+      },
+      {
+        category: 'visual',
         name: countName,
-        value: { kind: 'numeric', value: Math.max(allHashes.length, allUrls.length) },
+        value: {
+          kind: 'numeric',
+          value: Math.max(allHashes.length, allPhashes.length, allUrls.length),
+        },
       },
       {
         category: 'visual',
         name: uniqueName,
         value: { kind: 'numeric', value: uniqueSet.size },
+      },
+      {
+        category: 'visual',
+        name: uniquePhashName,
+        value: { kind: 'numeric', value: uniquePhashSet.size },
       },
       {
         category: 'visual',
@@ -205,12 +231,21 @@ function pushScalarImageFeatures(
       value: { kind: 'text', value: dhashHex },
     });
   }
+
+  const phashHex = readCorpusScalar(first, 'phash');
+  if (phashHex && /^[0-9a-f]{16}$/.test(phashHex)) {
+    features.push({
+      category: 'visual',
+      name: `${imageType}_image_phash`,
+      value: { kind: 'text', value: phashHex },
+    });
+  }
 }
 
-function readCorpusScalar(entry: CorpusEntry, key: 'dhash' | 'sha256'): string | null {
+function readCorpusScalar(entry: CorpusEntry, key: 'dhash' | 'phash' | 'sha256'): string | null {
   const raw = entry[key];
   if (typeof raw !== 'string' || raw.length === 0) return null;
-  return key === 'sha256' ? raw.toLowerCase() : raw.toLowerCase();
+  return raw.toLowerCase();
 }
 
 // ---------------------------------------------------------------------------

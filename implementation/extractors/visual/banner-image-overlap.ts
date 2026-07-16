@@ -38,7 +38,7 @@ import {
 } from './dhash';
 
 const NAME = 'banner_image_overlap_visual';
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 
 export class BannerImageOverlapExtractor implements PairFeatureExtractor {
   readonly name = NAME;
@@ -92,6 +92,35 @@ export class BannerImageOverlapExtractor implements PairFeatureExtractor {
       } catch {
         // Malformed dhash hex; suppress perceptual comparison but
         // keep byte_equality.
+      }
+    }
+
+    const phashHexA = getText(featuresA, 'banner_image_phash');
+    const phashHexB = getText(featuresB, 'banner_image_phash');
+    if (phashHexA && phashHexB) {
+      try {
+        const hashA = dhashFromHex(phashHexA);
+        const hashB = dhashFromHex(phashHexB);
+        const dist = hammingDistance(hashA, hashB);
+        features.push(
+          {
+            category: 'visual',
+            name: 'banner_image_phash_hamming_distance',
+            value: { kind: 'numeric', value: dist },
+          },
+          {
+            category: 'visual',
+            name: 'banner_image_phash_similarity',
+            value: { kind: 'numeric', value: dhashSimilarity(dist) },
+          },
+          {
+            category: 'visual',
+            name: 'banner_image_phash_match_band',
+            value: { kind: 'text', value: dhashMatchBand(dist) },
+          }
+        );
+      } catch {
+        // Malformed phash hex; suppress.
       }
     }
 
