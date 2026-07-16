@@ -27,6 +27,9 @@ import {
   countMatches,
   median,
   extractAndNormalizeUrls,
+  binSentenceLengths,
+  countMajorPunctuation,
+  countNonInitialCapitalization,
 } from './text-helpers';
 import { parseInstagramListingBytes } from '../../ingest/instagram-listing-parser';
 import { isInstagramEntry } from '../../ingest/instagram-post-fields';
@@ -204,6 +207,11 @@ export class InstagramStylometricExtractor implements AccountFeatureExtractor {
           name: 'sentence_length_stdev',
           value: { kind: 'numeric', value: Math.sqrt(variance) },
         });
+        features.push({
+          category: cat,
+          name: 'sentence_length_distribution',
+          value: { kind: 'json', value: binSentenceLengths(sentLengths) },
+        });
       }
     }
 
@@ -224,6 +232,23 @@ export class InstagramStylometricExtractor implements AccountFeatureExtractor {
       name: 'punctuation_ratio',
       value: { kind: 'numeric', value: charRatios.punctuation },
     });
+
+    const punctDist = countMajorPunctuation(allRawText);
+    if (Object.keys(punctDist).length > 0) {
+      features.push({
+        category: cat,
+        name: 'punctuation_distribution',
+        value: { kind: 'json', value: punctDist },
+      });
+    }
+    const capsDist = countNonInitialCapitalization(allRawText);
+    if (Object.keys(capsDist).length > 0) {
+      features.push({
+        category: cat,
+        name: 'capitalization_distribution',
+        value: { kind: 'json', value: capsDist },
+      });
+    }
 
     const postCount = rawTexts.length;
     features.push({ category: cat, name: 'post_count', value: { kind: 'numeric', value: postCount } });

@@ -81,6 +81,8 @@ const nodeSuites = [
   'tests/attribution/async-dispatch.test.ts',
   // Pure unit suites that import ingest/archive modules (avoid workers-pool mysql2 load).
   'tests/extractors/profile-banner-visual.test.ts',
+  // Pure stylometric unit suites (no Workers runtime / wrangler bindings).
+  'tests/extractors/jsd-distributions.test.ts',
   'tests/sprint/signal-parity-2.test.ts',
   'tests/sprint/reasoning-reporting.test.ts',
   'tests/sprint/extractor-ops.test.ts',

@@ -14,6 +14,9 @@ import {
   shannonEntropyFromMap,
   computeCharacterRatios,
   median,
+  binSentenceLengths,
+  countMajorPunctuation,
+  countNonInitialCapitalization,
 } from './text-helpers';
 import { withRecentSuffix } from './windowing';
 
@@ -179,6 +182,12 @@ export function buildStylometricFeatures(
         name: featureName('sentence_length_stdev', recent),
         value: { kind: 'numeric', value: Math.sqrt(variance) },
       });
+      // §6.2.3: fixed-bin sentence-length distribution for pairwise JSD.
+      features.push({
+        category: cat,
+        name: featureName('sentence_length_distribution', recent),
+        value: { kind: 'json', value: binSentenceLengths(sentLengths) },
+      });
     }
   }
 
@@ -199,6 +208,24 @@ export function buildStylometricFeatures(
     name: featureName('punctuation_ratio', recent),
     value: { kind: 'numeric', value: charRatios.punctuation },
   });
+
+  // §6.2.3 distributions for pairwise JSD (punctuation + capitalization).
+  const punctDist = countMajorPunctuation(allRawText);
+  if (Object.keys(punctDist).length > 0) {
+    features.push({
+      category: cat,
+      name: featureName('punctuation_distribution', recent),
+      value: { kind: 'json', value: punctDist },
+    });
+  }
+  const capsDist = countNonInitialCapitalization(allRawText);
+  if (Object.keys(capsDist).length > 0) {
+    features.push({
+      category: cat,
+      name: featureName('capitalization_distribution', recent),
+      value: { kind: 'json', value: capsDist },
+    });
+  }
 
   const postCount = rawTexts.length;
   const sum = (vals: number[]) => vals.reduce((s, x) => s + x, 0);
