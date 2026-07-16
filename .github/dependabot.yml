@@ -40,7 +40,6 @@ updates:
     directories:
       - "/containers/ingest-worker"
       - "/containers/attribution-worker"
-      - "/containers/pdf-worker"
     schedule:
       interval: weekly
     commit-message:
@@ -48,3 +47,10 @@ updates:
     groups:
       docker-images:
         patterns: ["*"]
+  # pdf-worker must stay on *-bookworm-slim: wkhtmltopdf is not in Debian trixie.
+  - package-ecosystem: docker
+    directory: "/containers/pdf-worker"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build
