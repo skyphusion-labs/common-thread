@@ -1,7 +1,7 @@
 /**
  * Bio-link-overlap pair extractor.
  *
- * Per the methodology paper §4.6.2, this extractor computes set
+ * Per the methodology paper §4.6.2 / §6.2.6, this extractor computes set
  * similarity between the URLs each account publishes in their bio
  * (and, for Twitter, the dedicated profile URL field). URLs are
  * normalized to canonical form before comparison so accounts that
@@ -27,46 +27,23 @@
  * Algorithm:
  *   1. From each account's bio text, extract URLs via regex.
  *   2. For Twitter accounts, also include the dedicated `url` profile
- *      feature when present. Reddit doesn't expose a profile URL
- *      separate from bio, so this is a no-op for Reddit accounts.
+ *      feature when present.
  *   3. Normalize each URL; drop ones that fail to parse.
- *   4. Compute three views of overlap:
- *        - Full URL set Jaccard (strictest, requires identical
- *          target + path + non-tracking query params)
- *        - Host-only set Jaccard (catches "two accounts linking to
- *          different paths on the same site", e.g., a shared
- *          publication or organization)
- *        - Intersection lists (for inspection)
- *
- * Rarity weighting: the paper §6.2.6 mentions rarity weighting on
- * external link overlap. A faithful implementation requires a corpus-
- * level URL frequency prior that this layer does not have. The pair
- * extractor emits raw Jaccard; downstream reasoning can apply rarity
- * weighting if a frequency table is available.
+ *   4. Compute raw Jaccard on full URLs and hosts.
+ *   5. When buildContext() has run, also emit rarity-weighted Jaccard
+ *      using investigation-corpus document frequency (§6.2.6).
  *
  * Features emitted:
- *   bio_link_count_a (numeric)
- *   bio_link_count_b (numeric)
- *   bio_link_overlap_count (numeric, full-URL intersection size)
- *   bio_link_jaccard (numeric, [0, 1], full-URL Jaccard)
- *   bio_link_host_overlap_count (numeric, host-only intersection size)
- *   bio_link_host_jaccard (numeric, [0, 1], host-only Jaccard)
- *   bio_link_shared_urls (json, sorted array of overlapping
- *     normalized URLs)
- *   bio_link_shared_hosts (json, sorted array of overlapping hosts)
+ *   bio_link_count_a / bio_link_count_b
+ *   bio_link_overlap_count / bio_link_jaccard
+ *   bio_link_host_overlap_count / bio_link_host_jaccard
+ *   bio_link_rarity_weighted_jaccard (when context present)
+ *   bio_link_host_rarity_weighted_jaccard (when context present)
+ *   bio_link_shared_urls / bio_link_shared_hosts (when non-empty)
  *
  * Determinism: pure string parsing, set arithmetic, and integer
  * counting. No randomness, no clock access, no network. Satisfies
  * §6.1.
- *
- * Edge cases:
- *   - Either account missing the bio feature: returns empty (the
- *     comparison is undefined when there is no bio to compare).
- *   - Both bios present but neither contains URLs: emits zero counts
- *     and zero Jaccard. This is informative as a null result.
- *   - Malformed URL syntax in bio (e.g., "https:// foo"): drops the
- *     malformed URL silently. Well-formed URLs in the same bio still
- *     contribute.
  */
 
 import type {
@@ -76,11 +53,21 @@ import type {
 } from '../pair-types';
 import type { ExtractedFeature } from '../types';
 import { normalizeUrl } from '../stylometric/text-helpers';
+import {
+  buildDocumentFrequency,
+  rarityWeightedJaccard,
+} from './rarity';
 
 const NAME = 'bio_link_overlap_cross_platform';
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 
 const URL_REGEX = /https?:\/\/[^\s<>"'`)\]}]+/gi;
+
+interface BioLinkRarityContext {
+  corpusSize: number;
+  urlDf: Map<string, number>;
+  hostDf: Map<string, number>;
+}
 
 export class BioLinkOverlapExtractor implements PairFeatureExtractor {
   readonly name = NAME;
@@ -88,20 +75,39 @@ export class BioLinkOverlapExtractor implements PairFeatureExtractor {
   readonly category = 'cross_platform' as const;
   readonly requiredAccountFeatures = ['bio'] as const;
 
+  buildContext(
+    seedAccounts: ReadonlyArray<{ account: string; features: AccountFeatureMap }>
+  ): PairContext {
+    const urlSets: Set<string>[] = [];
+    const hostSets: Set<string>[] = [];
+    for (const { features } of seedAccounts) {
+      const bio = getText(features, 'bio') ?? '';
+      const profileUrl = getText(features, 'url');
+      const urls = collectNormalizedUrls(bio, profileUrl);
+      urlSets.push(urls);
+      hostSets.push(new Set([...urls].map(extractHost).filter(nonEmpty)));
+    }
+    const urls = buildDocumentFrequency(urlSets);
+    const hosts = buildDocumentFrequency(hostSets);
+    const ctx: BioLinkRarityContext = {
+      corpusSize: urls.corpusSize,
+      urlDf: urls.documentFrequency,
+      hostDf: hosts.documentFrequency,
+    };
+    return ctx;
+  }
+
   extract(
     _accountA: string,
     _accountB: string,
     featuresA: AccountFeatureMap,
     featuresB: AccountFeatureMap,
-    _context?: PairContext
+    context?: PairContext
   ): ExtractedFeature[] {
     const bioA = getText(featuresA, 'bio');
     const bioB = getText(featuresB, 'bio');
     if (bioA === null || bioB === null) return [];
 
-    // Optionally include the dedicated profile URL feature (Twitter
-    // emits this; Reddit does not). Treat as just another URL source
-    // alongside whatever appears inline in the bio.
     const profileUrlA = getText(featuresA, 'url');
     const profileUrlB = getText(featuresB, 'url');
 
@@ -157,8 +163,38 @@ export class BioLinkOverlapExtractor implements PairFeatureExtractor {
       },
     ];
 
-    // Include the actual overlap lists when non-empty for human review.
-    // Both arrays are sorted for deterministic output.
+    const rarity = context as BioLinkRarityContext | undefined;
+    if (rarity && rarity.corpusSize > 0) {
+      features.push(
+        {
+          category: cat,
+          name: 'bio_link_rarity_weighted_jaccard',
+          value: {
+            kind: 'numeric',
+            value: rarityWeightedJaccard(
+              urlsA,
+              urlsB,
+              rarity.urlDf,
+              rarity.corpusSize
+            ),
+          },
+        },
+        {
+          category: cat,
+          name: 'bio_link_host_rarity_weighted_jaccard',
+          value: {
+            kind: 'numeric',
+            value: rarityWeightedJaccard(
+              hostsA,
+              hostsB,
+              rarity.hostDf,
+              rarity.corpusSize
+            ),
+          },
+        }
+      );
+    }
+
     if (sharedUrls.size > 0) {
       features.push({
         category: cat,
@@ -178,10 +214,6 @@ export class BioLinkOverlapExtractor implements PairFeatureExtractor {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function getText(features: AccountFeatureMap, name: string): string | null {
   const v = features.get(name);
   if (!v || v.kind !== 'text') return null;
@@ -189,11 +221,6 @@ function getText(features: AccountFeatureMap, name: string): string | null {
   return v.value;
 }
 
-/**
- * Extract all URL-like substrings from the given text, normalize each,
- * and merge with the optionally provided profile URL. Returns a Set of
- * normalized URL strings. Malformed URLs are silently dropped.
- */
 function collectNormalizedUrls(
   bioText: string,
   profileUrl: string | null
@@ -206,8 +233,6 @@ function collectNormalizedUrls(
   }
 
   if (profileUrl) {
-    // Twitter's `url` feature may be a bare host without scheme; prepend
-    // https:// when the protocol is missing so URL parsing succeeds.
     const candidate = /^https?:\/\//i.test(profileUrl)
       ? profileUrl
       : `https://${profileUrl}`;
@@ -218,11 +243,6 @@ function collectNormalizedUrls(
   return out;
 }
 
-/**
- * Extract just the host portion of a normalized URL string (everything
- * before the first `/` or `?`). Returns empty string if extraction
- * fails.
- */
 function extractHost(normalizedUrl: string): string {
   const slashIdx = normalizedUrl.indexOf('/');
   const qIdx = normalizedUrl.indexOf('?');

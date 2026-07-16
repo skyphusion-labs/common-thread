@@ -88,7 +88,7 @@ share-card crawling, likes/favorites collection.
 | #141 | §4.5.1 / §6.2.5 pHash (**done**) |
 | #142 | §6.2.3 pairwise JSD (sentence/punct/caps) (**done**) |
 | #143 | §4.3.2–3 background TF-IDF / novelty n-grams |
-| #144 | §6.2.6 rarity-weighted bio / URL overlap |
+| #144 | §6.2.6 rarity-weighted bio / URL overlap (**done**) |
 | #145 | §4.4.4 amplification vs control baseline |
 | #146 | §4.1.6 location geocoding |
 | #147 | §4.5.5 AI-generated face detector |
