@@ -50,6 +50,10 @@ import {
   TWITTER_ENGAGEMENT_PAIR_EXTRACTORS,
 } from './twitter-extractors';
 import { completeIngestJob } from './jobs';
+import {
+  buildPriorTimelineByAccount,
+  runTimelineRecollection,
+} from './recollection';
 
 export interface IngestPipelineEnv {
   db: DatabaseClient;
@@ -136,6 +140,12 @@ export async function runTwitterIngestPipeline(
     timelines = applyTimeBoundsToTimelines(timelines, timeBounds);
   }
 
+  const priorPresentEntries = await manifest.list({ status: 'present' });
+  const priorTimelineByAccount = buildPriorTimelineByAccount(
+    priorPresentEntries,
+    timelines.map((t) => t.account)
+  );
+
   const timelineArchive = await archiveAccountTimelines(archiveEnv, {
       investigationId: ctx.investigationId,
       timelines,
@@ -144,6 +154,13 @@ export async function runTwitterIngestPipeline(
       tweetCountRawByAccount,
     }
   );
+
+  const recollection = await runTimelineRecollection(archiveEnv, env.db, {
+    investigationId: ctx.investigationId,
+    timelines,
+    priorTimelineByAccount,
+    discoveredAt: now,
+  });
 
   const profiles = aggregateProfilesFromParsedTweets(parsedTweets);
   const profileArchive = await archiveAccountProfiles(archiveEnv, {
@@ -192,6 +209,7 @@ export async function runTwitterIngestPipeline(
 
   const manifestHashes = [
     ...timelineArchive.manifestHashes,
+    ...recollection.tombstoneManifestHashes,
     ...profileArchive.manifestHashes,
     ...imageCorpusArchive.manifestHashes,
     ...exifCorpusArchive.manifestHashes,

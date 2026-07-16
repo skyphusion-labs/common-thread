@@ -45,6 +45,8 @@ export class TwitterEngagementEventExtractor implements EventFeatureExtractor {
     const posts = parsePosts(input.bytes);
     if (posts.length === 0) return [];
 
-    return extractEngagementsFromPosts(account, posts);
+    return extractEngagementsFromPosts(account, posts, {
+      collectionWindow: input.entry.collectedAt,
+    });
   }
 }

@@ -15,6 +15,7 @@ import {
   prepareEventFeatureWrite,
   type FeatureWritePolicyOptions,
 } from './feature-write-policy';
+import { selectManifestEntriesForExtraction } from '../ingest/recollection';
 
 export interface EventRunnerEnv {
   DB: DatabaseClient;
@@ -52,10 +53,12 @@ export async function runEventExtractors(
     );
   }
 
-  const entries = await manifest.list({
-    investigationId: options.investigationId,
-    status: 'present',
-  });
+  const entries = selectManifestEntriesForExtraction(
+    await manifest.list({
+      investigationId: options.investigationId,
+      status: 'present',
+    })
+  );
 
   const results: EventExtractorRunResult[] = [];
 

@@ -21,6 +21,8 @@ export interface EngagementEventData {
   engagement_target_key: string;
   /** Optional thread root id when exposed by the scraper (record-keeping). */
   conversation_id?: string | null;
+  /** ISO 8601 collectedAt of the timeline manifest entry (§6.4.5). */
+  collection_window?: string;
 }
 
 /** A single event row produced by an event extractor before DB insert. */

@@ -61,19 +61,24 @@ export function isPostLike(value: unknown): value is TweetLike {
  */
 export function extractEngagementsFromPosts(
   accountHandle: string,
-  posts: TweetLike[]
+  posts: TweetLike[],
+  options?: { collectionWindow?: string }
 ): ExtractedEvent[] {
   const actor = normalizeHandle(accountHandle);
   if (!actor) return [];
 
   const events: ExtractedEvent[] = [];
   for (const post of posts) {
-    events.push(...extractEngagementsFromPost(actor, post));
+    events.push(...extractEngagementsFromPost(actor, post, options?.collectionWindow));
   }
   return events;
 }
 
-function extractEngagementsFromPost(actor: string, post: TweetLike): ExtractedEvent[] {
+function extractEngagementsFromPost(
+  actor: string,
+  post: TweetLike,
+  collectionWindow?: string
+): ExtractedEvent[] {
   const ts = parsePostTimestamp(post);
   if (!ts) return [];
 
@@ -81,13 +86,13 @@ function extractEngagementsFromPost(actor: string, post: TweetLike): ExtractedEv
   const conversationId = conversationIdFromPost(post);
   const events: ExtractedEvent[] = [];
 
-  const reply = extractReply(actor, post, ts, sourcePostId, conversationId);
+  const reply = extractReply(actor, post, ts, sourcePostId, conversationId, collectionWindow);
   if (reply) events.push(reply);
 
-  const repost = extractRepost(actor, post, ts, sourcePostId, conversationId);
+  const repost = extractRepost(actor, post, ts, sourcePostId, conversationId, collectionWindow);
   if (repost) events.push(repost);
 
-  const quote = extractQuote(actor, post, ts, sourcePostId, conversationId);
+  const quote = extractQuote(actor, post, ts, sourcePostId, conversationId, collectionWindow);
   if (quote) events.push(quote);
 
   return events;
@@ -105,7 +110,8 @@ function extractReply(
   post: TweetLike,
   eventTimestamp: string,
   sourcePostId: string | null,
-  conversationId: string | null
+  conversationId: string | null,
+  collectionWindow?: string
 ): ExtractedEvent | null {
   let targetPostId =
     stringOrNull(post.in_reply_to_status_id_str) ??
@@ -150,7 +156,7 @@ function extractReply(
     engagement_kind: 'reply',
     engagement_target_key: engagementTargetKey(targetAuthor, targetPostId),
     conversation_id: conversationId,
-  });
+  }, collectionWindow);
 }
 
 function extractRepost(
@@ -158,7 +164,8 @@ function extractRepost(
   post: TweetLike,
   eventTimestamp: string,
   sourcePostId: string | null,
-  conversationId: string | null
+  conversationId: string | null,
+  collectionWindow?: string
 ): ExtractedEvent | null {
   const embedded = embeddedRetweet(post);
   if (embedded) {
@@ -172,7 +179,7 @@ function extractRepost(
       engagement_kind: 'repost',
       engagement_target_key: engagementTargetKey(targetAuthor, targetPostId),
       conversation_id: conversationId,
-    });
+    }, collectionWindow);
   }
 
   const text = tweetText(post);
@@ -198,7 +205,7 @@ function extractRepost(
       engagement_kind: 'repost',
       engagement_target_key: engagementTargetKey(resolved.author, resolved.postId),
       conversation_id: conversationId,
-    });
+    }, collectionWindow);
   }
 
   if (!targetAuthorFromPrefix || targetAuthorFromPrefix === actor) return null;
@@ -211,7 +218,7 @@ function extractRepost(
     engagement_kind: 'repost',
     engagement_target_key: engagementTargetKey(targetAuthorFromPrefix, syntheticId),
     conversation_id: conversationId,
-  });
+  }, collectionWindow);
 }
 
 function extractQuote(
@@ -219,7 +226,8 @@ function extractQuote(
   post: TweetLike,
   eventTimestamp: string,
   sourcePostId: string | null,
-  conversationId: string | null
+  conversationId: string | null,
+  collectionWindow?: string
 ): ExtractedEvent | null {
   const embedded = post.quotedTweet ?? post.quoted_status;
   if (!embedded) return null;
@@ -235,18 +243,23 @@ function extractQuote(
     engagement_kind: 'quote',
     engagement_target_key: engagementTargetKey(targetAuthor, targetPostId),
     conversation_id: conversationId,
-  });
+  }, collectionWindow);
 }
 
 function makeEvent(
   eventType: EngagementEventData['engagement_kind'],
   eventTimestamp: string,
-  data: EngagementEventData
+  data: EngagementEventData,
+  collectionWindow?: string
 ): ExtractedEvent {
+  const eventData: EngagementEventData = { ...data };
+  if (collectionWindow) {
+    eventData.collection_window = collectionWindow;
+  }
   return {
     eventType,
     eventTimestamp,
-    eventData: { ...data },
+    eventData: { ...eventData },
   };
 }
 
@@ -300,5 +313,6 @@ export function parseEngagementEventData(
     engagement_kind: kind,
     engagement_target_key,
     conversation_id: stringOrNull(obj.conversation_id),
+    collection_window: stringOrNull(obj.collection_window) ?? undefined,
   };
 }
