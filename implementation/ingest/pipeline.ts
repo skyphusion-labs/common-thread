@@ -17,8 +17,10 @@ import { runEngagementPairExtractors } from '../extractors/engagement-pair-runne
 import { runResponseLatencyExtraction } from '../extractors/temporal/response-latency';
 import {
   aggregateParsedTweetsByAccount,
+  applyTimeBoundsToTimelines,
   archiveAccountTimelines,
 } from './apify-timeline';
+import { parseInvestigationMetadata } from '../investigations/metadata';
 import {
   aggregateProfilesFromParsedTweets,
   archiveAccountProfiles,
@@ -118,11 +120,28 @@ export async function runTwitterIngestPipeline(
     status: 'present',
   } as never);
 
-  const timelines = aggregateParsedTweetsByAccount(parsedTweets);
+  const metaRow = await env.db
+    .prepare('SELECT metadata_json FROM investigations WHERE id = ?')
+    .bind(ctx.investigationId)
+    .first<{ metadata_json: string | null }>();
+  const timeBounds = parseInvestigationMetadata(metaRow?.metadata_json ?? null)
+    .time_bounds;
+
+  let timelines = aggregateParsedTweetsByAccount(parsedTweets);
+  let tweetCountRawByAccount: Record<string, number> | undefined;
+  if (timeBounds) {
+    tweetCountRawByAccount = Object.fromEntries(
+      timelines.map((t) => [t.account, t.tweets.length])
+    );
+    timelines = applyTimeBoundsToTimelines(timelines, timeBounds);
+  }
+
   const timelineArchive = await archiveAccountTimelines(archiveEnv, {
       investigationId: ctx.investigationId,
       timelines,
       collectedAt: now,
+      timeBounds,
+      tweetCountRawByAccount,
     }
   );
 

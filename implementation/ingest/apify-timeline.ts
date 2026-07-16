@@ -7,6 +7,7 @@
  */
 
 import { ArchiveStore } from '../archive/store';
+import type { InvestigationTimeBounds } from '../investigations/metadata';
 import { manifestStoreFor, type ArchiveManifestBinding } from './manifest-env';
 import type { ParsedTweet } from './apify-twitter-parser';
 import { tweetText } from './apify-tweet-fields';
@@ -19,7 +20,8 @@ export interface AccountTimeline {
   tweets: unknown[];
 }
 
-function tweetSortKey(tweet: unknown): number {
+/** Parse tweet createdAt / created_at / timestamp to epoch ms; 0 if missing/invalid. */
+export function tweetSortKey(tweet: unknown): number {
   if (!tweet || typeof tweet !== 'object') return 0;
   const obj = tweet as Record<string, unknown>;
   const raw =
@@ -30,6 +32,42 @@ function tweetSortKey(tweet: unknown): number {
   if (!raw) return 0;
   const ms = Date.parse(raw);
   return Number.isFinite(ms) ? ms : 0;
+}
+
+/**
+ * Keep tweets whose timestamps fall in inclusive [start, end] (§5.2.1).
+ * Tweets with missing or unparseable timestamps are dropped when bounds apply.
+ */
+export function filterTweetsByTimeBounds(
+  tweets: unknown[],
+  bounds: InvestigationTimeBounds
+): unknown[] {
+  const startMs = Date.parse(bounds.start);
+  const endMs = Date.parse(bounds.end);
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return tweets;
+
+  return tweets.filter((tweet) => {
+    const ms = tweetSortKey(tweet);
+    if (ms <= 0) return false;
+    return ms >= startMs && ms <= endMs;
+  });
+}
+
+/**
+ * Apply investigation time_bounds to per-account timelines.
+ * Accounts with zero in-window tweets are omitted.
+ */
+export function applyTimeBoundsToTimelines(
+  timelines: AccountTimeline[],
+  bounds: InvestigationTimeBounds
+): AccountTimeline[] {
+  const out: AccountTimeline[] = [];
+  for (const { account, tweets } of timelines) {
+    const filtered = filterTweetsByTimeBounds(tweets, bounds);
+    if (filtered.length === 0) continue;
+    out.push({ account, tweets: filtered });
+  }
+  return out;
 }
 
 function tweetDedupeKey(tweet: unknown, fallbackIndex: number): string {
@@ -92,6 +130,10 @@ export async function archiveAccountTimelines(
     timelines: AccountTimeline[];
     collectedAt: string;
     toolVersion?: string;
+    /** When set, recorded on each timeline manifest entry (already applied to tweets). */
+    timeBounds?: InvestigationTimeBounds;
+    /** Pre-filter tweet counts keyed by account (audit when time_bounds applied). */
+    tweetCountRawByAccount?: Record<string, number>;
   }
 ): Promise<ArchiveTimelinesResult> {
   const archive = new ArchiveStore({ bucket: env.ARCHIVE });
@@ -106,6 +148,18 @@ export async function archiveAccountTimelines(
       extension: 'json',
     });
 
+    const config: Record<string, unknown> = { tweet_count: tweets.length };
+    if (options.timeBounds) {
+      config.time_bounds = {
+        start: options.timeBounds.start,
+        end: options.timeBounds.end,
+      };
+      const raw = options.tweetCountRawByAccount?.[account];
+      if (typeof raw === 'number') {
+        config.tweet_count_raw = raw;
+      }
+    }
+
     await manifest.append({
       hash,
       account,
@@ -116,7 +170,7 @@ export async function archiveAccountTimelines(
         tool: APIFY_TWITTER_TIMELINE_TOOL,
         version: toolVersion,
         platform: 'twitter',
-        config: { tweet_count: tweets.length },
+        config,
       },
       mimeType: 'application/json',
       status: 'present',
