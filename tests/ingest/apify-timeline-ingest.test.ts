@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { env } from '../helpers/test-env';
 import {
   aggregateParsedTweetsByAccount,
+  applyTimeBoundsToTimelines,
   APIFY_TWITTER_TIMELINE_TOOL,
   archiveAccountTimelines,
+  filterTweetsByTimeBounds,
 } from '../../implementation/ingest/apify-timeline';
 import { parseApifyTwitterItems } from '../../implementation/ingest/apify-twitter-parser';
 import { TwitterStylometricExtractor } from '../../implementation/extractors/stylometric/twitter';
@@ -107,7 +109,6 @@ describe('apify timeline ingest', () => {
   // No fixture dependency: builds its timeline inline, so it runs everywhere.
   it('uses apify-twitter-timeline tool id on archived artifacts', async () => {
     const investigationId = `timeline-tool-${Date.now()}`;
-    await createInvestigation(testDb(), { id: investigationId });
 
     const timelines = [{ account: 'alice', tweets: [{ id: '1', createdAt: '2024-01-01T00:00:00.000Z', text: 'hi' }] }];
     await archiveAccountTimelines(
@@ -120,5 +121,86 @@ describe('apify timeline ingest', () => {
     const entries = await manifest.list({ status: 'present' });
     const timelineEntry = entries.find(e => e.account === 'alice');
     expect(timelineEntry?.collectionMethod.tool).toBe(APIFY_TWITTER_TIMELINE_TOOL);
+  });
+
+  it('filterTweetsByTimeBounds keeps inclusive window and drops unparseable', () => {
+    const bounds = {
+      start: '2024-06-01T00:00:00.000Z',
+      end: '2024-06-30T23:59:59.999Z',
+      justification: 'test window',
+    };
+    const tweets = [
+      { id: 'before', createdAt: '2024-05-31T23:59:59.000Z' },
+      { id: 'start', createdAt: '2024-06-01T00:00:00.000Z' },
+      { id: 'mid', createdAt: '2024-06-15T12:00:00.000Z' },
+      { id: 'end', createdAt: '2024-06-30T23:59:59.999Z' },
+      { id: 'after', createdAt: '2024-07-01T00:00:00.000Z' },
+      { id: 'nots', text: 'no timestamp' },
+    ];
+    const kept = filterTweetsByTimeBounds(tweets, bounds).map(
+      (t) => (t as { id: string }).id
+    );
+    expect(kept).toEqual(['start', 'mid', 'end']);
+  });
+
+  it('archives only in-window tweets and records time_bounds on manifest', async () => {
+    const investigationId = `timeline-bounds-${Date.now()}`;
+
+    const rawTimelines = [
+      {
+        account: 'alice',
+        tweets: [
+          { id: 'old', createdAt: '2023-01-01T00:00:00.000Z', text: 'old' },
+          { id: 'in', createdAt: '2024-03-15T12:00:00.000Z', text: 'in' },
+          { id: 'new', createdAt: '2025-01-01T00:00:00.000Z', text: 'new' },
+        ],
+      },
+      {
+        account: 'bob',
+        tweets: [{ id: 'bob-old', createdAt: '2020-01-01T00:00:00.000Z', text: 'x' }],
+      },
+    ];
+    const bounds = {
+      start: '2024-01-01T00:00:00.000Z',
+      end: '2024-12-31T23:59:59.999Z',
+      justification: 'calendar year 2024',
+    };
+    const tweetCountRawByAccount = Object.fromEntries(
+      rawTimelines.map((t) => [t.account, t.tweets.length])
+    );
+    const timelines = applyTimeBoundsToTimelines(rawTimelines, bounds);
+    expect(timelines).toHaveLength(1);
+    expect(timelines[0].account).toBe('alice');
+    expect(timelines[0].tweets).toHaveLength(1);
+    expect((timelines[0].tweets[0] as { id: string }).id).toBe('in');
+
+    await archiveAccountTimelines(
+      { ARCHIVE: env.ARCHIVE },
+      {
+        investigationId,
+        timelines,
+        collectedAt: new Date().toISOString(),
+        timeBounds: bounds,
+        tweetCountRawByAccount,
+      }
+    );
+
+    const { ManifestStore } = await import('../../implementation/archive/manifest');
+    const { ArchiveStore } = await import('../../implementation/archive/store');
+    const manifest = new ManifestStore({ bucket: env.ARCHIVE, investigationId });
+    const entries = await manifest.list({ status: 'present' });
+    expect(entries.find((e) => e.account === 'bob')).toBeUndefined();
+    const alice = entries.find((e) => e.account === 'alice');
+    expect(alice?.collectionMethod.config).toMatchObject({
+      tweet_count: 1,
+      tweet_count_raw: 3,
+      time_bounds: { start: bounds.start, end: bounds.end },
+    });
+
+    const archive = new ArchiveStore({ bucket: env.ARCHIVE });
+    const stored = await archive.get(alice!.hash, 'json');
+    expect(stored).toBeTruthy();
+    const body = JSON.parse(new TextDecoder().decode(stored!.bytes)) as { id: string }[];
+    expect(body.map((t) => t.id)).toEqual(['in']);
   });
 });

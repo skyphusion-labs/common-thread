@@ -10,7 +10,10 @@
  *       emitted by the account-metadata extractor as 'profile_lang'.
  *     - pair-level: ClientAppOverlapExtractor,
  *       TweetLanguageOverlapExtractor,
- *       ProfileLangOverlapExtractor
+ *       ProfileLangOverlapExtractor,
+ *       ShortenerFingerprintOverlapExtractor (§4.7.4; account
+ *       shortener_* features are emitted with posted_urls from
+ *       stylometric extractors)
  *
  * Platform parity:
  *
@@ -60,6 +63,7 @@ import { TwitterMetadataLeakageExtractor } from './twitter';
 import { ClientAppOverlapExtractor } from './client-app-overlap';
 import { TweetLanguageOverlapExtractor } from './language-overlap';
 import { ProfileLangOverlapExtractor } from './profile-lang-overlap';
+import { ShortenerFingerprintOverlapExtractor } from './shortener-fingerprint-overlap';
 import { ExifOverlapExtractor } from '../visual/exif-overlap';
 import type { AccountFeatureExtractor } from '../types';
 import type { PairFeatureExtractor } from '../pair-types';
@@ -72,6 +76,7 @@ export const METADATA_LEAKAGE_PAIR_EXTRACTORS: PairFeatureExtractor[] = [
   new ClientAppOverlapExtractor(),
   new TweetLanguageOverlapExtractor(),
   new ProfileLangOverlapExtractor(),
+  new ShortenerFingerprintOverlapExtractor(),
   new ExifOverlapExtractor(),  // §4.5.5; source in extractors/visual/
 ];
 
@@ -79,6 +84,12 @@ export { TwitterMetadataLeakageExtractor } from './twitter';
 export { ClientAppOverlapExtractor } from './client-app-overlap';
 export { TweetLanguageOverlapExtractor } from './language-overlap';
 export { ProfileLangOverlapExtractor } from './profile-lang-overlap';
+export { ShortenerFingerprintOverlapExtractor } from './shortener-fingerprint-overlap';
+export {
+  classifyShortenerUrl,
+  shortenerAccountFeatures,
+  summarizeShorteners,
+} from './shortener';
 export {
   dictJensenShannonDivergence,
   dictKeyJaccard,

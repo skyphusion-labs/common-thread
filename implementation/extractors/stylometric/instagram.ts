@@ -31,6 +31,7 @@ import {
   countMajorPunctuation,
   countNonInitialCapitalization,
 } from './text-helpers';
+import { shortenerAccountFeatures } from '../metadata-leakage/shortener';
 import { parseInstagramListingBytes } from '../../ingest/instagram-listing-parser';
 import { isInstagramEntry } from '../../ingest/instagram-post-fields';
 
@@ -304,6 +305,7 @@ export class InstagramStylometricExtractor implements AccountFeatureExtractor {
       name: 'posted_urls_unique_count',
       value: { kind: 'numeric', value: postedUrls.size },
     });
+    features.push(...shortenerAccountFeatures(postedUrls));
 
     return features;
   }

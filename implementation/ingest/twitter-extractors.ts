@@ -33,6 +33,7 @@ export const TWITTER_PAIR_EXTRACTORS: PairFeatureExtractor[] =
       /active_hour/i.test(e.name) ||
       /quiet_period/i.test(e.name) ||
       /client_app_overlap/i.test(e.name) ||
+      /shortener_fingerprint_overlap/i.test(e.name) ||
       /tweet_language/i.test(e.name) ||
       /profile_lang/i.test(e.name) ||
       /bio_link/i.test(e.name) ||

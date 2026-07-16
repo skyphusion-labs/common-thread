@@ -74,8 +74,8 @@ Migration 0002 documented the same-identifier-cross-platform pair limitation in 
 
 ## Paper implementation gaps
 
-Tracked as GitHub issues from the 2026-07 paper-vs-implementation audit (#139–#154,
-label `paper-gap`). Intentionally excluded: open-world discovery, real-time
+Canonical audit + crew lanes: **`docs/PAPER-GAPS.md`**. Issues #139–#154
+(label `paper-gap`). Intentionally excluded: open-world discovery, real-time
 monitoring, per-language calibration datasets, empirical validation harness,
 inter-rater tooling, red-team procedures, block/mute lists, visible emails,
 share-card crawling, likes/favorites collection.
@@ -92,7 +92,7 @@ share-card crawling, likes/favorites collection.
 | #146 | §4.1.6 location geocoding |
 | #147 | §4.5.5 AI-generated face detector |
 | #148 | §4.5.4 image source_class |
-| #149 | §4.7.4 link shortener fingerprint |
+| #149 | §4.7.4 link shortener fingerprint (**done**) |
 | #150 | §5.2.1 enforce time_bounds at ingest |
 | #151 | §5.5 re-collection + tombstones |
 | #152 | §6.1.2 extractor version overwrite guard |
