@@ -1,4 +1,5 @@
-FROM node:26-slim
+# bookworm-slim: wkhtmltopdf is not packaged in Debian trixie (node:26-slim default).
+FROM node:26-bookworm-slim
 
 WORKDIR /app
 
