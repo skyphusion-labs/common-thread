@@ -85,17 +85,17 @@ share-card crawling, likes/favorites collection.
 | #139 | §4.3.4 code-switching / register patterns |
 | #140 | §4.3.5 typo and error patterns |
 | #141 | §4.5.1 / §6.2.5 pHash |
-| #142 | §6.2.3 pairwise JSD (sentence/punct/caps) |
+| #142 | §6.2.3 pairwise JSD (sentence/punct/caps) (**done**) |
 | #143 | §4.3.2–3 background TF-IDF / novelty n-grams |
 | #144 | §6.2.6 rarity-weighted bio / URL overlap |
 | #145 | §4.4.4 amplification vs control baseline |
 | #146 | §4.1.6 location geocoding |
 | #147 | §4.5.5 AI-generated face detector |
-| #148 | §4.5.4 image source_class |
+| #148 | §4.5.4 image source_class (**done**) |
 | #149 | §4.7.4 link shortener fingerprint (**done**) |
-| #150 | §5.2.1 enforce time_bounds at ingest |
+| #150 | §5.2.1 enforce time_bounds at ingest (**done**) |
 | #151 | §5.5 re-collection + tombstones |
-| #152 | §6.1.2 extractor version overwrite guard |
+| #152 | §6.1.2 extractor version overwrite guard (**done**) |
 | #153 | §4.5.3 / §4.6 same-identifier cross-platform pairs |
 | #154 | §5.4.4 optional archive dual-write |
 

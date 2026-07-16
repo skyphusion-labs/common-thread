@@ -209,6 +209,7 @@ Extractors for the full §4 taxonomy are present in the reference implementation
 | §4.2.2 response latency | **Configured** | Extractors run when the practitioner populates `triggering_events` via `PATCH /investigations/:id/metadata` or the web UI. Default investigations without triggering events produce no response-latency rows. |
 | §4.5.6 color palette | **Active** | Default Twitter ingest builds `application/x-color-palette-corpus` artifacts when posted images decode; account and pair extractors run on the corpus. |
 | §4.6.3 posted URLs | Active | Emitted as `content_artifacts` account features; pair overlap under `cross_platform`. |
+| §4.5.4 image source_class | Active when labeled | Practitioner sets `platformMetadata.source_class`; account + pair visual features. |
 | §6.2.3 sentence / punctuation / capitalization JSD | **Active** | Account extractors emit `sentence_length_distribution`, `punctuation_distribution`, and `capitalization_distribution`; pair extractors emit `jsd_sentence_length`, `jsd_punctuation`, and `jsd_capitalization` when both sides have the distributions. |
 | §4.7.4 link shortener fingerprints | Active | Account `shortener_*` features emitted with posted URLs; pair overlap under `metadata_leakage`. |
 | §4.3.4 code-switching / register | **Active** | Twitter timeline ingest runs `code_switching_twitter` (rule-based register + script/stopword code-switch classifiers). Pair features: `jsd_register`, switch-rate abs diffs, optional `jsd_code_switch_pattern`. |

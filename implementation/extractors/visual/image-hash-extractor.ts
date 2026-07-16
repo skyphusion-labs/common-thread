@@ -59,6 +59,8 @@
  *                         meaningful hash)
  *   ${type}_image_width  (numeric)
  *   ${type}_image_height (numeric)
+ *   ${type}_image_source_class (text; §4.5.4; only when the collection
+ *                         layer set platformMetadata.source_class)
  *
  * Determinism: pure pixel arithmetic from the dhash module; no
  * randomness, no clock, no I/O beyond reading the artifact bytes.
@@ -71,6 +73,7 @@ import type {
 } from '../types';
 import type { ManifestEntry } from '../../archive/types';
 import { dhash, dhashToHex } from './dhash';
+import { readManifestSourceClass } from './source-class';
 
 const NAME = 'image_hash';
 const VERSION = '1.0.0';
@@ -121,6 +124,16 @@ export class ImageHashExtractor implements AccountFeatureExtractor {
         category: 'visual',
         name: `${imageType}_image_sha256`,
         value: { kind: 'text', value: sha256 },
+      });
+    }
+
+    // §4.5.4 practitioner-recorded source class (manifest only).
+    const sourceClass = readManifestSourceClass(entry);
+    if (sourceClass) {
+      features.push({
+        category: 'visual',
+        name: `${imageType}_image_source_class`,
+        value: { kind: 'text', value: sourceClass },
       });
     }
 
