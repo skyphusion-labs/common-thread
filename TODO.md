@@ -114,8 +114,10 @@ share-card crawling, likes/favorites collection.
 
 ### v1 stabilization
 
-- [ ] External reviewer pass on the methodology paper before arxiv / Zenodo submission
+Checklist: **`docs/PUBLICATION.md`**.
+
+- [ ] External reviewer pass on the methodology paper before arxiv / Zenodo submission → [PUBLICATION.md §2](docs/PUBLICATION.md#2-external-reviewer-pass)
 - [x] Community maintainer transition plan (`docs/MAINTENANCE.md`; seeking named volunteers)
-- [ ] Zenodo DOI for the methodology paper
+- [ ] Zenodo DOI for the methodology paper → [PUBLICATION.md §3](docs/PUBLICATION.md#3-zenodo-deposit-required)
 
 (Items in this section are deliberately light. v1 is bring-it-to-the-finish-line work, not feature creep.)
