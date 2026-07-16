@@ -23,6 +23,7 @@ cover running and deploying the code.
 | [MAINTENANCE.md](MAINTENANCE.md) | Bounded maintenance window and community transition |
 | [PAPER-GAPS.md](PAPER-GAPS.md) | Paper vs implementation audit; open `paper-gap` issues #139–#154 |
 | [TESTING_SETUP.md](TESTING_SETUP.md) | Vitest, `TEST_MYSQL_URL`, LLM mocks |
+| [BACKGROUND-CORPUS.md](BACKGROUND-CORPUS.md) | Practitioner background corpus for §4.3.2–3 TF-IDF / novelty n-grams |
 | [contact.md](contact.md) | Issue tracker vs private email |
 
 ## Related READMEs

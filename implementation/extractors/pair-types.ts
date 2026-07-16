@@ -70,6 +70,14 @@ export interface PairFeatureExtractor {
   readonly requiredAccountFeatures: ReadonlyArray<string>;
 
   /**
+   * Optional extra feature names loaded for buildContext only.
+   * Accounts that lack requiredAccountFeatures are still passed to
+   * buildContext when they have any of these features (e.g. a control
+   * account that holds a background corpus DF but not seed TFs).
+   */
+  readonly contextAccountFeatures?: ReadonlyArray<string>;
+
+  /**
    * Optional. Compute investigation-wide reference statistics once,
    * using all seed accounts' required features. The result is passed
    * to every extract() call as the context parameter.
@@ -77,8 +85,9 @@ export interface PairFeatureExtractor {
    * Implement this when your pair feature needs cross-account
    * statistics (mean, stdev, percentiles, reference vectors).
    *
-   * Accounts with missing required features are filtered out by the
-   * runner before this method is called.
+   * Accounts with missing required features are filtered out of the
+   * pair loop by the runner before extract() is called; buildContext
+   * still receives accounts that only contribute contextAccountFeatures.
    */
   buildContext?(
     seedAccounts: ReadonlyArray<{

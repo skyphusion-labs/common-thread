@@ -13,9 +13,17 @@ export default async function globalSetup(): Promise<void> {
   } catch (err) {
     const code =
       err && typeof err === 'object' && 'code' in err
-        ? (err as NodeJS.ErrnoException).code
+        ? String((err as NodeJS.ErrnoException).code)
         : undefined;
-    if (code === 'ECONNREFUSED') {
+    // Local seats often have no MySQL (or a flaky listener). Pure unit
+    // suites in this project still need globalSetup to succeed.
+    if (
+      code === 'ECONNREFUSED' ||
+      code === 'ENOTFOUND' ||
+      code === 'ETIMEDOUT' ||
+      code === 'PROTOCOL_CONNECTION_LOST' ||
+      code === 'ECONNRESET'
+    ) {
       console.warn(
         '[test setup] MySQL not reachable at TEST_MYSQL_URL; skipping schema bootstrap. Integration tests will fail until MySQL is running.'
       );

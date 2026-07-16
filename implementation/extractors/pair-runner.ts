@@ -88,6 +88,10 @@ function candidateKey(candidate: PlatformedAccount): string {
   return `${candidate.platform}\0${candidate.account}`;
 }
 
+function uniqueFeatureNames(names: ReadonlyArray<string>): string[] {
+  return [...new Set(names)];
+}
+
 export async function runPairExtractors(
   env: PairRunnerEnv,
   options: RunPairExtractorsOptions
@@ -144,13 +148,17 @@ export async function runPairExtractors(
     let outputCount = 0;
 
     try {
-      // Load required features for all candidate accounts, plus the
-      // account_feature row IDs for provenance tracing.
+      // Load required (+ optional context) features for all candidate
+      // accounts, plus the account_feature row IDs for provenance tracing.
+      const loadFeatureNames = uniqueFeatureNames([
+        ...extractor.requiredAccountFeatures,
+        ...(extractor.contextAccountFeatures ?? []),
+      ]);
       const featureRows = await loadAccountFeatures(
         env.DB,
         options.investigationId,
         candidatesWithPlatforms,
-        extractor.requiredAccountFeatures
+        loadFeatureNames
       );
 
       // Group by platform+account: key → Map<feature_name, FeatureValue>
@@ -205,13 +213,26 @@ export async function runPairExtractors(
         continue;
       }
 
+      // buildContext may also need accounts that only contribute
+      // contextAccountFeatures (e.g. control background corpus).
+      const contextCandidates = candidatesWithPlatforms.filter(candidate => {
+        const key = candidateKey(candidate);
+        const features = accountFeatures.get(key);
+        if (!features || features.size === 0) return false;
+        if (extractor.requiredAccountFeatures.every(name => features.has(name))) {
+          return true;
+        }
+        const ctxNames = extractor.contextAccountFeatures ?? [];
+        return ctxNames.some(name => features.has(name));
+      });
+
       // Build context once, if the extractor wants it.
       const controlFlags = await loadSeedControlFlags(
         env.DB,
         options.investigationId,
-        ready.map(c => c.account)
+        contextCandidates.map(c => c.account)
       );
-      const seedAccountInputs = ready.map(candidate => ({
+      const seedAccountInputs = contextCandidates.map(candidate => ({
         account: candidate.account,
         features: accountFeatures.get(candidateKey(candidate))!,
         isControl: controlFlags.get(candidate.account) ?? false,
