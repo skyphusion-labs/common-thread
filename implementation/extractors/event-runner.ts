@@ -11,6 +11,10 @@ import { ManifestStore } from '../archive/manifest';
 import type { DatabaseClient } from '../db';
 import { inferPlatform } from './platform';
 import type { EventFeatureExtractor, ExtractedEvent } from './event-types';
+import {
+  prepareEventFeatureWrite,
+  type FeatureWritePolicyOptions,
+} from './feature-write-policy';
 
 export interface EventRunnerEnv {
   DB: DatabaseClient;
@@ -21,6 +25,8 @@ export interface RunEventExtractorsOptions {
   investigationId: string;
   accountFilter?: string[];
   extractors: EventFeatureExtractor[];
+  /** §6.1.2 explicit cross-version replace. Default false. */
+  replacePriorVersions?: boolean;
 }
 
 export interface EventExtractorRunResult {
@@ -118,6 +124,7 @@ export async function runEventExtractors(
             extractorRunId,
             artifactHash: entry.hash,
             manifestEntryHash: entry.hash,
+            replacePriorVersions: options.replacePriorVersions,
           });
           outputCount++;
         }
@@ -186,8 +193,22 @@ async function writeEventFeature(
     extractorRunId: number;
     artifactHash: string;
     manifestEntryHash?: string;
-  }
+  } & FeatureWritePolicyOptions
 ): Promise<void> {
+  await prepareEventFeatureWrite(
+    db,
+    {
+      investigationId: params.investigationId,
+      platform: params.platform,
+      accountIdentifier: params.account,
+      eventTimestamp: params.event.eventTimestamp,
+      eventType: params.event.eventType,
+      extractorName: params.extractorName,
+      extractorVersion: params.extractorVersion,
+    },
+    { replacePriorVersions: params.replacePriorVersions }
+  );
+
   const extractedAt = new Date().toISOString();
 
   const result = await db
