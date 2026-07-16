@@ -16,6 +16,7 @@ import {
   median,
 } from './text-helpers';
 import { withRecentSuffix } from './windowing';
+import { shortenerAccountFeatures } from '../metadata-leakage/shortener';
 
 export interface PostStylometryInput {
   rawText: string;
@@ -249,6 +250,8 @@ export function buildStylometricFeatures(
       name: 'posted_urls_unique_count',
       value: { kind: 'numeric', value: options.postedUrls.size },
     });
+    // §4.7.4 link shortener fingerprints (metadata_leakage).
+    features.push(...shortenerAccountFeatures(options.postedUrls));
   }
 
   return features;

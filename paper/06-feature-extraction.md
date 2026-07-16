@@ -209,6 +209,7 @@ Extractors for the full §4 taxonomy are present in the reference implementation
 | §4.2.2 response latency | **Configured** | Extractors run when the practitioner populates `triggering_events` via `PATCH /investigations/:id/metadata` or the web UI. Default investigations without triggering events produce no response-latency rows. |
 | §4.5.6 color palette | **Active** | Default Twitter ingest builds `application/x-color-palette-corpus` artifacts when posted images decode; account and pair extractors run on the corpus. |
 | §4.6.3 posted URLs | Active | Emitted as `content_artifacts` account features; pair overlap under `cross_platform`. |
+| §4.7.4 link shortener fingerprints | Active | Account `shortener_*` features emitted with posted URLs; pair overlap under `metadata_leakage`. |
 
 Practitioners auditing an investigation should treat the signal table as authoritative: a category listed in §4 but absent from the table for a given run was either not collected, not configured, or not applicable to that payload.
 

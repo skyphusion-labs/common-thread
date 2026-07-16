@@ -84,6 +84,7 @@ import {
   median,
   extractAndNormalizeUrls,
 } from './text-helpers';
+import { shortenerAccountFeatures } from '../metadata-leakage/shortener';
 
 const NAME = 'stylometric_reddit';
 const VERSION = '1.0.0';
@@ -382,6 +383,7 @@ export class RedditStylometricExtractor implements AccountFeatureExtractor {
       name: 'posted_urls_unique_count',
       value: { kind: 'numeric', value: postedUrls.size },
     });
+    features.push(...shortenerAccountFeatures(postedUrls));
 
     return features;
   }

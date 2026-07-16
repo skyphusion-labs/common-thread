@@ -92,7 +92,7 @@ share-card crawling, likes/favorites collection.
 | #146 | §4.1.6 location geocoding |
 | #147 | §4.5.5 AI-generated face detector |
 | #148 | §4.5.4 image source_class |
-| #149 | §4.7.4 link shortener fingerprint |
+| #149 | §4.7.4 link shortener fingerprint (**done**) |
 | #150 | §5.2.1 enforce time_bounds at ingest |
 | #151 | §5.5 re-collection + tombstones |
 | #152 | §6.1.2 extractor version overwrite guard |
