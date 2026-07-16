@@ -21,6 +21,7 @@ cover running and deploying the code.
 | [PDF-A.md](PDF-A.md) | PDF/A-2b export, court profiles, veraPDF CI validation |
 | [PROMPT-VERSIONS.md](PROMPT-VERSIONS.md) | Attribution prompt version registry (§7.4) |
 | [MAINTENANCE.md](MAINTENANCE.md) | Bounded maintenance window and community transition |
+| [PAPER-GAPS.md](PAPER-GAPS.md) | Paper vs implementation audit; open `paper-gap` issues #139–#154 |
 | [TESTING_SETUP.md](TESTING_SETUP.md) | Vitest, `TEST_MYSQL_URL`, LLM mocks |
 | [contact.md](contact.md) | Issue tracker vs private email |
 
