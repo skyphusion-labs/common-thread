@@ -191,13 +191,13 @@ for capability tokens; `status` includes `sealed` for read-only),
 exactly one of `feature_value_text|numeric|json`, enforced by CHECK), parallel
 `*_provenance` tables linking features → `artifact_hash`, `extractor_runs`, and
 `attribution_runs`. Pair tables use `platform_a`/`platform_b`; the CHECK orders
-by account identifier only, so same-identifier-cross-platform pairs are
-unsupported (noted in `TODO.md`).
+by `(account, platform)` tuple (migration 0011), so same-identifier
+cross-platform pairs (e.g. `twitter:bob` + `reddit:bob`) are supported.
 
 `db-types.ts` holds row/insert types and the canonicalization + value helpers
 the runners depend on: `canonicalPair`, `canonicalPlatformedPair`,
-`packFeatureValue`, `readFeatureValue`. Use these rather than re-deriving pair
-ordering or column packing.
+`isCanonicalPlatformedPairOrder`, `packFeatureValue`, `readFeatureValue`. Use
+these rather than re-deriving pair ordering or column packing.
 
 ## Testing conventions
 

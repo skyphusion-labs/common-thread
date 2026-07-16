@@ -318,4 +318,79 @@ describe('runPairExtractors', () => {
     expect(pairRow!.platform_a).toBe('twitter');
     expect(pairRow!.platform_b).toBe('reddit');
   });
+
+  it('writes pair_features for same-identifier cross-platform seeds', async () => {
+    const investigationId = `extractor-pair-same-id-${Date.now()}`;
+    await createInvestigation(testDb(), { id: investigationId });
+
+    await addSeedAccount(testDb(), {
+      investigationId,
+      platform: 'twitter',
+      account: 'bob',
+    });
+    await addSeedAccount(testDb(), {
+      investigationId,
+      platform: 'reddit',
+      account: 'bob',
+    });
+
+    await collectArtifact(env, new TextEncoder().encode('{}'), {
+      source: 'https://example.com/manifest-seed',
+      investigationId,
+      account: 'manifest-seed',
+      tool: 'test',
+      toolVersion: '1.0.0',
+      mimeType: 'application/json',
+    });
+
+    await insertAccountFeature(testDb(), {
+      investigationId,
+      platform: 'twitter',
+      account: 'bob',
+      category: 'account_metadata',
+      name: 'username',
+      value: { kind: 'text', value: 'bob' },
+    });
+    await insertAccountFeature(testDb(), {
+      investigationId,
+      platform: 'reddit',
+      account: 'bob',
+      category: 'account_metadata',
+      name: 'username',
+      value: { kind: 'text', value: 'u/bob' },
+    });
+
+    const pairResults = await runPairExtractors(
+      { DB: testDb(), ARCHIVE: env.ARCHIVE },
+      {
+        investigationId,
+        extractors: [new HandleReuseExtractor()],
+      }
+    );
+
+    expect(pairResults[0].pairCount).toBe(1);
+    expect(pairResults[0].outputFeatureCount).toBeGreaterThan(0);
+
+    const pairRow = await testDb()
+      .prepare(
+        `SELECT account_a, account_b, platform_a, platform_b, feature_value_text
+         FROM pair_features
+         WHERE investigation_id = ?
+           AND feature_name = 'handle_match_variant'`
+      )
+      .bind(investigationId)
+      .first<{
+        account_a: string;
+        account_b: string;
+        platform_a: string;
+        platform_b: string;
+        feature_value_text: string;
+      }>();
+
+    expect(pairRow!.account_a).toBe('bob');
+    expect(pairRow!.account_b).toBe('bob');
+    expect(pairRow!.platform_a).toBe('reddit');
+    expect(pairRow!.platform_b).toBe('twitter');
+    expect(pairRow!.feature_value_text).toBe('exact');
+  });
 });

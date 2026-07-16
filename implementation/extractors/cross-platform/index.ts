@@ -21,8 +21,9 @@
  *
  * Cross-platform runner note: pair_features rows record platform_a
  * and platform_b from seed_accounts (or account_features fallback).
- * Same-identifier-cross-platform pairs remain unsupported at the
- * schema level (see canonicalPlatformedPair in db-types.ts).
+ * Same-identifier cross-platform pairs (e.g. twitter:bob + reddit:bob)
+ * are supported via the migration 0011 tuple CHECK and
+ * canonicalPlatformedPair.
  */
 
 import { HandleReuseExtractor } from './handle-reuse';

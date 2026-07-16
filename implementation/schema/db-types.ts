@@ -313,31 +313,45 @@ export function canonicalPair(a: string, b: string): [string, string] {
 /**
  * Canonical pair ordering with per-account platforms. Use this when
  * populating pair_features or attribution_runs (platform_a / account_a,
- * platform_b / account_b) after migration 0002.
+ * platform_b / account_b) after migration 0002 / 0011.
  *
- * Returns the two records in canonical order by account identifier. The
- * platform field travels with its account, supporting cross-platform
- * pairs (e.g., a Twitter account paired with a Reddit account).
+ * Returns the two records in canonical (account, platform) tuple order so
+ * the schema CHECK
+ *   account_a < account_b OR (account_a = account_b AND platform_a < platform_b)
+ * is satisfied. Same-identifier cross-platform pairs (e.g. twitter:bob +
+ * reddit:bob) are supported when platforms differ.
  *
- * Throws if the two accounts share the same identifier. The schema's
- * CHECK (account_a < account_b) constraint orders by account identifier
- * alone, not by (account, platform) tuple, so a same-identifier pair
- * cannot be inserted regardless of platform. See
- * mysql-schema.sql (platform_a / platform_b columns) for the
- * documented limitation.
+ * Throws if both sides share the same account identifier and platform.
  */
 export function canonicalPlatformedPair(
   left: { account: string; platform: string },
   right: { account: string; platform: string }
 ): [{ account: string; platform: string }, { account: string; platform: string }] {
-  if (left.account === right.account) {
+  if (left.account === right.account && left.platform === right.platform) {
     throw new Error(
-      `Pair features require two distinct account identifiers; got '${left.account}' on both sides. ` +
-        `Same-identifier-cross-platform pairs are a documented limitation of migration 0002 ` +
-        `(see mysql-schema.sql pair_features / attribution_runs platform columns).`
+      `Pair features require two distinct (account, platform) identities; ` +
+        `got '${left.platform}:${left.account}' on both sides.`
     );
   }
-  return left.account < right.account ? [left, right] : [right, left];
+  if (left.account < right.account) return [left, right];
+  if (left.account > right.account) return [right, left];
+  return left.platform < right.platform ? [left, right] : [right, left];
+}
+
+/**
+ * True when (accountA, platformA) is strictly less than (accountB, platformB)
+ * under the pair_features / attribution_runs CHECK from migration 0011.
+ */
+export function isCanonicalPlatformedPairOrder(
+  accountA: string,
+  platformA: string,
+  accountB: string,
+  platformB: string
+): boolean {
+  return (
+    accountA < accountB ||
+    (accountA === accountB && platformA < platformB)
+  );
 }
 
 /**

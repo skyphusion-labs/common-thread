@@ -57,9 +57,10 @@ Active when `investigations.metadata_json` includes `triggering_events`
 Active: ingest builds `application/x-color-palette-corpus` artifacts
 (Sprint 6, #120).
 
-### Optional schema migration 0003 (tuple CHECK)
+### Same-identifier cross-platform pairs (#153)
 
-Migration 0002 documented the same-identifier-cross-platform pair limitation in `schema_metadata`. If a real investigation hits that case (same handle on two platforms, e.g. `twitter:bob` and `reddit:bob`), draft 0003 with tuple CHECK `((account_a, platform_a) < (account_b, platform_b))`. Not blocking; add when needed.
+- [x] Migration 0011: tuple CHECK on `pair_features` / `attribution_runs`
+- [x] `canonicalPlatformedPair` + seed resolution keep distinct platforms
 
 ## Tooling
 
@@ -96,7 +97,7 @@ share-card crawling, likes/favorites collection.
 | #150 | §5.2.1 enforce time_bounds at ingest (**done**) |
 | #151 | §5.5 re-collection + tombstones |
 | #152 | §6.1.2 extractor version overwrite guard (**done**) |
-| #153 | §4.5.3 / §4.6 same-identifier cross-platform pairs |
+| #153 | §4.5.3 / §4.6 same-identifier cross-platform pairs | done (migration 0011) |
 | #154 | §5.4.4 optional archive dual-write |
 
 ### Methodology paper
