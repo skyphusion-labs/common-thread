@@ -95,7 +95,7 @@ share-card crawling, likes/favorites collection.
 | #148 | §4.5.4 image source_class (**done**) |
 | #149 | §4.7.4 link shortener fingerprint (**done**) |
 | #150 | §5.2.1 enforce time_bounds at ingest (**done**) |
-| #151 | §5.5 re-collection + tombstones |
+| #151 | §5.5 re-collection + tombstones (**done**) |
 | #152 | §6.1.2 extractor version overwrite guard (**done**) |
 | #153 | §4.5.3 / §4.6 same-identifier cross-platform pairs | done (migration 0011) |
 | #154 | §5.4.4 optional archive dual-write | done (ARCHIVE_REPLICA + flag) |

@@ -22,6 +22,7 @@ import {
   prepareAccountFeatureWrite,
   type FeatureWritePolicyOptions,
 } from './feature-write-policy';
+import { selectManifestEntriesForExtraction } from '../ingest/recollection';
 
 export interface RunnerEnv {
   DB: DatabaseClient;
@@ -85,10 +86,12 @@ export async function runAccountExtractors(
     );
   }
 
-  const entries = await manifest.list({
-    investigationId: options.investigationId,
-    status: 'present',
-  });
+  const entries = selectManifestEntriesForExtraction(
+    await manifest.list({
+      investigationId: options.investigationId,
+      status: 'present',
+    })
+  );
 
   const results: ExtractorRunResult[] = [];
 

@@ -67,6 +67,8 @@ const nodeSuites = [
   'tests/archive/dual-write.test.ts',
   'tests/ingest/apify-artifacts-ingest.test.ts',
   'tests/ingest/apify-timeline-ingest.test.ts',
+  // §5.5 re-collection tombstones (#151)
+  'tests/ingest/recollection.test.ts',
   'tests/investigation/access.test.ts',
   // Seal enforced at write time against a stale-active cache read (§3.1).
   'tests/investigation/seal-enforcement.test.ts',
