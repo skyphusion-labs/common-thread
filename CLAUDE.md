@@ -20,6 +20,9 @@ Two halves, two licenses:
   keep the code consistent with the paper.
 - `implementation/` -- the reference implementation (AGPL-3.0).
 
+Paper vs code status (what is shipped, what is `paper-gap`, crew lanes):
+**`docs/PAPER-GAPS.md`**. Backlog table also in `TODO.md`.
+
 ## Commands
 
 ```bash
