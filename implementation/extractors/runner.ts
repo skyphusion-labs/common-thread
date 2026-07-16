@@ -18,6 +18,10 @@ import { packFeatureValue } from '../schema/db-types';
 import { inferPlatform } from './platform';
 import type { AccountFeatureExtractor, ExtractedFeature } from './types';
 import { deriveStoredConfidence } from './confidence';
+import {
+  prepareAccountFeatureWrite,
+  type FeatureWritePolicyOptions,
+} from './feature-write-policy';
 
 export interface RunnerEnv {
   DB: DatabaseClient;
@@ -32,6 +36,12 @@ export interface RunAccountExtractorsOptions {
 
   /** Extractors to run, in order. */
   extractors: AccountFeatureExtractor[];
+
+  /**
+   * §6.1.2: when true, delete prior-version rows for the same logical feature
+   * before writing. Default false (prior versions remain).
+   */
+  replacePriorVersions?: boolean;
 }
 
 export interface ExtractorRunResult {
@@ -156,6 +166,7 @@ export async function runAccountExtractors(
             extractorRunId,
             artifactHash: entry.hash,
             manifestEntryHash: entry.hash,
+            replacePriorVersions: options.replacePriorVersions,
           });
           outputCount++;
         }
@@ -226,8 +237,22 @@ async function writeAccountFeature(
     extractorRunId: number;
     artifactHash: string;
     manifestEntryHash?: string;
-  }
+  } & FeatureWritePolicyOptions
 ): Promise<void> {
+  await prepareAccountFeatureWrite(
+    db,
+    {
+      investigationId: params.investigationId,
+      platform: params.platform,
+      accountIdentifier: params.account,
+      featureCategory: params.feature.category,
+      featureName: params.feature.name,
+      extractorName: params.extractorName,
+      extractorVersion: params.extractorVersion,
+    },
+    { replacePriorVersions: params.replacePriorVersions }
+  );
+
   const packed = packFeatureValue(params.feature.value);
   const extractedAt = new Date().toISOString();
   const confidenceFlag =

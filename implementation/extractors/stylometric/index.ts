@@ -13,7 +13,8 @@
  * Pair extractors consume those account features and produce per-pair
  * stylometric features: Burrows' Delta on function_word_frequencies
  * (§4.3.1), Jensen-Shannon divergence on character_bigram_top50
- * (§4.3.1 character-level companion).
+ * (§4.3.1 character-level companion), and JSD on sentence-length /
+ * punctuation / capitalization distributions (§6.2.3).
  *
  * Shared text-processing math lives in text-helpers.ts; platform-
  * specific parsing and cleaning stays in each per-platform file.
@@ -24,6 +25,11 @@ import { RedditStylometricExtractor } from './reddit';
 import { InstagramStylometricExtractor } from './instagram';
 import { BurrowsDeltaExtractor } from './burrows-delta';
 import { JsdCharacterBigramsExtractor } from './jsd-bigrams';
+import {
+  JsdSentenceLengthExtractor,
+  JsdPunctuationExtractor,
+  JsdCapitalizationExtractor,
+} from './jsd-distributions';
 import { TwitterTopicPhraseExtractor } from './topic-phrase';
 import { TopicPhraseOverlapExtractor } from './topic-phrase-overlap';
 import type { AccountFeatureExtractor } from '../types';
@@ -42,6 +48,9 @@ export const STYLOMETRIC_EXTRACTORS: AccountFeatureExtractor[] = [
 export const STYLOMETRIC_PAIR_EXTRACTORS: PairFeatureExtractor[] = [
   new BurrowsDeltaExtractor(),
   new JsdCharacterBigramsExtractor(),
+  new JsdSentenceLengthExtractor(),
+  new JsdPunctuationExtractor(),
+  new JsdCapitalizationExtractor(),
   new TopicPhraseOverlapExtractor(),
 ];
 
@@ -50,6 +59,11 @@ export { RedditStylometricExtractor } from './reddit';
 export { InstagramStylometricExtractor } from './instagram';
 export { BurrowsDeltaExtractor } from './burrows-delta';
 export { JsdCharacterBigramsExtractor } from './jsd-bigrams';
+export {
+  JsdSentenceLengthExtractor,
+  JsdPunctuationExtractor,
+  JsdCapitalizationExtractor,
+} from './jsd-distributions';
 export {
   FUNCTION_WORDS_150,
   FUNCTION_WORD_INDEX,

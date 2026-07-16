@@ -18,6 +18,10 @@ import type {
 } from './event-types';
 import type { ExtractedFeature } from './types';
 import { parseEngagementEventData } from './network/engagement-parse';
+import {
+  preparePairFeatureWrite,
+  type FeatureWritePolicyOptions,
+} from './feature-write-policy';
 
 export interface EngagementPairRunnerEnv {
   DB: DatabaseClient;
@@ -28,6 +32,8 @@ export interface RunEngagementPairExtractorsOptions {
   investigationId: string;
   accountFilter?: string[];
   extractors: EngagementPairFeatureExtractor[];
+  /** §6.1.2 explicit cross-version replace. Default false. */
+  replacePriorVersions?: boolean;
 }
 
 export interface EngagementPairExtractorRunResult {
@@ -221,6 +227,7 @@ export async function runEngagementPairExtractors(
               extractorVersion: extractor.version,
               extractorRunId,
               artifactHashes,
+              replacePriorVersions: options.replacePriorVersions,
             });
             outputCount++;
           }
@@ -388,8 +395,24 @@ async function writePairFeature(
     extractorVersion: string;
     extractorRunId: number;
     artifactHashes: Array<{ artifact_hash: string; manifest_entry_hash: string | null }>;
-  }
+  } & FeatureWritePolicyOptions
 ): Promise<void> {
+  await preparePairFeatureWrite(
+    db,
+    {
+      investigationId: params.investigationId,
+      platformA: params.platformA,
+      platformB: params.platformB,
+      accountA: params.accountA,
+      accountB: params.accountB,
+      featureCategory: params.feature.category,
+      featureName: params.feature.name,
+      extractorName: params.extractorName,
+      extractorVersion: params.extractorVersion,
+    },
+    { replacePriorVersions: params.replacePriorVersions }
+  );
+
   const packed = packFeatureValue(params.feature.value);
   const extractedAt = new Date().toISOString();
 

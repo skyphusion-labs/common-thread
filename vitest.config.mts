@@ -59,6 +59,8 @@ const nodeSuites = [
   'tests/extractors/twitter-scrapes.test.ts',
   'tests/extractors/engagement.test.ts',
   'tests/extractors/runner.test.ts',
+  // §6.1.2 extractor version overwrite guard (#152)
+  'tests/extractors/feature-write-policy.test.ts',
   'tests/ingest/apify-artifacts-ingest.test.ts',
   'tests/ingest/apify-timeline-ingest.test.ts',
   'tests/investigation/access.test.ts',
@@ -81,6 +83,8 @@ const nodeSuites = [
   'tests/attribution/async-dispatch.test.ts',
   // Pure unit suites that import ingest/archive modules (avoid workers-pool mysql2 load).
   'tests/extractors/profile-banner-visual.test.ts',
+  // Pure stylometric unit suites (no Workers runtime / wrangler bindings).
+  'tests/extractors/jsd-distributions.test.ts',
   'tests/sprint/signal-parity-2.test.ts',
   'tests/sprint/reasoning-reporting.test.ts',
   'tests/sprint/extractor-ops.test.ts',

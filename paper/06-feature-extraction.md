@@ -206,10 +206,12 @@ Extractors for the full §4 taxonomy are present in the reference implementation
 | §4.1, §4.2.1, §4.2.3–§4.2.5, §4.3, §4.5.1–§4.5.3, §4.6, §4.7 (partial) | Active | Timeline and profile artifacts drive account and pair features. |
 | §4.4.1–§4.4.2 | Active when follower/following lists are in the ingest payload | Skipped when network lists are absent. |
 | §4.4.3–§4.4.4 | Active when ≥2 accounts ingested | Engagement events are derived from reply, repost, and quote posts in per-account timeline artifacts. Likes and other non-authored engagements are not collected in v1. |
-| §4.2.2 response latency | **Dormant** | Extractors run, but features are written only when the practitioner populates `triggering_events` in investigation metadata. v1 has no UI for this; default investigations produce no response-latency rows. |
+| §4.2.2 response latency | **Configured** | Extractors run when the practitioner populates `triggering_events` via `PATCH /investigations/:id/metadata` or the web UI. Default investigations without triggering events produce no response-latency rows. |
 | §4.5.6 color palette | **Active** | Default Twitter ingest builds `application/x-color-palette-corpus` artifacts when posted images decode; account and pair extractors run on the corpus. |
 | §4.6.3 posted URLs | Active | Emitted as `content_artifacts` account features; pair overlap under `cross_platform`. |
 | §4.5.4 image source_class | Active when labeled | Practitioner sets `platformMetadata.source_class`; account + pair visual features. |
+| §6.2.3 sentence / punctuation / capitalization JSD | **Active** | Account extractors emit `sentence_length_distribution`, `punctuation_distribution`, and `capitalization_distribution`; pair extractors emit `jsd_sentence_length`, `jsd_punctuation`, and `jsd_capitalization` when both sides have the distributions. |
+| §4.7.4 link shortener fingerprints | Active | Account `shortener_*` features emitted with posted URLs; pair overlap under `metadata_leakage`. |
 
 Practitioners auditing an investigation should treat the signal table as authoritative: a category listed in §4 but absent from the table for a given run was either not collected, not configured, or not applicable to that payload.
 
