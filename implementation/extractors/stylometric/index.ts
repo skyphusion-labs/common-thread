@@ -15,8 +15,9 @@
  * (§4.3.1), Jensen-Shannon divergence on character_bigram_top50
  * (§4.3.1 character-level companion), JSD on sentence-length /
  * punctuation / capitalization distributions (§6.2.3), register /
- * code-switch pattern comparisons (§4.3.4), and typo / error-pattern
- * comparisons (§4.3.5).
+ * code-switch pattern comparisons (§4.3.4), typo / error-pattern
+ * comparisons (§4.3.5), and background-weighted TF-IDF / novelty
+ * n-gram overlap (§4.3.2–3) when a background corpus is present.
  *
  * Shared text-processing math lives in text-helpers.ts; platform-
  * specific parsing and cleaning stays in each per-platform file.
@@ -41,6 +42,9 @@ import {
 } from './code-switching-pair';
 import { TwitterTypoErrorExtractor } from './typo-error';
 import { TypoErrorPairExtractor } from './typo-error-pair';
+import { BackgroundCorpusExtractor } from './background-corpus';
+import { TwitterAccountTermTfExtractor } from './account-term-tf';
+import { BackgroundNoveltyPairExtractor } from './background-novelty-pair';
 import type { AccountFeatureExtractor } from '../types';
 import type { PairFeatureExtractor } from '../pair-types';
 
@@ -51,6 +55,8 @@ export const STYLOMETRIC_EXTRACTORS: AccountFeatureExtractor[] = [
   new TwitterTopicPhraseExtractor(),
   new TwitterCodeSwitchingExtractor(),
   new TwitterTypoErrorExtractor(),
+  new BackgroundCorpusExtractor(),
+  new TwitterAccountTermTfExtractor(),
   // Future:
   // new BlueskyStylometricExtractor(),
   // new MastodonStylometricExtractor(),
@@ -66,6 +72,7 @@ export const STYLOMETRIC_PAIR_EXTRACTORS: PairFeatureExtractor[] = [
   new RegisterPatternPairExtractor(),
   new CodeSwitchPatternPairExtractor(),
   new TypoErrorPairExtractor(),
+  new BackgroundNoveltyPairExtractor(),
 ];
 
 export { TwitterStylometricExtractor } from './twitter';
@@ -80,6 +87,9 @@ export {
 } from './code-switching-pair';
 export { TwitterTypoErrorExtractor } from './typo-error';
 export { TypoErrorPairExtractor } from './typo-error-pair';
+export { BackgroundCorpusExtractor } from './background-corpus';
+export { TwitterAccountTermTfExtractor } from './account-term-tf';
+export { BackgroundNoveltyPairExtractor } from './background-novelty-pair';
 export {
   JsdSentenceLengthExtractor,
   JsdPunctuationExtractor,
