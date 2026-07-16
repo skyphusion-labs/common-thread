@@ -205,7 +205,7 @@ Extractors for the full §4 taxonomy are present in the reference implementation
 |--------|-------|-------------------|-------|
 | §4.1, §4.2.1, §4.2.3–§4.2.5, §4.3, §4.5.1–§4.5.3, §4.6, §4.7 (partial) | Active | Timeline and profile artifacts drive account and pair features. Visual overlap uses both dHash and pHash (§6.2.5). |
 | §4.4.1–§4.4.2 | Active when follower/following lists are in the ingest payload | Skipped when network lists are absent. |
-| §4.4.3–§4.4.4 | Active when ≥2 accounts ingested | Engagement events are derived from reply, repost, and quote posts in per-account timeline artifacts. Likes and other non-authored engagements are not collected in v1. |
+| §4.4.3–§4.4.4 | Active when ≥2 accounts ingested | Engagement events are derived from reply, repost, and quote posts in per-account timeline artifacts. Likes and other non-authored engagements are not collected in v1. §4.4.4 emits control-account baseline mean/stdev and fraction z-scores when `is_control` seeds exist and baseline stdev > 0. |
 | §4.2.2 response latency | **Configured** | Extractors run when the practitioner populates `triggering_events` via `PATCH /investigations/:id/metadata` or the web UI. Default investigations without triggering events produce no response-latency rows. |
 | §4.5.6 color palette | **Active** | Default Twitter ingest builds `application/x-color-palette-corpus` artifacts when posted images decode; account and pair extractors run on the corpus. |
 | §4.6.3 posted URLs | Active | Emitted as `content_artifacts` account features; pair overlap under `cross_platform`. |

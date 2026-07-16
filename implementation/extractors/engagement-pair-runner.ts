@@ -177,9 +177,15 @@ export async function runEngagementPairExtractors(
         continue;
       }
 
+      const controlFlags = await loadSeedControlFlags(
+        env.DB,
+        options.investigationId,
+        ready
+      );
       const seedInputs = ready.map(acct => ({
         account: acct,
         events: eventsByAccount.get(acct)!,
+        isControl: controlFlags.get(acct) ?? false,
       }));
       const context = extractor.buildContext ? extractor.buildContext(seedInputs) : undefined;
 
@@ -464,6 +470,33 @@ async function writePairFeature(
       .bind(pairFeatureId, prov.artifact_hash, prov.manifest_entry_hash)
       .run();
   }
+}
+
+async function loadSeedControlFlags(
+  db: DatabaseClient,
+  investigationId: string,
+  accounts: string[]
+): Promise<Map<string, boolean>> {
+  const out = new Map<string, boolean>();
+  if (accounts.length === 0) return out;
+
+  const placeholders = accounts.map(() => '?').join(', ');
+  const res = await db
+    .prepare(
+      `SELECT account_identifier, MAX(is_control) AS is_control
+       FROM seed_accounts
+       WHERE investigation_id = ?
+         AND removed_at IS NULL
+         AND account_identifier IN (${placeholders})
+       GROUP BY account_identifier`
+    )
+    .bind(investigationId, ...accounts)
+    .all<{ account_identifier: string; is_control: number }>();
+
+  for (const row of res.results ?? []) {
+    out.set(row.account_identifier, row.is_control === 1);
+  }
+  return out;
 }
 
 async function markRunCompleted(

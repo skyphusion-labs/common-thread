@@ -63,7 +63,11 @@ export interface EngagementPairFeatureExtractor {
   readonly requiredEventTypes: ReadonlyArray<'reply' | 'repost' | 'quote'>;
 
   buildContext?(
-    seedAccounts: ReadonlyArray<{ account: string; events: EngagementEventRecord[] }>
+    seedAccounts: ReadonlyArray<{
+      account: string;
+      events: EngagementEventRecord[];
+      isControl?: boolean;
+    }>
   ): unknown;
 
   extract(
