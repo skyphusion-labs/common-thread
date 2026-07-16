@@ -48,7 +48,7 @@ Paper §6.4.6 table must stay consistent with the rows above when extractors shi
 | [#143](https://github.com/skyphusion-labs/common-thread/issues/143) | §4.3.2–3 | Background-corpus TF-IDF / novelty n-grams | Stylometric |
 | [#144](https://github.com/skyphusion-labs/common-thread/issues/144) | §6.2.6 | Rarity-weighted bio + posted-URL overlap | Cross-platform |
 | [#145](https://github.com/skyphusion-labs/common-thread/issues/145) | §4.4.4 | Amplification vs control baseline | Network / ingest |
-| [#146](https://github.com/skyphusion-labs/common-thread/issues/146) | §4.1.6 | Geocode profile locations | Account metadata |
+| [#146](https://github.com/skyphusion-labs/common-thread/issues/146) | §4.1.6 | Geocode profile locations | Account metadata — **implemented** (`geocode.ts`, `docs/GEOCODING.md`) |
 | [#147](https://github.com/skyphusion-labs/common-thread/issues/147) | §4.5.5 | AI-generated face detector | **Deferred** (Workers/model hosting); see issue comment 2026-07-16 |
 | [#148](https://github.com/skyphusion-labs/common-thread/issues/148) | §4.5.4 | Image `source_class` from manifest | Visual / collection |
 | [#149](https://github.com/skyphusion-labs/common-thread/issues/149) | §4.7.4 | Link shortener fingerprint | Metadata leakage |

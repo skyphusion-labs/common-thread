@@ -16,7 +16,9 @@
  *   Display name:    display_name_length, display_name_char_count
  *   Bio:             bio, bio_length, bio_hashtag_count, bio_mention_count,
  *                    bio_link_count, bio_emoji_count
- *   Location:        location, has_location
+ *   Location:        location, has_location, location_geocoded,
+ *                    location_lat, location_lon, location_geocode_label,
+ *                    location_geocode_confidence
  *   URL:             url, has_url
  *   Status flags:    verified, blue_verified, protected,
  *                    default_profile, default_profile_image
@@ -41,9 +43,10 @@ import type { ManifestEntry } from '../../archive/types';
 import { sourceMatchesHost } from '../platform';
 import { APIFY_TWITTER_PROFILE_TOOL } from '../../ingest/apify-profile';
 import { APIFY_TWITTER_TIMELINE_TOOL } from '../../ingest/apify-timeline';
+import { geocodeLocationString } from './geocode';
 
 const NAME = 'account_metadata_twitter';
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 
 /**
  * Union of field-name variations seen across Twitter scrapers.
@@ -150,6 +153,16 @@ export class TwitterAccountMetadataExtractor implements AccountFeatureExtractor 
     // Location
     pushText(features, 'location', profile.location);
     pushBool(features, 'has_location', !!(profile.location && profile.location.length > 0));
+    if (typeof profile.location === 'string' && profile.location.length > 0) {
+      const geocoded = geocodeLocationString(profile.location);
+      if (geocoded) {
+        pushBool(features, 'location_geocoded', true);
+        pushNumeric(features, 'location_lat', geocoded.lat);
+        pushNumeric(features, 'location_lon', geocoded.lon);
+        pushText(features, 'location_geocode_label', geocoded.label);
+        pushNumeric(features, 'location_geocode_confidence', geocoded.confidence);
+      }
+    }
 
     // URL
     pushText(features, 'url', profile.url);
