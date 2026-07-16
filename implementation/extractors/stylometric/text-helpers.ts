@@ -253,3 +253,89 @@ export function median(sorted: number[]): number {
     ? (sorted[mid - 1] + sorted[mid]) / 2
     : sorted[mid];
 }
+
+// ---------------------------------------------------------------------------
+// §6.2.3 distribution helpers (account features for pairwise JSD)
+// ---------------------------------------------------------------------------
+
+/** Sentence-length bins: lengths 1..19 each get a bin; 20+ is the last bin. */
+export const SENTENCE_LENGTH_BIN_COUNT = 20;
+
+/** Major punctuation marks counted for punctuation_distribution (§6.2.3). */
+export const MAJOR_PUNCTUATION = [
+  '.',
+  ',',
+  '!',
+  '?',
+  ';',
+  ':',
+  "'",
+  '"',
+  '-',
+  '(',
+  ')',
+] as const;
+
+/**
+ * Bin sentence lengths (tokens) into a fixed 20-bin count vector.
+ * Index i holds count of sentences with length i+1 for i in 0..18;
+ * index 19 holds length >= 20.
+ */
+export function binSentenceLengths(sentenceTokenLengths: number[]): number[] {
+  const bins = new Array<number>(SENTENCE_LENGTH_BIN_COUNT).fill(0);
+  for (const n of sentenceTokenLengths) {
+    if (!Number.isFinite(n) || n <= 0) continue;
+    const idx = n >= SENTENCE_LENGTH_BIN_COUNT ? SENTENCE_LENGTH_BIN_COUNT - 1 : n - 1;
+    bins[idx]++;
+  }
+  return bins;
+}
+
+/**
+ * Count major punctuation marks in raw text. Keys are the characters
+ * from MAJOR_PUNCTUATION; absent marks are omitted (pair JSD aligns
+ * over the union of keys).
+ */
+export function countMajorPunctuation(rawText: string): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const c of rawText) {
+    if ((MAJOR_PUNCTUATION as readonly string[]).includes(c)) {
+      counts[c] = (counts[c] ?? 0) + 1;
+    }
+  }
+  return counts;
+}
+
+/**
+ * Capitalization distribution for non-sentence-initial alphabetic words
+ * (§6.2.3): counts of `lower` vs `capitalized` (first letter upper).
+ * Sentence-initial words (after .!? or start of text) are skipped.
+ * Returns empty object when no eligible words are found.
+ */
+export function countNonInitialCapitalization(rawText: string): Record<string, number> {
+  const counts: Record<string, number> = { lower: 0, capitalized: 0 };
+  // Word tokens preserving case; alphabetic runs only.
+  const wordRe = /[A-Za-z]+(?:'[A-Za-z]+)*/g;
+  let sentenceStart = true;
+  let lastIndex = 0;
+  for (const match of rawText.matchAll(wordRe)) {
+    const word = match[0];
+    const idx = match.index ?? 0;
+    // Any sentence-ending punctuation between previous word and this one
+    // marks the next word as sentence-initial.
+    const between = rawText.slice(lastIndex, idx);
+    if (/[.!?]/.test(between)) sentenceStart = true;
+    lastIndex = idx + word.length;
+
+    if (sentenceStart) {
+      sentenceStart = false;
+      continue;
+    }
+
+    const first = word[0];
+    if (first >= 'A' && first <= 'Z') counts.capitalized++;
+    else counts.lower++;
+  }
+  if (counts.lower === 0 && counts.capitalized === 0) return {};
+  return counts;
+}

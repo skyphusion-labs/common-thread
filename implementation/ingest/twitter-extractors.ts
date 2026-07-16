@@ -25,11 +25,15 @@ export const TWITTER_PAIR_EXTRACTORS: PairFeatureExtractor[] =
       /account_metadata/i.test(e.name) ||
       /burrows_delta/i.test(e.name) ||
       /jsd_character_bigrams/i.test(e.name) ||
+      /jsd_sentence_length/i.test(e.name) ||
+      /jsd_punctuation/i.test(e.name) ||
+      /jsd_capitalization/i.test(e.name) ||
       /burst_overlap/i.test(e.name) ||
       /cadence_jsd/i.test(e.name) ||
       /active_hour/i.test(e.name) ||
       /quiet_period/i.test(e.name) ||
       /client_app_overlap/i.test(e.name) ||
+      /shortener_fingerprint_overlap/i.test(e.name) ||
       /tweet_language/i.test(e.name) ||
       /profile_lang/i.test(e.name) ||
       /bio_link/i.test(e.name) ||
