@@ -212,6 +212,7 @@ Extractors for the full §4 taxonomy are present in the reference implementation
 | §4.5.4 image source_class | Active when labeled | Practitioner sets `platformMetadata.source_class`; account + pair visual features. |
 | §6.2.3 sentence / punctuation / capitalization JSD | **Active** | Account extractors emit `sentence_length_distribution`, `punctuation_distribution`, and `capitalization_distribution`; pair extractors emit `jsd_sentence_length`, `jsd_punctuation`, and `jsd_capitalization` when both sides have the distributions. |
 | §4.7.4 link shortener fingerprints | Active | Account `shortener_*` features emitted with posted URLs; pair overlap under `metadata_leakage`. |
+| §4.3.4 code-switching / register | **Active** | Twitter timeline ingest runs `code_switching_twitter` (rule-based register + script/stopword code-switch classifiers). Pair features: `jsd_register`, switch-rate abs diffs, optional `jsd_code_switch_pattern`. |
 
 Practitioners auditing an investigation should treat the signal table as authoritative: a category listed in §4 but absent from the table for a given run was either not collected, not configured, or not applicable to that payload.
 
