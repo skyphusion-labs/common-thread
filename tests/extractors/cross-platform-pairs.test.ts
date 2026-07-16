@@ -5,7 +5,12 @@
 import { describe, expect, it } from 'vitest';
 import { HandleReuseExtractor } from '../../implementation/extractors/cross-platform/handle-reuse';
 import { BioLinkOverlapExtractor } from '../../implementation/extractors/cross-platform/bio-link-overlap';
+import { BioTextRarityOverlapExtractor } from '../../implementation/extractors/cross-platform/bio-text-rarity-overlap';
 import { ExternalLinkOverlapExtractor } from '../../implementation/extractors/cross-platform/external-link-overlap';
+import {
+  idfWeight,
+  rarityWeightedJaccard,
+} from '../../implementation/extractors/cross-platform/rarity';
 import type { AccountFeatureMap } from '../../implementation/extractors/pair-types';
 import type { FeatureValue } from '../../implementation/schema/db-types';
 
@@ -88,6 +93,105 @@ describe('BioLinkOverlapExtractor', () => {
     expect(byName.bio_link_jaccard.value).toEqual({ kind: 'numeric', value: 0 });
     expect(byName.bio_link_count_a.value).toEqual({ kind: 'numeric', value: 0 });
   });
+
+  it('emits rarity-weighted bio-link features from seed corpus (§6.2.6)', () => {
+    const seed = [
+      {
+        account: 'alice',
+        features: mapOf({
+          bio: {
+            kind: 'text',
+            value: 'https://rare.example/op https://twitter.com/alice',
+          },
+        }),
+      },
+      {
+        account: 'bob',
+        features: mapOf({
+          bio: {
+            kind: 'text',
+            value: 'https://rare.example/op https://twitter.com/bob',
+          },
+        }),
+      },
+      {
+        account: 'carol',
+        features: mapOf({
+          bio: { kind: 'text', value: 'https://twitter.com/carol' },
+        }),
+      },
+      {
+        account: 'dave',
+        features: mapOf({
+          bio: { kind: 'text', value: 'https://twitter.com/dave' },
+        }),
+      },
+    ];
+    const ctx = extractor.buildContext!(seed);
+    const features = extractor.extract(
+      'alice',
+      'bob',
+      seed[0].features,
+      seed[1].features,
+      ctx
+    );
+    const byName = Object.fromEntries(features.map((f) => [f.name, f]));
+    expect(byName.bio_link_rarity_weighted_jaccard.value.kind).toBe('numeric');
+    expect(byName.bio_link_host_rarity_weighted_jaccard.value.kind).toBe('numeric');
+    expect(idfWeight(2, 4)).toBeGreaterThan(idfWeight(4, 4));
+  });
+});
+
+describe('BioTextRarityOverlapExtractor', () => {
+  const extractor = new BioTextRarityOverlapExtractor();
+
+  it('weights rare shared bio tokens across Mastodon/Bluesky-style bios', () => {
+    // Fixture-style profiles: Mastodon note + Bluesky description sharing
+    // an unusual motto while also sharing a common filler word.
+    const mastodon = mapOf({
+      bio: {
+        kind: 'text',
+        value: 'Journalist. Motto: xerophyte. Links welcome.',
+      },
+    });
+    const bluesky = mapOf({
+      bio: {
+        kind: 'text',
+        value: 'Reporter on Bluesky. Motto xerophyte forever.',
+      },
+    });
+    const fillerA = mapOf({
+      bio: { kind: 'text', value: 'Just a journalist posting links.' },
+    });
+    const fillerB = mapOf({
+      bio: { kind: 'text', value: 'Another journalist on the timeline.' },
+    });
+
+    const ctx = extractor.buildContext!([
+      { account: 'masto_alice', features: mastodon },
+      { account: 'bsky_bob', features: bluesky },
+      { account: 'masto_carol', features: fillerA },
+      { account: 'bsky_dave', features: fillerB },
+    ]);
+
+    const features = extractor.extract(
+      'masto_alice',
+      'bsky_bob',
+      mastodon,
+      bluesky,
+      ctx
+    );
+    const byName = Object.fromEntries(features.map((f) => [f.name, f]));
+    expect(byName.bio_token_shared?.value).toEqual({
+      kind: 'json',
+      value: expect.arrayContaining(['xerophyte', 'motto']),
+    });
+    expect(
+      (byName.bio_token_rarity_weighted_jaccard.value as { value: number }).value
+    ).toBeGreaterThan(
+      (byName.bio_token_jaccard.value as { value: number }).value * 0.5
+    );
+  });
 });
 
 describe('ExternalLinkOverlapExtractor', () => {
@@ -121,5 +225,77 @@ describe('ExternalLinkOverlapExtractor', () => {
       kind: 'json',
       value: ['news.site'],
     });
+  });
+
+  it('emits rarity-weighted posted URL overlap from seed corpus', () => {
+    const seed = [
+      {
+        account: 'alice',
+        features: mapOf({
+          posted_urls: {
+            kind: 'json',
+            value: ['rare.blog/essay', 't.co/aaa'],
+          },
+        }),
+      },
+      {
+        account: 'bob',
+        features: mapOf({
+          posted_urls: {
+            kind: 'json',
+            value: ['rare.blog/essay', 't.co/bbb'],
+          },
+        }),
+      },
+      {
+        account: 'carol',
+        features: mapOf({
+          posted_urls: { kind: 'json', value: ['t.co/ccc'] },
+        }),
+      },
+      {
+        account: 'dave',
+        features: mapOf({
+          posted_urls: { kind: 'json', value: ['t.co/ddd'] },
+        }),
+      },
+    ];
+    const ctx = extractor.buildContext!(seed);
+    const features = extractor.extract(
+      'alice',
+      'bob',
+      seed[0].features,
+      seed[1].features,
+      ctx
+    );
+    const byName = Object.fromEntries(features.map((f) => [f.name, f]));
+    expect(byName.posted_url_rarity_weighted_jaccard.value.kind).toBe('numeric');
+    expect(byName.posted_url_host_rarity_weighted_jaccard.value.kind).toBe(
+      'numeric'
+    );
+
+    // Pure helper: sharing a rare item scores higher than sharing a common one
+    // at equal set geometry.
+    const df = new Map([
+      ['rare.blog/essay', 2],
+      ['t.co/aaa', 1],
+      ['t.co/bbb', 1],
+      ['common.site/x', 4],
+      ['t.co/ccc', 1],
+      ['t.co/ddd', 1],
+    ]);
+    const rareShare = rarityWeightedJaccard(
+      new Set(['rare.blog/essay', 't.co/aaa']),
+      new Set(['rare.blog/essay', 't.co/bbb']),
+      df,
+      4
+    );
+    const commonShare = rarityWeightedJaccard(
+      new Set(['common.site/x', 't.co/ccc']),
+      new Set(['common.site/x', 't.co/ddd']),
+      df,
+      4
+    );
+    expect(rareShare).toBeGreaterThan(commonShare);
   });
 });

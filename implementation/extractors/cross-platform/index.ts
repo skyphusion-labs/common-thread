@@ -28,15 +28,24 @@
 
 import { HandleReuseExtractor } from './handle-reuse';
 import { BioLinkOverlapExtractor } from './bio-link-overlap';
+import { BioTextRarityOverlapExtractor } from './bio-text-rarity-overlap';
 import { ExternalLinkOverlapExtractor } from './external-link-overlap';
 import type { PairFeatureExtractor } from '../pair-types';
 
 export const CROSS_PLATFORM_PAIR_EXTRACTORS: PairFeatureExtractor[] = [
   new HandleReuseExtractor(),         // §4.6.1
   new BioLinkOverlapExtractor(),      // §4.6.2
+  new BioTextRarityOverlapExtractor(), // §6.2.6 bio text rarity
   new ExternalLinkOverlapExtractor(), // §4.6.3
 ];
 
 export { HandleReuseExtractor } from './handle-reuse';
 export { BioLinkOverlapExtractor } from './bio-link-overlap';
+export { BioTextRarityOverlapExtractor } from './bio-text-rarity-overlap';
 export { ExternalLinkOverlapExtractor } from './external-link-overlap';
+export {
+  idfWeight,
+  rarityWeightedJaccard,
+  buildDocumentFrequency,
+  tokenizeBio,
+} from './rarity';

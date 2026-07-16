@@ -1,66 +1,28 @@
 /**
  * External-link corpus overlap pair extractor.
  *
- * Per the methodology paper §4.6.3, this extractor compares the set
- * of URLs each account has posted across their content. Operators
- * sharing links from the same source set across sockpuppets (the
- * same blog, news outlet, podcast, fundraiser, etc.) leave a
- * distinctive trail that this signal picks up.
+ * Per the methodology paper §4.6.3 / §6.2.6, this extractor compares the
+ * set of URLs each account has posted across their content, with
+ * investigation-corpus rarity weighting on shared URLs and hosts.
  *
  * Distinct from bio-link-overlap (§4.6.2): bio-link compares
- * accounts' PROFILE URLs (low volume, deliberate self-presentation
- * signal); external-link compares accounts' POSTED URLs (high
- * volume, behavioral signal of what topics and sources the operator
- * engages with).
+ * accounts' PROFILE URLs; external-link compares accounts' POSTED URLs.
  *
  * Algorithm:
+ *   1. Read each account's posted_urls feature (normalized URL strings).
+ *   2. Compute raw Jaccard on URL and host sets.
+ *   3. When buildContext() has run, emit rarity-weighted Jaccard using
+ *      seed-set document frequency (§6.2.6).
  *
- *   1. Read each account's posted_urls feature (a JSON array of
- *      normalized URL strings produced by the per-platform
- *      stylometric extractors).
- *   2. Compute Jaccard similarity on the URL sets.
- *   3. Compute Jaccard on the host sets (catches "two accounts
- *      heavily linking to the same site even via different paths,"
- *      e.g., two sockpuppets both signal-boosting a fundraiser hub).
- *   4. Compute total post-URL counts on each side for confidence
- *      weighting.
+ * Features emitted:
+ *   posted_url_count_a / posted_url_count_b
+ *   posted_url_overlap_count / posted_url_jaccard
+ *   posted_url_host_overlap_count / posted_url_host_jaccard
+ *   posted_url_rarity_weighted_jaccard (when context present)
+ *   posted_url_host_rarity_weighted_jaccard (when context present)
+ *   posted_url_shared / posted_url_shared_hosts (when non-empty)
  *
- * Rarity weighting (paper §6.2.6) is NOT applied at this layer. A
- * faithful implementation requires a corpus-level URL or host
- * frequency prior that the extractor does not have access to. The
- * pair extractor emits raw Jaccard scores; downstream attribution
- * reasoning can apply rarity weighting if it has access to a
- * frequency table (e.g., "twitter.com" should weight less than a
- * personal-domain link).
- *
- * Features emitted per pair (always emitted when both accounts have
- * posted_urls, even when the lists are empty):
- *
- *   posted_url_count_a (numeric, size of A's normalized URL set)
- *   posted_url_count_b (numeric, size of B's normalized URL set)
- *   posted_url_overlap_count (numeric, intersection size)
- *   posted_url_jaccard (numeric, [0, 1], full-URL Jaccard)
- *   posted_url_host_overlap_count (numeric, host-set intersection)
- *   posted_url_host_jaccard (numeric, [0, 1], host-only Jaccard)
- *   posted_url_shared (json, sorted array of overlapping URLs;
- *     only when intersection is non-empty)
- *   posted_url_shared_hosts (json, sorted array of overlapping
- *     hosts; only when non-empty)
- *
- * Determinism: pure string-set arithmetic and Jaccard calculation.
- * No randomness, no clock, no network. Satisfies §6.1.
- *
- * Edge cases:
- *   - Either account missing posted_urls: returns empty (the runner
- *     filter handles this; the guard is here too).
- *   - Both URL lists empty: emits zero counts and zero Jaccards.
- *     This is informative as a null-result data point. Two accounts
- *     that both post zero URLs is itself a (weak) similarity signal.
- *   - One list empty, one non-empty: Jaccard = 0 (no overlap).
- *   - URLs already normalized at emission time, so no normalization
- *     happens here. If the stylometric extractor normalization
- *     ever changes, the pair-level comparison automatically picks
- *     up the new canonical form.
+ * Determinism: pure string-set arithmetic. Satisfies §6.1.
  */
 
 import type {
@@ -69,9 +31,19 @@ import type {
   PairContext,
 } from '../pair-types';
 import type { ExtractedFeature } from '../types';
+import {
+  buildDocumentFrequency,
+  rarityWeightedJaccard,
+} from './rarity';
 
 const NAME = 'external_link_overlap_cross_platform';
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
+
+interface PostedUrlRarityContext {
+  corpusSize: number;
+  urlDf: Map<string, number>;
+  hostDf: Map<string, number>;
+}
 
 export class ExternalLinkOverlapExtractor implements PairFeatureExtractor {
   readonly name = NAME;
@@ -79,12 +51,32 @@ export class ExternalLinkOverlapExtractor implements PairFeatureExtractor {
   readonly category = 'cross_platform' as const;
   readonly requiredAccountFeatures = ['posted_urls'] as const;
 
+  buildContext(
+    seedAccounts: ReadonlyArray<{ account: string; features: AccountFeatureMap }>
+  ): PairContext {
+    const urlSets: Set<string>[] = [];
+    const hostSets: Set<string>[] = [];
+    for (const { features } of seedAccounts) {
+      const urls = parseUrlSet(features) ?? new Set<string>();
+      urlSets.push(urls);
+      hostSets.push(setMap(urls, urlHost));
+    }
+    const urls = buildDocumentFrequency(urlSets);
+    const hosts = buildDocumentFrequency(hostSets);
+    const ctx: PostedUrlRarityContext = {
+      corpusSize: urls.corpusSize,
+      urlDf: urls.documentFrequency,
+      hostDf: hosts.documentFrequency,
+    };
+    return ctx;
+  }
+
   extract(
     _accountA: string,
     _accountB: string,
     featuresA: AccountFeatureMap,
     featuresB: AccountFeatureMap,
-    _context?: PairContext
+    context?: PairContext
   ): ExtractedFeature[] {
     const urlsA = parseUrlSet(featuresA);
     const urlsB = parseUrlSet(featuresB);
@@ -139,6 +131,38 @@ export class ExternalLinkOverlapExtractor implements PairFeatureExtractor {
       },
     ];
 
+    const rarity = context as PostedUrlRarityContext | undefined;
+    if (rarity && rarity.corpusSize > 0) {
+      features.push(
+        {
+          category: cat,
+          name: 'posted_url_rarity_weighted_jaccard',
+          value: {
+            kind: 'numeric',
+            value: rarityWeightedJaccard(
+              urlsA,
+              urlsB,
+              rarity.urlDf,
+              rarity.corpusSize
+            ),
+          },
+        },
+        {
+          category: cat,
+          name: 'posted_url_host_rarity_weighted_jaccard',
+          value: {
+            kind: 'numeric',
+            value: rarityWeightedJaccard(
+              hostsA,
+              hostsB,
+              rarity.hostDf,
+              rarity.corpusSize
+            ),
+          },
+        }
+      );
+    }
+
     if (sharedUrls.size > 0) {
       features.push({
         category: cat,
@@ -158,10 +182,6 @@ export class ExternalLinkOverlapExtractor implements PairFeatureExtractor {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function parseUrlSet(features: AccountFeatureMap): Set<string> | null {
   const v = features.get('posted_urls');
   if (!v || v.kind !== 'json') return null;
@@ -174,12 +194,6 @@ function parseUrlSet(features: AccountFeatureMap): Set<string> | null {
   return out;
 }
 
-/**
- * Extract the host portion of a normalized URL string. The
- * normalized form is host + path + (optional ?query), so the host
- * is everything before the first slash or question mark. Returns
- * empty string for malformed input.
- */
 function urlHost(normalizedUrl: string): string {
   const slashIdx = normalizedUrl.indexOf('/');
   const qIdx = normalizedUrl.indexOf('?');

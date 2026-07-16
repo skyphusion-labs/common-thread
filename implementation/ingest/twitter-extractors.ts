@@ -39,6 +39,7 @@ export const TWITTER_PAIR_EXTRACTORS: PairFeatureExtractor[] =
       /tweet_language/i.test(e.name) ||
       /profile_lang/i.test(e.name) ||
       /bio_link/i.test(e.name) ||
+      /bio_text_rarity/i.test(e.name) ||
       /external_link/i.test(e.name) ||
       /handle_reuse/i.test(e.name) ||
       /follower_overlap/i.test(e.name) ||
