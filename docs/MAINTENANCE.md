@@ -39,9 +39,9 @@ extend and sustain the work. Transition goals:
 | v1 spec-parity implementation merged | 2026-07 | Done (epic #132) |
 | Extractor test coverage floor | 2026-07 | Done (Sprints 9–10) |
 | Published prompt registry + maintenance doc | 2026-07 | Done |
-| External methodology paper reviewer pass | Before arXiv/Zenodo | Open |
+| External methodology paper reviewer pass | Before arXiv/Zenodo | Open — see [PUBLICATION.md](PUBLICATION.md#2-external-reviewer-pass) |
 | Named community maintainer(s) with merge rights | Within 12 months of v1 | **Seeking volunteers** |
-| Zenodo DOI for methodology paper | Before arXiv | Open |
+| Zenodo DOI for methodology paper | Before arXiv | Open — see [PUBLICATION.md](PUBLICATION.md#3-zenodo-deposit-required) |
 
 ### How to become a maintainer
 
