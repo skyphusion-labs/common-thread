@@ -17,6 +17,7 @@
  */
 
 import { ManifestStore } from '../archive/manifest';
+import { resolveArchiveBucket } from '../archive/dual-write';
 // Durable Object that serializes manifest appends per investigation (issue #70).
 // Must be exported from the Worker entrypoint so wrangler can bind the class.
 export { ManifestCoordinator } from '../archive/manifest-coordinator';
@@ -82,6 +83,13 @@ import {
 export interface Env {
   DB: Hyperdrive;
   ARCHIVE: R2Bucket;
+  /**
+   * Optional second R2 bucket for synchronous dual-write (§5.4.4 / #154).
+   * Used only when ARCHIVE_DUAL_WRITE is "true" or "1".
+   */
+  ARCHIVE_REPLICA?: R2Bucket;
+  /** Enable dual-write to ARCHIVE_REPLICA ("true" / "1"). Default: off. */
+  ARCHIVE_DUAL_WRITE?: string;
   /** Optional Durable Object namespace that serializes manifest appends per
    * investigation (issue #70). When bound, ManifestStore routes appends here to
    * close the last-write-wins race; when absent, appends fall back to inline. */
@@ -136,15 +144,21 @@ export interface Env {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    // Optional §5.4.4 dual-write: when enabled, wrap ARCHIVE so every put/delete
+    // mirrors to ARCHIVE_REPLICA. Default deploys leave the flag unset.
+    const runtimeEnv: Env = {
+      ...env,
+      ARCHIVE: resolveArchiveBucket(env) as R2Bucket,
+    };
     try {
-      const preflight = corsPreflightResponse(request, env);
+      const preflight = corsPreflightResponse(request, runtimeEnv);
       if (preflight) return preflight;
 
-      const corsDenied = assertBrowserOriginAllowed(request, env);
+      const corsDenied = assertBrowserOriginAllowed(request, runtimeEnv);
       if (corsDenied) return corsDenied;
 
-      const response = await handle(request, env);
-      return withCors(response, request, env);
+      const response = await handle(request, runtimeEnv);
+      return withCors(response, request, runtimeEnv);
     } catch (err) {
       // Log the detail server-side; never return raw error strings (which can
       // carry SQL/driver internals) to clients on a public API (#67).
@@ -152,7 +166,7 @@ export default {
       return withCors(
         jsonResponse({ error: 'Internal server error', code: 'internal_error' }, 500),
         request,
-        env
+        runtimeEnv
       );
     }
   },

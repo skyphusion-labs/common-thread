@@ -22,11 +22,14 @@
  */
 
 import { appendManifestLine } from './manifest';
+import { resolveArchiveBucket } from './dual-write';
 import { investigationManifestPath } from './paths';
 
 /** Minimal env subset the coordinator needs (structural subset of the Worker Env). */
 interface ManifestCoordinatorEnv {
   ARCHIVE: R2Bucket;
+  ARCHIVE_REPLICA?: R2Bucket;
+  ARCHIVE_DUAL_WRITE?: string;
 }
 
 interface AppendRequestBody {
@@ -41,10 +44,18 @@ export class ManifestCoordinator {
    */
   private tail: Promise<void> = Promise.resolve();
 
+  private readonly env: ManifestCoordinatorEnv;
+
   constructor(
     private readonly state: DurableObjectState,
-    private readonly env: ManifestCoordinatorEnv
-  ) {}
+    env: ManifestCoordinatorEnv
+  ) {
+    // Same dual-write resolve as the Worker fetch path (§5.4.4 / #154).
+    this.env = {
+      ...env,
+      ARCHIVE: resolveArchiveBucket(env) as R2Bucket,
+    };
+  }
 
   async fetch(request: Request): Promise<Response> {
     if (request.method !== "POST") {

@@ -63,6 +63,8 @@ const nodeSuites = [
   'tests/extractors/feature-write-policy.test.ts',
   // §4.5.3 / §4.6 same-identifier pair ordering (#153)
   'tests/schema/canonical-platformed-pair.test.ts',
+  // §5.4.4 optional archive dual-write (#154)
+  'tests/archive/dual-write.test.ts',
   'tests/ingest/apify-artifacts-ingest.test.ts',
   'tests/ingest/apify-timeline-ingest.test.ts',
   'tests/investigation/access.test.ts',

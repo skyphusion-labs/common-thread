@@ -61,6 +61,7 @@ only Web/Workers APIs (Web Crypto, `fetch`, etc.); `node:*` imports appear only
 in `scripts/` and `vitest.config.mts`, which run on the host.
 
 Bindings (`wrangler.toml`): `DB` (Hyperdrive → MySQL), `ARCHIVE` (R2). Optional:
+`ARCHIVE_REPLICA` + var `ARCHIVE_DUAL_WRITE` for §5.4.4 dual-write (#154);
 `VPC_INGEST`, `VPC_PDF` for VPC containers. Web Worker (`web/wrangler.toml`):
 `BACKEND` service binding → backend Worker. Vars: `ENVIRONMENT`,
 `TRIAGE_MODEL` (default `claude-haiku-4-5`), `REASONING_MODEL` (default
