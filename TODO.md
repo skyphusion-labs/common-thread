@@ -90,7 +90,7 @@ share-card crawling, likes/favorites collection.
 | #143 | §4.3.2–3 background TF-IDF / novelty n-grams |
 | #144 | §6.2.6 rarity-weighted bio / URL overlap (**done**) |
 | #145 | §4.4.4 amplification vs control baseline |
-| #146 | §4.1.6 location geocoding |
+| #146 | §4.1.6 location geocoding (**done**) |
 | #147 | §4.5.5 AI-generated face detector (**deferred** — Workers cannot host model; see issue comment) |
 | #148 | §4.5.4 image source_class (**done**) |
 | #149 | §4.7.4 link shortener fingerprint (**done**) |
