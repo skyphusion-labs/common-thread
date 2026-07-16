@@ -9,9 +9,11 @@ import type {
 } from '../pair-types';
 import type { ExtractedFeature } from '../types';
 import { levenshtein, normalizeForCompare, normalizedSimilarity } from './text-similarity';
+import { haversineKm } from './geocode';
 
 const NAME = 'location_similarity_account_metadata';
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
+const NEAR_MATCH_KM = 50;
 
 export class LocationSimilarityExtractor implements PairFeatureExtractor {
   readonly name = NAME;
@@ -35,7 +37,7 @@ export class LocationSimilarityExtractor implements PairFeatureExtractor {
     const normA = normalizeForCompare(locA);
     const normB = normalizeForCompare(locB);
 
-    return [
+    const out: ExtractedFeature[] = [
       {
         category: 'account_metadata',
         name: 'location_both_set',
@@ -71,6 +73,26 @@ export class LocationSimilarityExtractor implements PairFeatureExtractor {
         },
       },
     ];
+
+    const geoA = readGeocode(featuresA);
+    const geoB = readGeocode(featuresB);
+    if (geoA && geoB) {
+      const distanceKm = haversineKm(geoA.lat, geoA.lon, geoB.lat, geoB.lon);
+      out.push(
+        {
+          category: 'account_metadata',
+          name: 'location_geo_distance_km',
+          value: { kind: 'numeric', value: distanceKm },
+        },
+        {
+          category: 'account_metadata',
+          name: 'location_geo_near_match',
+          value: { kind: 'numeric', value: distanceKm <= NEAR_MATCH_KM ? 1 : 0 },
+        }
+      );
+    }
+
+    return out;
   }
 }
 
@@ -84,4 +106,18 @@ function readBool(features: AccountFeatureMap, name: string): boolean | null {
   const v = features.get(name);
   if (!v || v.kind !== 'numeric') return null;
   return v.value === 1;
+}
+
+function readNumeric(features: AccountFeatureMap, name: string): number | null {
+  const v = features.get(name);
+  if (!v || v.kind !== 'numeric') return null;
+  return Number.isFinite(v.value) ? v.value : null;
+}
+
+function readGeocode(features: AccountFeatureMap): { lat: number; lon: number } | null {
+  if (readBool(features, 'location_geocoded') !== true) return null;
+  const lat = readNumeric(features, 'location_lat');
+  const lon = readNumeric(features, 'location_lon');
+  if (lat === null || lon === null) return null;
+  return { lat, lon };
 }
