@@ -59,6 +59,8 @@ const nodeSuites = [
   'tests/extractors/twitter-scrapes.test.ts',
   'tests/extractors/engagement.test.ts',
   'tests/extractors/runner.test.ts',
+  // §6.1.2 extractor version overwrite guard (#152)
+  'tests/extractors/feature-write-policy.test.ts',
   'tests/ingest/apify-artifacts-ingest.test.ts',
   'tests/ingest/apify-timeline-ingest.test.ts',
   'tests/investigation/access.test.ts',

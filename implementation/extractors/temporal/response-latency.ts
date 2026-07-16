@@ -25,6 +25,7 @@ import { inferPlatform } from '../platform';
 import { parseTimestamp } from './helpers';
 import type { PairFeatureExtractor, AccountFeatureMap } from '../pair-types';
 import type { ExtractedFeature } from '../types';
+import { prepareAccountFeatureWrite } from '../feature-write-policy';
 
 const ACCOUNT_RUNNER_NAME = 'response_latency_temporal';
 const ACCOUNT_RUNNER_VERSION = '1.0.0';
@@ -34,6 +35,8 @@ const PAIR_VERSION = '1.0.0';
 export interface RunResponseLatencyOptions {
   investigationId: string;
   accountFilter?: string[];
+  /** §6.1.2 explicit cross-version replace. Default false. */
+  replacePriorVersions?: boolean;
 }
 
 /**
@@ -107,6 +110,20 @@ export async function runResponseLatencyExtraction(
       });
       const extractedAt = new Date().toISOString();
       const confidence = latencies.length === 0 ? 'insufficient' : 'sufficient';
+
+      await prepareAccountFeatureWrite(
+        env.DB,
+        {
+          investigationId: options.investigationId,
+          platform,
+          accountIdentifier: entry.account,
+          featureCategory: 'temporal',
+          featureName: 'trigger_response_latencies',
+          extractorName: ACCOUNT_RUNNER_NAME,
+          extractorVersion: ACCOUNT_RUNNER_VERSION,
+        },
+        { replacePriorVersions: options.replacePriorVersions }
+      );
 
       const ins = await env.DB.prepare(
         `INSERT INTO account_features (

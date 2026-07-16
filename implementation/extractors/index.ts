@@ -146,3 +146,10 @@ export { runAccountExtractors } from './runner';
 export { runPairExtractors } from './pair-runner';
 export { runEventExtractors } from './event-runner';
 export { runEngagementPairExtractors } from './engagement-pair-runner';
+export {
+  prepareAccountFeatureWrite,
+  preparePairFeatureWrite,
+  prepareEventFeatureWrite,
+  countPriorAccountFeatureVersions,
+  type FeatureWritePolicyOptions,
+} from './feature-write-policy';
