@@ -26,6 +26,7 @@ export interface PostedImageCorpusEntry {
   url: string;
   tweet_id?: string;
   dhash?: string;
+  phash?: string;
   sha256?: string;
 }
 
@@ -95,13 +96,14 @@ export async function enrichPostedImageCorpora(
 
     for (const entry of hashes) {
       if (fetches >= MAX_DHASH_FETCHES_PER_ACCOUNT) break;
-      if (entry.dhash && entry.sha256) continue;
+      if (entry.dhash && entry.sha256 && entry.phash) continue;
 
       fetches++;
       const features = await fetchUrlImageFeatures(entry.url);
       if (!features) continue;
 
       if (features.dhash) entry.dhash = features.dhash;
+      if (features.phash) entry.phash = features.phash;
       if (features.sha256) entry.sha256 = features.sha256;
       exifImages.push({
         url: entry.url,

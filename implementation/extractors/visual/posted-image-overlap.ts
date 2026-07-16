@@ -77,7 +77,7 @@ import type { ExtractedFeature } from '../types';
 import { dhashFromHex, hammingDistance } from './dhash';
 
 const NAME = 'posted_image_overlap_visual';
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 
 const MATCH_THRESHOLD = 8;
 
@@ -97,8 +97,10 @@ export class PostedImageOverlapExtractor implements PairFeatureExtractor {
     featuresB: AccountFeatureMap,
     _context?: PairContext
   ): ExtractedFeature[] {
-    const setA = parseHashSet(featuresA);
-    const setB = parseHashSet(featuresB);
+    const setA = parseHashSet(featuresA, 'posted_image_dhash_set');
+    const setB = parseHashSet(featuresB, 'posted_image_dhash_set');
+    const phashA = parseHashSet(featuresA, 'posted_image_phash_set');
+    const phashB = parseHashSet(featuresB, 'posted_image_phash_set');
     const urlsA = parseUrlSet(featuresA);
     const urlsB = parseUrlSet(featuresB);
     if ((!setA && !urlsA) || (!setB && !urlsB)) return [];
@@ -121,7 +123,7 @@ export class PostedImageOverlapExtractor implements PairFeatureExtractor {
     const urlUnion = urlSetA.size + urlSetB.size - urlOverlap;
 
     const cat = 'visual' as const;
-    return [
+    const features: ExtractedFeature[] = [
       {
         category: cat,
         name: 'posted_image_count_a',
@@ -183,6 +185,37 @@ export class PostedImageOverlapExtractor implements PairFeatureExtractor {
         },
       },
     ];
+
+    if (phashA && phashB) {
+      const pExact = exactOverlap(phashA.hexes, phashB.hexes);
+      const pFuzzy =
+        phashA.bigints.length > 0 && phashB.bigints.length > 0
+          ? greedyFuzzyOverlap(phashA.bigints, phashB.bigints, MATCH_THRESHOLD)
+          : 0;
+      const pUnion = phashA.bigints.length + phashB.bigints.length - pFuzzy;
+      features.push(
+        {
+          category: cat,
+          name: 'posted_image_phash_exact_match_count',
+          value: { kind: 'numeric', value: pExact },
+        },
+        {
+          category: cat,
+          name: 'posted_image_phash_fuzzy_match_count',
+          value: { kind: 'numeric', value: pFuzzy },
+        },
+        {
+          category: cat,
+          name: 'posted_image_phash_fuzzy_jaccard',
+          value: {
+            kind: 'numeric',
+            value: pUnion > 0 ? pFuzzy / pUnion : 0,
+          },
+        }
+      );
+    }
+
+    return features;
   }
 }
 
@@ -195,8 +228,11 @@ interface HashSet {
   bigints: bigint[];
 }
 
-function parseHashSet(features: AccountFeatureMap): HashSet | null {
-  const v = features.get('posted_image_dhash_set');
+function parseHashSet(
+  features: AccountFeatureMap,
+  featureName: string
+): HashSet | null {
+  const v = features.get(featureName);
   if (!v || v.kind !== 'json') return null;
   if (!Array.isArray(v.value)) return null;
 

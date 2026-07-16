@@ -65,7 +65,7 @@ import {
 } from './dhash';
 
 const NAME = 'profile_image_overlap_visual';
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 
 export class ProfileImageOverlapExtractor implements PairFeatureExtractor {
   readonly name = NAME;
@@ -92,7 +92,7 @@ export class ProfileImageOverlapExtractor implements PairFeatureExtractor {
       },
     ];
 
-    // Perceptual hash comparison, if available on both sides.
+    // dHash comparison (§4.5.1 / §6.2.5).
     const dhashHexA = getText(featuresA, 'profile_image_dhash');
     const dhashHexB = getText(featuresB, 'profile_image_dhash');
     if (dhashHexA && dhashHexB) {
@@ -120,6 +120,36 @@ export class ProfileImageOverlapExtractor implements PairFeatureExtractor {
       } catch {
         // Malformed dhash hex; suppress perceptual comparison but
         // keep byte_equality.
+      }
+    }
+
+    // pHash comparison (§6.2.5 second family).
+    const phashHexA = getText(featuresA, 'profile_image_phash');
+    const phashHexB = getText(featuresB, 'profile_image_phash');
+    if (phashHexA && phashHexB) {
+      try {
+        const hashA = dhashFromHex(phashHexA);
+        const hashB = dhashFromHex(phashHexB);
+        const dist = hammingDistance(hashA, hashB);
+        features.push(
+          {
+            category: 'visual',
+            name: 'profile_image_phash_hamming_distance',
+            value: { kind: 'numeric', value: dist },
+          },
+          {
+            category: 'visual',
+            name: 'profile_image_phash_similarity',
+            value: { kind: 'numeric', value: dhashSimilarity(dist) },
+          },
+          {
+            category: 'visual',
+            name: 'profile_image_phash_match_band',
+            value: { kind: 'text', value: dhashMatchBand(dist) },
+          }
+        );
+      } catch {
+        // Malformed phash hex; suppress.
       }
     }
 

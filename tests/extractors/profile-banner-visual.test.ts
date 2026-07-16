@@ -36,7 +36,7 @@ describe('profile and banner image corpus wiring (§4.5.1, §4.5.2)', () => {
     expect(bannerCorpora[0].imageType).toBe('banner');
   });
 
-  it('emits scalar sha256/dhash features from profile corpus artifacts', () => {
+  it('emits scalar sha256/dhash/phash features from profile corpus artifacts', () => {
     const extractor = new PostedImageCorpusExtractor();
     const features = extractor.extract({
       bytes: new TextEncoder().encode(
@@ -45,6 +45,7 @@ describe('profile and banner image corpus wiring (§4.5.1, §4.5.2)', () => {
             {
               url: 'https://pbs.twimg.com/profile_images/shared.jpg',
               dhash: 'abcdef0123456789',
+              phash: 'fedcba9876543210',
               sha256: 'a'.repeat(64),
             },
           ],
@@ -66,19 +67,24 @@ describe('profile and banner image corpus wiring (§4.5.1, §4.5.2)', () => {
     const byName = Object.fromEntries(features.map((f) => [f.name, f]));
     expect(byName.profile_image_sha256.value).toEqual({ kind: 'text', value: 'a'.repeat(64) });
     expect(byName.profile_image_dhash.value).toEqual({ kind: 'text', value: 'abcdef0123456789' });
+    expect(byName.profile_image_phash.value).toEqual({ kind: 'text', value: 'fedcba9876543210' });
     expect(byName.profile_image_dhash_set).toBeDefined();
+    expect(byName.profile_image_phash_set).toBeDefined();
   });
 
   it('runs profile overlap when corpus scalar features are present', () => {
     const sharedSha = 'c'.repeat(64);
     const sharedDhash = '1111222233334444';
+    const sharedPhash = 'aaaabbbbccccdddd';
     const featuresA = new Map([
       ['profile_image_sha256', { kind: 'text' as const, value: sharedSha }],
       ['profile_image_dhash', { kind: 'text' as const, value: sharedDhash }],
+      ['profile_image_phash', { kind: 'text' as const, value: sharedPhash }],
     ]);
     const featuresB = new Map([
       ['profile_image_sha256', { kind: 'text' as const, value: sharedSha }],
       ['profile_image_dhash', { kind: 'text' as const, value: sharedDhash }],
+      ['profile_image_phash', { kind: 'text' as const, value: sharedPhash }],
     ]);
 
     const pairFeatures = new ProfileImageOverlapExtractor().extract(
@@ -92,6 +98,11 @@ describe('profile and banner image corpus wiring (§4.5.1, §4.5.2)', () => {
     expect(byName.profile_image_byte_equality.value).toEqual({ kind: 'numeric', value: 1 });
     expect(byName.profile_image_hamming_distance.value).toEqual({ kind: 'numeric', value: 0 });
     expect(byName.profile_image_match_band.value).toEqual({ kind: 'text', value: 'near_identical' });
+    expect(byName.profile_image_phash_hamming_distance.value).toEqual({ kind: 'numeric', value: 0 });
+    expect(byName.profile_image_phash_match_band.value).toEqual({
+      kind: 'text',
+      value: 'near_identical',
+    });
   });
 
   it('runs banner overlap when corpus scalar features are present', () => {

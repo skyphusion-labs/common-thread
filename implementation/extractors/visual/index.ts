@@ -51,8 +51,9 @@
  *     'application/x-rgba8' with width/height in platformMetadata).
  *
  *   For §4.5.3: a single per-account 'application/x-image-hash-corpus'
- *     artifact aggregating the dHashes of all posted images. Use
- *     the dhash() function exported here for consistency.
+ *     artifact aggregating the dHashes and pHashes of all posted
+ *     images. Use the dhash()/phash() functions exported here for
+ *     consistency.
  *
  *   For §4.5.4: platformMetadata.source_class on image artifacts
  *     (practitioner reverse-search; see withManifestSourceClass()).
@@ -128,6 +129,7 @@ export {
   dhashSimilarity,
   dhashMatchBand,
 } from './dhash';
+export { phash, phashToHex } from './phash';
 export { parseJpegExif } from './exif-parser';
 export type { ParsedExif, ParsedExifGps } from './exif-parser';
 export {
