@@ -3,7 +3,7 @@
 Migrations **0001 through 0006** are folded into the base schema at
 [`mysql-schema.sql`](../mysql-schema.sql). Fresh installs via
 `npm run db:migrate` or the docker-entrypoint init hook already include
-everything through schema version **0010**.
+everything through schema version **0011**.
 
 `npm run db:migrate` applies the squashed schema, then runs any pending
 incremental scripts (same pattern as vivijure's `wrangler d1 migrations apply`:
@@ -18,6 +18,7 @@ databases that were created before those columns landed:
 | `0008_investigation_access_token.sql` | Investigation capability tokens (`access_token_hash`) |
 | `0009_attribution_jobs.sql` | Async attribution job queue (`attribution_jobs`, #69) |
 | `0010_attribution_reproducibility.sql` | `prompt_sha256` + `randomization_seed` on `attribution_runs` (#125) |
+| `0011_same_identifier_cross_platform_pairs.sql` | Tuple CHECK so same-handle cross-platform pairs insert (#153) |
 
 Apply in order against an existing database (or use `npm run db:migrate`):
 
@@ -26,6 +27,7 @@ mysql -h HOST -u USER -p common_thread < mysql-migrations/0007_control_and_confi
 mysql -h HOST -u USER -p common_thread < mysql-migrations/0008_investigation_access_token.sql
 mysql -h HOST -u USER -p common_thread < mysql-migrations/0009_attribution_jobs.sql
 mysql -h HOST -u USER -p common_thread < mysql-migrations/0010_attribution_reproducibility.sql
+mysql -h HOST -u USER -p common_thread < mysql-migrations/0011_same_identifier_cross_platform_pairs.sql
 ```
 
 Verify:

@@ -374,45 +374,56 @@ async function resolveAccountPlatforms(
 
   const placeholders = accounts.map(() => '?').join(', ');
 
-  // Pass 1: seed_accounts (any removed_at).
+  // Pass 1: seed_accounts (any removed_at). Keep every (platform, account)
+  // row so same-identifier cross-platform seeds are not collapsed.
   const seedRes = await db
     .prepare(
-      `SELECT account_identifier, MIN(platform) AS platform
+      `SELECT DISTINCT account_identifier, platform
        FROM seed_accounts
        WHERE investigation_id = ?
          AND account_identifier IN (${placeholders})
-       GROUP BY account_identifier`
+       ORDER BY account_identifier ASC, platform ASC`
     )
     .bind(investigationId, ...accounts)
     .all<{ account_identifier: string; platform: string }>();
 
-  const resolved = new Map<string, string>();
+  const out: PlatformedAccount[] = [];
+  const seen = new Set<string>();
+  const resolvedIds = new Set<string>();
   for (const row of seedRes.results ?? []) {
-    resolved.set(row.account_identifier, row.platform);
+    const key = `${row.platform}\0${row.account_identifier}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    resolvedIds.add(row.account_identifier);
+    out.push({ account: row.account_identifier, platform: row.platform });
   }
 
   // Pass 2: account_features fallback for any identifiers not yet resolved.
-  const unresolved = accounts.filter(a => !resolved.has(a));
+  const unresolved = accounts.filter(a => !resolvedIds.has(a));
   if (unresolved.length > 0) {
     const fbPlaceholders = unresolved.map(() => '?').join(', ');
     const fbRes = await db
       .prepare(
-        `SELECT account_identifier, MIN(platform) AS platform
+        `SELECT DISTINCT account_identifier, platform
          FROM account_features
          WHERE investigation_id = ?
            AND account_identifier IN (${fbPlaceholders})
-         GROUP BY account_identifier`
+         ORDER BY account_identifier ASC, platform ASC`
       )
       .bind(investigationId, ...unresolved)
       .all<{ account_identifier: string; platform: string }>();
 
     for (const row of fbRes.results ?? []) {
-      resolved.set(row.account_identifier, row.platform);
+      const key = `${row.platform}\0${row.account_identifier}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      resolvedIds.add(row.account_identifier);
+      out.push({ account: row.account_identifier, platform: row.platform });
     }
   }
 
   // Hard error on still-unresolved identifiers.
-  const stillUnresolved = accounts.filter(a => !resolved.has(a));
+  const stillUnresolved = accounts.filter(a => !resolvedIds.has(a));
   if (stillUnresolved.length > 0) {
     throw new Error(
       `Cannot resolve platform for accounts in investigation '${investigationId}': ` +
@@ -422,7 +433,7 @@ async function resolveAccountPlatforms(
     );
   }
 
-  return accounts.map(a => ({ account: a, platform: resolved.get(a)! }));
+  return out;
 }
 
 async function loadAccountFeatures(

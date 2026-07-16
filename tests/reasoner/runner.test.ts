@@ -98,7 +98,7 @@ async function buildTwoAccountScenario(opts: ScenarioOpts): Promise<{
   pair: { account_a: string; account_b: string; platform_a: string; platform_b: string };
   extractorRunId: number;
 }> {
-  // Canonicalize so account_a < account_b matches the schema CHECK.
+  // Canonicalize so (account_a, platform_a) < (account_b, platform_b).
   const rawA = opts.accountA ?? 'alice';
   const rawB = opts.accountB ?? 'bob';
   const [a, b] = rawA < rawB ? [rawA, rawB] : [rawB, rawA];
@@ -321,9 +321,8 @@ describe('runAttribution', () => {
 
   it('uses canonical account ordering on insert', async () => {
     // Pass accountA and accountB in non-canonical order (z before a)
-    // and confirm the schema's CHECK (account_a < account_b) does not
-    // get violated because the runner canonicalizes via
-    // canonicalPlatformedPair.
+    // and confirm the schema's tuple CHECK does not get violated because
+    // the runner canonicalizes via canonicalPlatformedPair.
     const investigationId = `inv_canonical_order-${Date.now()}`;
     const { pair } = await buildTwoAccountScenario({
       investigationId,

@@ -114,8 +114,9 @@ CREATE TABLE account_features (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------------
--- Pair features (migration 0002: platform_a / platform_b).
--- account_a and account_b are canonically ordered (account_a < account_b).
+-- Pair features (migration 0002: platform_a / platform_b;
+-- migration 0011: tuple order for same-identifier cross-platform pairs).
+-- Canonical order: (account_a, platform_a) < (account_b, platform_b).
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE pair_features (
@@ -148,7 +149,10 @@ CREATE TABLE pair_features (
   INDEX idx_pair_features_by_account_b (investigation_id, account_b),
   INDEX idx_pair_features_by_extractor
     (investigation_id, extractor_name, extractor_version),
-  CONSTRAINT chk_pair_features_order CHECK (account_a < account_b),
+  CONSTRAINT chk_pair_features_order CHECK (
+    account_a < account_b
+    OR (account_a = account_b AND platform_a < platform_b)
+  ),
   CONSTRAINT chk_pair_features_value
     CHECK (
       (feature_value_text IS NOT NULL) +
@@ -232,6 +236,7 @@ CREATE TABLE event_feature_provenance (
 -- ---------------------------------------------------------------------------
 -- Attribution runs: LLM-assisted attribution reasoning sessions (§7.3).
 -- Migration 0002: platform_a / platform_b.
+-- Migration 0011: tuple order for same-identifier cross-platform pairs.
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE attribution_runs (
@@ -256,7 +261,10 @@ CREATE TABLE attribution_runs (
   INDEX idx_attribution_runs_by_pair (investigation_id, account_a, account_b),
   INDEX idx_attribution_runs_by_band (investigation_id, confidence_band),
   INDEX idx_attribution_runs_by_completed (investigation_id, completed_at),
-  CONSTRAINT chk_attribution_runs_order CHECK (account_a < account_b),
+  CONSTRAINT chk_attribution_runs_order CHECK (
+    account_a < account_b
+    OR (account_a = account_b AND platform_a < platform_b)
+  ),
   CONSTRAINT chk_attribution_runs_band
     CHECK (confidence_band IN ('insufficient', 'consistent', 'strongly_consistent')),
   CONSTRAINT fk_attribution_runs_investigation
@@ -321,10 +329,5 @@ CREATE TABLE schema_metadata (
 ) ENGINE=InnoDB;
 
 INSERT INTO schema_metadata (`key`, value, updated_at) VALUES
-  ('schema_version', '0010', '1970-01-01T00:00:00.000Z'),
-  ('schema_initialized_at', '1970-01-01T00:00:00.000Z', '1970-01-01T00:00:00.000Z'),
-  (
-    'pair_features_same_identifier_cross_platform_limitation',
-    'The CHECK (account_a < account_b) constraint on pair_features and attribution_runs orders by account identifier only, not by (account, platform) tuple. Same-identifier-cross-platform pairs (e.g., ''bob'' on two platforms) cannot be inserted. See mysql-migrations/ for incremental schema history. A future migration can rebuild with a tuple CHECK if this edge case becomes operationally important.',
-    '1970-01-01T00:00:00.000Z'
-  );
+  ('schema_version', '0011', '1970-01-01T00:00:00.000Z'),
+  ('schema_initialized_at', '1970-01-01T00:00:00.000Z', '1970-01-01T00:00:00.000Z');

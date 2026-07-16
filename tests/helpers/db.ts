@@ -2,7 +2,10 @@
  * MySQL seeding helpers for tests.
  */
 import type { ConfidenceBand, FeatureValue } from '../../implementation/schema/db-types';
-import { packFeatureValue } from '../../implementation/schema/db-types';
+import {
+  isCanonicalPlatformedPairOrder,
+  packFeatureValue,
+} from '../../implementation/schema/db-types';
 import type { DatabaseClient } from '../../implementation/db';
 import {
   generateAccessToken,
@@ -211,12 +214,18 @@ export async function insertPairFeature(
   db: DatabaseClient,
   opts: InsertPairFeatureOpts
 ): Promise<number> {
-  // The schema CHECK constraint requires account_a < account_b
-  // lexicographically. Throw early in tests if a caller passes
-  // pre-canonical order.
-  if (!(opts.accountA < opts.accountB)) {
+  // Schema CHECK (migration 0011): (account_a, platform_a) < (account_b, platform_b).
+  if (
+    !isCanonicalPlatformedPairOrder(
+      opts.accountA,
+      opts.platformA,
+      opts.accountB,
+      opts.platformB
+    )
+  ) {
     throw new Error(
-      `insertPairFeature requires accountA < accountB; got accountA='${opts.accountA}', accountB='${opts.accountB}'. The schema CHECK (account_a < account_b) will reject this.`
+      `insertPairFeature requires canonical (account, platform) order; got ` +
+        `${opts.platformA}:${opts.accountA} vs ${opts.platformB}:${opts.accountB}.`
     );
   }
   const packed = packFeatureValue(opts.value);
