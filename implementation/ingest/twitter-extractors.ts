@@ -49,6 +49,7 @@ export const TWITTER_PAIR_EXTRACTORS: PairFeatureExtractor[] =
       /topic_phrase_overlap/i.test(e.name) ||
       /register_pattern/i.test(e.name) ||
       /code_switch_pattern/i.test(e.name) ||
+      /typo_error/i.test(e.name) ||
       /response_latency/i.test(e.name)
   );
 
