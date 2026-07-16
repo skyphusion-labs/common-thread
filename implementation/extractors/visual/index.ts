@@ -18,7 +18,17 @@
  *     - pair-level: PostedImageOverlapExtractor (greedy bipartite
  *       fuzzy matching with Hamming-distance threshold)
  *
- *   §4.5.4 Color palette overlap
+ *   §4.5.4 Image source tracing
+ *     - collection: practitioner sets platformMetadata.source_class
+ *       (stock | celebrity | scraped | AI-generated | original)
+ *     - account-level: ImageHashExtractor emits
+ *       ${type}_image_source_class when present
+ *     - pair-level: ImageSourceClassOverlapExtractor
+ *
+ *   §4.5.5 AI-generated face detection
+ *     - tracked as paper-gap #147 (may defer Workers hosting)
+ *
+ *   §4.5.6 Color palette overlap
  *     - account-level: ColorPaletteCorpusExtractor (consumes a per-
  *       account color-palette corpus aggregated by the collection
  *       layer using computeHistogram())
@@ -26,7 +36,8 @@
  *       histograms plus cosine and top-K Jaccard)
  *     - Active on default Twitter ingest (ingest builds color-palette corpus).
  *
- *   §4.5.5 EXIF metadata leakage
+ *   EXIF metadata leakage (paper §4.7.1; historically labeled §4.5.5 in
+ *   older visual docs)
  *     - parser: parseJpegExif() in exif-parser.ts (pure-TS, reusable
  *       by the collection layer)
  *     - account-level: ExifCorpusExtractor (consumes an EXIF corpus
@@ -43,11 +54,14 @@
  *     artifact aggregating the dHashes of all posted images. Use
  *     the dhash() function exported here for consistency.
  *
- *   For §4.5.4: a single per-account 'application/x-color-palette-
+ *   For §4.5.4: platformMetadata.source_class on image artifacts
+ *     (practitioner reverse-search; see withManifestSourceClass()).
+ *
+ *   For §4.5.6: a single per-account 'application/x-color-palette-
  *     corpus' artifact aggregating quantized RGB histograms. Use
  *     the computeHistogram() function exported here.
  *
- *   For §4.5.5: a single per-account 'application/x-exif-corpus'
+ *   For EXIF (§4.7.1): a single per-account 'application/x-exif-corpus'
  *     artifact containing parsed EXIF metadata per image. Use the
  *     parseJpegExif() function exported here.
  *
@@ -67,6 +81,7 @@ import { ProfileImageOverlapExtractor } from './profile-image-overlap';
 import { BannerImageOverlapExtractor } from './banner-image-overlap';
 import { PostedImageOverlapExtractor } from './posted-image-overlap';
 import { ColorPaletteOverlapExtractor } from './color-palette-overlap';
+import { ImageSourceClassOverlapExtractor } from './source-class-overlap';
 import type { AccountFeatureExtractor } from '../types';
 import type { PairFeatureExtractor } from '../pair-types';
 
@@ -81,8 +96,9 @@ export const VISUAL_PAIR_EXTRACTORS: PairFeatureExtractor[] = [
   new ProfileImageOverlapExtractor(),    // §4.5.1
   new BannerImageOverlapExtractor(),     // §4.5.2
   new PostedImageOverlapExtractor(),     // §4.5.3
-  new ColorPaletteOverlapExtractor(),    // §4.5.6 (dormant v1: no palette corpus)
-  // §4.5.5 (ExifOverlapExtractor) is registered under
+  new ImageSourceClassOverlapExtractor(), // §4.5.4
+  new ColorPaletteOverlapExtractor(),    // §4.5.6
+  // EXIF overlap (§4.7.1) is registered under
   // METADATA_LEAKAGE_PAIR_EXTRACTORS since the emitted features
   // are in that category.
 ];
@@ -96,6 +112,14 @@ export { ColorPaletteOverlapExtractor } from './color-palette-overlap';
 export { ProfileImageOverlapExtractor } from './profile-image-overlap';
 export { BannerImageOverlapExtractor } from './banner-image-overlap';
 export { PostedImageOverlapExtractor } from './posted-image-overlap';
+export { ImageSourceClassOverlapExtractor } from './source-class-overlap';
+export {
+  IMAGE_SOURCE_CLASSES,
+  normalizeSourceClass,
+  readManifestSourceClass,
+  withManifestSourceClass,
+} from './source-class';
+export type { ImageSourceClass } from './source-class';
 export {
   dhash,
   dhashFromHex,

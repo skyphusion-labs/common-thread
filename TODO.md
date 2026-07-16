@@ -91,7 +91,7 @@ share-card crawling, likes/favorites collection.
 | #145 | §4.4.4 amplification vs control baseline |
 | #146 | §4.1.6 location geocoding |
 | #147 | §4.5.5 AI-generated face detector |
-| #148 | §4.5.4 image source_class |
+| #148 | §4.5.4 image source_class (**done**) |
 | #149 | §4.7.4 link shortener fingerprint |
 | #150 | §5.2.1 enforce time_bounds at ingest |
 | #151 | §5.5 re-collection + tombstones |
