@@ -5,10 +5,11 @@ Go / no-go evaluation for opening the hosted instance to unsolicited public use
 Companion: `docs/COMPONENTS.md` (distribution), `docs/PUBLIC-USAGE.md` (stranger
 happy-path), `docs/PRIVACY.md` / `docs/ACCEPTABLE-USE.md` (policy).
 
-**Status: CODE-COMPLETE, awaiting release gates.** The adverse-security pass is
-complete with no open CRITICAL/HIGH and every code fix is merged (six PRs). What
-remains is not code: the prod fail-closed *activation*, the npm publish, Conrad's
-legal-doc sign-off, and the infra WAF CR. Detail below.
+**Status: LIVE — prod fail-closed activated and smoke-verified (2026-07-18).** The
+adverse-security pass is complete with no open CRITICAL/HIGH; every code fix is
+merged; prod fail-closed BYOK is active and proven live. Remaining before public
+*announce*: npm publish, legal-doc sign-off, the pre-announce positive BYOK
+round-trip, and the WAF apply. Detail below.
 
 > Product contract: Skyphusion hosts Workers / Hyperdrive / R2 / MySQL / VPC
 > containers. The §7 triage + attribution LLM calls are **visitor BYOK**
@@ -20,7 +21,7 @@ legal-doc sign-off, and the infra WAF CR. Detail below.
 | Subsystem | Verdict | Notes |
 |---|---|---|
 | Backend auth / authZ | **GO** | Constant-time token compare; no route missing authorize; IDOR closed — all three GET packet/run reads self-authorize in-handler, scoped to path investigation_id, integer runId (no hash-unguessability reliance). Confirmed. |
-| Fail-closed BYOK (prod) | **GO on code → activation pending** | Code fix merged (#192): `PUBLIC_BYOK_ONLY` ignores server AI creds, returns `byok_required` (400). Activation on prod (set flag + strip secrets) is the final step, on Conrad's go. |
+| Fail-closed BYOK (prod) | **LIVE** | Code fix merged (#192); activated on prod 2026-07-18 (`PUBLIC_BYOK_ONLY` set both workers, host AI secrets stripped). Smoke-verified: no-BYOK → `400 byok_required`, 0 runs dispatched (Rollins 8/0); web gate + CSP clean (Joan). Host key cannot be ridden. |
 | Web UI | **GO** | Parse-break (dead since #69) + BYOK fail-closed gate + headers (#197); de-CDN (self-hosted Tailwind + inline SVG) + strict CSP + branded BYOK error page (#199). Verified in a real browser under enforced CSP, zero violations, both modes. |
 | Deterministic extractors | GO with follow-up | No code-level resource caps (#189) — WAF + app limits bound the acute case. |
 | Attribution reasoner (§7) | GO | Citation-required, declines rather than guesses; BYOK SSRF guard verified. |
@@ -32,7 +33,7 @@ legal-doc sign-off, and the infra WAF CR. Detail below.
 
 ## CRITICAL / HIGH findings — all resolved in code
 
-### CRITICAL-1 — prod backend not fail-closed BYOK → FIXED (activation pending)
+### CRITICAL-1 — prod backend not fail-closed BYOK → FIXED + LIVE (verified 2026-07-18)
 `common-thread-prod` holds `AI_GATEWAY_URL` + `CF_AIG_TOKEN` (keyless Unified
 Billing = host-paid); a no-BYOK request fell back to host env and got host-paid
 attribution. Violated the #187 non-negotiable on the live (unannounced) endpoint.
@@ -93,7 +94,7 @@ unhandled error; container bearer auth + 32MB body cap.
 ## Acceptance criteria (#187) status
 - [x] Readiness evaluation written (this doc)
 - [x] Adverse security analysis — complete; no open critical/high
-- [~] Public instance runs with no worker-level AI secrets (code merged; activation pending)
+- [x] Public instance runs with no worker-level AI secrets (activated + verified 2026-07-18)
 - [~] Documented stranger happy-path (`docs/PUBLIC-USAGE.md`, #197)
-- [ ] Prod BYOK smoke (no secret values in logs/tickets) — after activation
+- [x] Prod BYOK smoke — negative (fail-closed) PASS 8/0 + web/CSP PASS; positive BYOK round-trip deferred to pre-announce (needs throwaway key)
 - [x] Follow-up issues filed (#189)
