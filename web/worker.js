@@ -234,7 +234,7 @@ body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Ro
           <label class="block text-xs text-slate-500">Account filter (comma-separated, optional)</label>
           <input id="account-filter" class="w-full border rounded-xl px-3 py-2 text-sm font-mono" placeholder="alice,bob">
           <div id="credential-hint" class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 hidden"></div>
-          <button onclick="runAttribution()" id="attribute-btn" class="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm">Run attribution</button>
+          <button onclick="runAttribution()" id="attribute-btn" class="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm disabled:opacity-50 disabled:cursor-not-allowed">Run attribution</button>
         </div>
 
         <div id="attribute-progress" class="hidden mt-6">
@@ -293,6 +293,9 @@ var state = {
 
 var STORAGE_KEY = 'common-thread-web-settings';
 var INVESTIGATIONS_KEY = 'common-thread-investigations';
+// Public-mode gate (server-projected). When true, attribution is BYOK-only:
+// the host provides no AI credentials and the UI refuses to submit without a key.
+var PUBLIC_BYOK_ONLY = __PUBLIC_BYOK_ONLY__;
 
 function loadSettingsFromStorage() {
   try {
@@ -345,6 +348,10 @@ function updateAttributeButtonLabel() {
   if (!btn) return;
   // Do not stomp on the transient Submitting/Queued/Running labels mid-run.
   if (state.attributionPolling) return;
+  if (PUBLIC_BYOK_ONLY) {
+    btn.textContent = 'Run attribution';
+    return;
+  }
   btn.textContent = hasByokCredentials()
     ? 'Run attribution (your key, immediate)'
     : 'Run attribution (server-side, may queue)';
@@ -354,12 +361,15 @@ function updateCredentialHint() {
   var el = document.getElementById('credential-hint');
   if (!hasByokCredentials()) {
     el.classList.remove('hidden');
-    el.textContent = 'No AI key set. Attribution will run server-side on the deployment credentials (if configured) and may be queued; add a key in Setup to run immediately with your own.';
+    el.textContent = PUBLIC_BYOK_ONLY
+      ? 'This public instance provides no AI credentials. Add your AI Gateway URL and Anthropic API key in Setup to run attribution; the host will not run it for you.'
+      : 'No AI key set. Attribution will run server-side on the deployment credentials (if configured) and may be queued; add a key in Setup to run immediately with your own.';
   } else {
     el.classList.add('hidden');
     el.textContent = '';
   }
   updateAttributeButtonLabel();
+  updateWritableUi();
 }
 
 function showAlert(message, kind) {
@@ -379,7 +389,7 @@ function updateWritableUi() {
   var ingestBtn = document.getElementById('ingest-btn');
   var attributeBtn = document.getElementById('attribute-btn');
   if (ingestBtn) ingestBtn.disabled = !writable || state.selectedFiles.length === 0;
-  if (attributeBtn) attributeBtn.disabled = !writable;
+  if (attributeBtn) attributeBtn.disabled = !writable || (PUBLIC_BYOK_ONLY && !hasByokCredentials());
   var sealBtn = document.getElementById('seal-btn');
   if (sealBtn) sealBtn.classList.toggle('hidden', !writable);
   var sealedBanner = document.getElementById('sealed-banner');
@@ -815,6 +825,11 @@ async function loadFeatures() {
 
 async function runAttribution() {
   if (!requireWritableInvestigation()) return;
+  if (PUBLIC_BYOK_ONLY && !hasByokCredentials()) {
+    showAlert('Add your AI Gateway URL and Anthropic API key in Setup. This public instance does not run attribution on host credentials.', 'error');
+    showTab('setup');
+    return;
+  }
   // Credentials are optional (issue #69). With a BYOK key the run is synchronous
   // (the key is sent and the backend returns 200); without one it runs on the
   // deployment credentials and the backend may return 202 with a queued job to
@@ -844,7 +859,7 @@ async function runAttribution() {
       // Server-creds path: a job was queued. Poll it to a terminal state.
       state.attributionJobId = data.jobId || null;
       body.textContent = JSON.stringify(data, null, 2) +
-        '\n\nQueued server-side. Polling for completion; you can safely leave this tab, ' +
+        '\\n\\nQueued server-side. Polling for completion; you can safely leave this tab, ' +
         'the results land under Results regardless.';
       if (state.attributionJobId) {
         showAlert('Attribution queued (job ' + state.attributionJobId + ').', 'success');
@@ -861,8 +876,14 @@ async function runAttribution() {
       loadRuns();
     }
   } catch (e) {
-    body.textContent = e.message;
-    showAlert(e.message, 'error');
+    var errMsg = e.message || String(e);
+    // Match the structured backend code (byok_required, HTTP 400) first;
+    // keep the legacy 503 English match for the pre-contract transition window.
+    if (PUBLIC_BYOK_ONLY && (/byok_required/i.test(errMsg) || /Attribution requires/i.test(errMsg))) {
+      errMsg = 'Attribution needs your own AI credentials. Add your AI Gateway URL and Anthropic API key in Setup, then run again.';
+    }
+    body.textContent = errMsg;
+    showAlert(errMsg, 'error');
   } finally {
     state.attributionPolling = false;
     btn.disabled = false;
@@ -907,7 +928,7 @@ async function pollAttributionJob() {
     var status = job && job.status;
     if (btn) btn.textContent = status === 'running' ? 'Running…' : 'Queued…';
     body.textContent = JSON.stringify(data, null, 2) +
-      '\n\nPolling every ' + Math.round(interval / 1000) + 's; safe to leave this tab, ' +
+      '\\n\\nPolling every ' + Math.round(interval / 1000) + 's; safe to leave this tab, ' +
       'results land under Results.';
     if (status === 'completed' || status === 'failed') {
       state.attributionJobId = null; // terminal: stop tracking this job
@@ -918,8 +939,8 @@ async function pollAttributionJob() {
         loadRuns();
       } else {
         var reason = (job && job.error_message) ? job.error_message : 'no error message provided';
-        body.textContent = JSON.stringify(data, null, 2) + '\n\nFailed: ' + reason +
-          '\n(Any pairs finished before the failure are still saved under Results.)';
+        body.textContent = JSON.stringify(data, null, 2) + '\\n\\nFailed: ' + reason +
+          '\\n(Any pairs finished before the failure are still saved under Results.)';
         showAlert('Attribution failed: ' + reason, 'error');
         loadRuns();
       }
@@ -1109,7 +1130,10 @@ function renderHtml(env) {
   const siteHeader = publicUrl
     ? '<a href="' + publicUrl + '" class="text-xs text-slate-500 hidden sm:inline hover:underline">' + publicUrl + '</a>'
     : '';
-  return HTML.replace('__SITE_HEADER__', siteHeader);
+  const byokRequired = String(env.PUBLIC_BYOK_ONLY || '').toLowerCase() === 'true';
+  return HTML
+    .replace('__SITE_HEADER__', siteHeader)
+    .replace('__PUBLIC_BYOK_ONLY__', byokRequired ? 'true' : 'false');
 }
 
 function normalizeBase(value) {
@@ -1212,7 +1236,16 @@ export default {
     if (request.method === 'GET' && url.pathname === '/') {
       const html = renderHtml(env);
       return new Response(html, {
-        headers: { 'content-type': 'text/html; charset=utf-8' },
+        headers: {
+          'content-type': 'text/html; charset=utf-8',
+          // Defense-in-depth for a page that holds a BYOK key in the browser.
+          // Strict CSP is deferred to PR B (only clean once the external CDNs
+          // are self-hosted). Referrer-Policy also keeps a share-link access
+          // token in the query string from leaking off-origin.
+          'x-content-type-options': 'nosniff',
+          'referrer-policy': 'no-referrer',
+          'x-frame-options': 'DENY',
+        },
       });
     }
 
