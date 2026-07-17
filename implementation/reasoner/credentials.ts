@@ -33,6 +33,13 @@ export interface ResolveAttributionCredentialsInput {
   body?: Record<string, unknown>;
   /** Hostnames permitted for AI Gateway URLs (default: Cloudflare AI Gateway). */
   allowedGatewayHosts?: readonly string[];
+  /**
+   * When true (PUBLIC_BYOK_ONLY on the public hosted Worker), server-side AI
+   * credentials are ignored entirely and visitor BYOK is required. Code-
+   * enforced fail-closed so a mistakenly-set server secret cannot be ridden by
+   * an anonymous, credential-less caller (#187 non-negotiable).
+   */
+  publicByokOnly?: boolean;
 }
 
 const HEADER_AI_GATEWAY_URL = 'x-ai-gateway-url';
@@ -157,7 +164,7 @@ export function parseAllowedGatewayHosts(
 
 export function resolveAttributionCredentials(
   input: ResolveAttributionCredentialsInput
-): AttributionCredentials | { error: string } {
+): AttributionCredentials | { error: string; code?: 'byok_required' } {
   const fromHeaderGateway = input.requestHeaders.get(HEADER_AI_GATEWAY_URL)?.trim();
   const fromHeaderKey = input.requestHeaders.get(HEADER_ANTHROPIC_API_KEY)?.trim();
   const fromBodyGateway = readBodyString(
@@ -175,19 +182,38 @@ export function resolveAttributionCredentials(
   const requestKey = fromHeaderKey || fromBodyKey;
   const usedRequest = Boolean(requestGateway || requestKey);
 
-  const aiGatewayUrl = requestGateway || input.envAiGatewayUrl?.trim() || '';
-  const anthropicApiKey = requestKey || input.envAnthropicApiKey?.trim() || '';
+  // #187 non-negotiable: when the deployment is BYOK-only (the public hosted
+  // Worker sets PUBLIC_BYOK_ONLY), server-side AI credentials are ignored
+  // ENTIRELY. A mistakenly-set AI_GATEWAY_URL / ANTHROPIC_API_KEY / CF_AIG_TOKEN
+  // therefore cannot be ridden by an anonymous, credential-less caller: fail-
+  // closed is enforced in code, not left to operational discipline.
+  const byokOnly = input.publicByokOnly === true;
+  const envAiGatewayUrl = byokOnly ? '' : input.envAiGatewayUrl?.trim() || '';
+  const envAnthropicApiKey = byokOnly ? '' : input.envAnthropicApiKey?.trim() || '';
+  const envCfAigToken = byokOnly ? '' : input.envCfAigToken?.trim() || '';
+
+  const aiGatewayUrl = requestGateway || envAiGatewayUrl;
+  const anthropicApiKey = requestKey || envAnthropicApiKey;
 
   // Keyless Unified Billing token (#111) is a server-only secret. It is used
   // only when the request did not supply its own credentials, so BYOK stays
   // on the x-api-key path and a user request can never present the house
   // token. When configured it satisfies the auth requirement on its own and
   // takes precedence over a server x-api-key at the transport layer.
-  const cfAigToken = usedRequest
-    ? undefined
-    : input.envCfAigToken?.trim() || undefined;
+  const cfAigToken = usedRequest ? undefined : envCfAigToken || undefined;
 
   if (!aiGatewayUrl || !(cfAigToken || anthropicApiKey)) {
+    // Under BYOK-only, a caller who supplied no credentials at all gets a
+    // stable, machine-readable code that clients branch on (mapped to HTTP
+    // 400 at the route). Distinct from the generic 503 so 'bring your own
+    // key' is never confused with a server misconfiguration.
+    if (byokOnly && !usedRequest) {
+      return {
+        error:
+          'This hosted instance runs attribution with your own credentials. Supply an AI Gateway URL and Anthropic API key via the X-AI-Gateway-Url and X-Anthropic-Api-Key headers, or aiGatewayUrl and anthropicApiKey in the request body.',
+        code: 'byok_required',
+      };
+    }
     return {
       error: usedRequest
         ? 'Attribution requires both AI Gateway URL and Anthropic API key. Provide X-AI-Gateway-Url and X-Anthropic-Api-Key headers, or aiGatewayUrl and anthropicApiKey in the request body.'

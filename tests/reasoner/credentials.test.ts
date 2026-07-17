@@ -173,4 +173,67 @@ describe('resolveAttributionCredentials', () => {
         'AI Gateway URL must not target private, link-local, or loopback hosts.',
     });
   });
+
+  // #187 non-negotiable: PUBLIC_BYOK_ONLY must code-enforce fail-closed so a
+  // mistakenly-set server AI secret cannot be ridden by an anonymous caller.
+  describe('PUBLIC_BYOK_ONLY (publicByokOnly)', () => {
+    it('does NOT ride the server key: server creds present, no visitor creds -> byok_required', () => {
+      const result = resolveAttributionCredentials(
+        withAllowedHosts({
+          // House credentials ARE set (the misconfiguration we defend against).
+          envAiGatewayUrl: 'https://gateway.example/anthropic',
+          envAnthropicApiKey: 'house-key',
+          envCfAigToken: 'house-cf-aig-token',
+          requestHeaders: new Headers(),
+          publicByokOnly: true,
+        })
+      );
+
+      // Fails closed with the stable machine-readable code, NOT a usable
+      // credential set. The house key must appear nowhere in the result.
+      expect(result).toEqual({
+        error: expect.stringContaining('your own credentials'),
+        code: 'byok_required',
+      });
+      expect(JSON.stringify(result)).not.toContain('house-key');
+      expect(JSON.stringify(result)).not.toContain('house-cf-aig-token');
+      expect('source' in result).toBe(false);
+    });
+
+    it('still honors genuine visitor BYOK under the flag', () => {
+      const result = resolveAttributionCredentials(
+        withAllowedHosts({
+          envAiGatewayUrl: 'https://gateway.example/anthropic',
+          envAnthropicApiKey: 'house-key',
+          requestHeaders: new Headers({
+            'x-ai-gateway-url': 'https://api.anthropic.com',
+            'x-anthropic-api-key': 'visitor-key',
+          }),
+          publicByokOnly: true,
+        })
+      );
+
+      expect(result).toEqual({
+        aiGatewayUrl: 'https://api.anthropic.com',
+        anthropicApiKey: 'visitor-key',
+        source: 'request',
+      });
+    });
+
+    it('CONTROL: without the flag, server creds are used (env source)', () => {
+      const result = resolveAttributionCredentials(
+        withAllowedHosts({
+          envAiGatewayUrl: 'https://gateway.example/anthropic',
+          envAnthropicApiKey: 'house-key',
+          requestHeaders: new Headers(),
+        })
+      );
+
+      expect(result).toEqual({
+        aiGatewayUrl: 'https://gateway.example/anthropic',
+        anthropicApiKey: 'house-key',
+        source: 'environment',
+      });
+    });
+  });
 });
