@@ -59,6 +59,12 @@ name = "common-thread-web-prod"
 
 [env.production.vars]
 PUBLIC_URL = "https://common-thread.skyphusion.org"
+# BYOK_REQUIRED gates attribution to bring-your-own-key on the PUBLIC instance:
+# the UI disables Run attribution and shows a clear error until the visitor sets
+# their own AI Gateway URL + Anthropic key, and never advertises a host-funded
+# path. Set to "true" for the hosted deploy. Leave unset for self-host, where the
+# backend may supply AI_GATEWAY_URL + CF_AIG_TOKEN/ANTHROPIC_API_KEY as secrets.
+BYOK_REQUIRED = "true"
 # DEFAULT_BACKEND_URL only if BACKEND service binding is unavailable
 
 [[env.production.routes]]
