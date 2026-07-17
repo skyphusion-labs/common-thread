@@ -295,7 +295,7 @@ var STORAGE_KEY = 'common-thread-web-settings';
 var INVESTIGATIONS_KEY = 'common-thread-investigations';
 // Public-mode gate (server-projected). When true, attribution is BYOK-only:
 // the host provides no AI credentials and the UI refuses to submit without a key.
-var BYOK_REQUIRED = __BYOK_REQUIRED__;
+var PUBLIC_BYOK_ONLY = __PUBLIC_BYOK_ONLY__;
 
 function loadSettingsFromStorage() {
   try {
@@ -348,7 +348,7 @@ function updateAttributeButtonLabel() {
   if (!btn) return;
   // Do not stomp on the transient Submitting/Queued/Running labels mid-run.
   if (state.attributionPolling) return;
-  if (BYOK_REQUIRED) {
+  if (PUBLIC_BYOK_ONLY) {
     btn.textContent = 'Run attribution';
     return;
   }
@@ -361,7 +361,7 @@ function updateCredentialHint() {
   var el = document.getElementById('credential-hint');
   if (!hasByokCredentials()) {
     el.classList.remove('hidden');
-    el.textContent = BYOK_REQUIRED
+    el.textContent = PUBLIC_BYOK_ONLY
       ? 'This public instance provides no AI credentials. Add your AI Gateway URL and Anthropic API key in Setup to run attribution; the host will not run it for you.'
       : 'No AI key set. Attribution will run server-side on the deployment credentials (if configured) and may be queued; add a key in Setup to run immediately with your own.';
   } else {
@@ -389,7 +389,7 @@ function updateWritableUi() {
   var ingestBtn = document.getElementById('ingest-btn');
   var attributeBtn = document.getElementById('attribute-btn');
   if (ingestBtn) ingestBtn.disabled = !writable || state.selectedFiles.length === 0;
-  if (attributeBtn) attributeBtn.disabled = !writable || (BYOK_REQUIRED && !hasByokCredentials());
+  if (attributeBtn) attributeBtn.disabled = !writable || (PUBLIC_BYOK_ONLY && !hasByokCredentials());
   var sealBtn = document.getElementById('seal-btn');
   if (sealBtn) sealBtn.classList.toggle('hidden', !writable);
   var sealedBanner = document.getElementById('sealed-banner');
@@ -825,7 +825,7 @@ async function loadFeatures() {
 
 async function runAttribution() {
   if (!requireWritableInvestigation()) return;
-  if (BYOK_REQUIRED && !hasByokCredentials()) {
+  if (PUBLIC_BYOK_ONLY && !hasByokCredentials()) {
     showAlert('Add your AI Gateway URL and Anthropic API key in Setup. This public instance does not run attribution on host credentials.', 'error');
     showTab('setup');
     return;
@@ -877,7 +877,9 @@ async function runAttribution() {
     }
   } catch (e) {
     var errMsg = e.message || String(e);
-    if (BYOK_REQUIRED && /Attribution requires/i.test(errMsg)) {
+    // Match the structured backend code (byok_required, HTTP 400) first;
+    // keep the legacy 503 English match for the pre-contract transition window.
+    if (PUBLIC_BYOK_ONLY && (/byok_required/i.test(errMsg) || /Attribution requires/i.test(errMsg))) {
       errMsg = 'Attribution needs your own AI credentials. Add your AI Gateway URL and Anthropic API key in Setup, then run again.';
     }
     body.textContent = errMsg;
@@ -1128,10 +1130,10 @@ function renderHtml(env) {
   const siteHeader = publicUrl
     ? '<a href="' + publicUrl + '" class="text-xs text-slate-500 hidden sm:inline hover:underline">' + publicUrl + '</a>'
     : '';
-  const byokRequired = String(env.BYOK_REQUIRED || '').toLowerCase() === 'true';
+  const byokRequired = String(env.PUBLIC_BYOK_ONLY || '').toLowerCase() === 'true';
   return HTML
     .replace('__SITE_HEADER__', siteHeader)
-    .replace('__BYOK_REQUIRED__', byokRequired ? 'true' : 'false');
+    .replace('__PUBLIC_BYOK_ONLY__', byokRequired ? 'true' : 'false');
 }
 
 function normalizeBase(value) {
@@ -1234,7 +1236,16 @@ export default {
     if (request.method === 'GET' && url.pathname === '/') {
       const html = renderHtml(env);
       return new Response(html, {
-        headers: { 'content-type': 'text/html; charset=utf-8' },
+        headers: {
+          'content-type': 'text/html; charset=utf-8',
+          // Defense-in-depth for a page that holds a BYOK key in the browser.
+          // Strict CSP is deferred to PR B (only clean once the external CDNs
+          // are self-hosted). Referrer-Policy also keeps a share-link access
+          // token in the query string from leaking off-origin.
+          'x-content-type-options': 'nosniff',
+          'referrer-policy': 'no-referrer',
+          'x-frame-options': 'DENY',
+        },
       });
     }
 

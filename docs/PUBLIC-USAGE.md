@@ -101,5 +101,5 @@ leave it unticked on a shared machine.
 
 If you would rather the deployment supply its own AI credentials (no BYOK), run
 your own backend and set `AI_GATEWAY_URL` plus either `CF_AIG_TOKEN` or
-`ANTHROPIC_API_KEY` as Worker secrets, and leave the web worker `BYOK_REQUIRED`
+`ANTHROPIC_API_KEY` as Worker secrets, and leave the web worker `PUBLIC_BYOK_ONLY`
 flag unset. See docs/SETUP.md and docs/DEPLOYMENT.md.
