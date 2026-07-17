@@ -5,10 +5,10 @@ Go / no-go evaluation for opening the hosted instance to unsolicited public use
 Companion: `docs/COMPONENTS.md` (distribution), `docs/PUBLIC-USAGE.md` (stranger
 happy-path), `docs/PRIVACY.md` / `docs/ACCEPTABLE-USE.md` (policy).
 
-**Status: NEARLY READY.** The adverse-security pass is complete with no open
-CRITICAL/HIGH; the code fixes are merged. Remaining before announce: one web PR
-(de-CDN + CSP), the prod fail-closed *activation*, the npm publish, and Conrad's
-legal-doc sign-off. Detail below.
+**Status: CODE-COMPLETE, awaiting release gates.** The adverse-security pass is
+complete with no open CRITICAL/HIGH and every code fix is merged (six PRs). What
+remains is not code: the prod fail-closed *activation*, the npm publish, Conrad's
+legal-doc sign-off, and the infra WAF CR. Detail below.
 
 > Product contract: Skyphusion hosts Workers / Hyperdrive / R2 / MySQL / VPC
 > containers. The §7 triage + attribution LLM calls are **visitor BYOK**
@@ -21,7 +21,7 @@ legal-doc sign-off. Detail below.
 |---|---|---|
 | Backend auth / authZ | **GO** | Constant-time token compare; no route missing authorize; IDOR closed — all three GET packet/run reads self-authorize in-handler, scoped to path investigation_id, integer runId (no hash-unguessability reliance). Confirmed. |
 | Fail-closed BYOK (prod) | **GO on code → activation pending** | Code fix merged (#192): `PUBLIC_BYOK_ONLY` ignores server AI creds, returns `byok_required` (400). Activation on prod (set flag + strip secrets) is the final step, on Conrad's go. |
-| Web UI | **GO on core → 1 PR pending** | Parse-break (dead since #69) + BYOK fail-closed gate + security headers merged (#197). Remaining: de-CDN + strict CSP + BYOK error page (PR B, flip-blocker). |
+| Web UI | **GO** | Parse-break (dead since #69) + BYOK fail-closed gate + headers (#197); de-CDN (self-hosted Tailwind + inline SVG) + strict CSP + branded BYOK error page (#199). Verified in a real browser under enforced CSP, zero violations, both modes. |
 | Deterministic extractors | GO with follow-up | No code-level resource caps (#189) — WAF + app limits bound the acute case. |
 | Attribution reasoner (§7) | GO | Citation-required, declines rather than guesses; BYOK SSRF guard verified. |
 | Archive / R2 | GO | Content-addressed, hash re-verified on read; BYOK keys never persisted. |
@@ -59,10 +59,10 @@ inline-script parse break that had left the whole UI non-functional since #69.
 
 - **MED (fixed, #194):** `escapeHtml` non-terminating loop — CPU-DoS + broke every
   PDF export containing `&`. Fixed (single ordered pass) + regression test.
-- **MED (web, pre-flip — PR B):** UI loads Tailwind + FontAwesome from external CDNs
-  on a page holding BYOK keys; supply-chain surface, blocks strict CSP. Fix:
-  self-host CSS + inline SVG, then CSP. `nosniff`/`Referrer-Policy`/`X-Frame-Options`
-  already shipped in #197; CSP lands with the de-CDN.
+- **MED (fixed, #199):** UI loaded Tailwind + FontAwesome from external CDNs on a
+  page holding BYOK keys. Fixed: self-hosted prebuilt Tailwind + inline SVG icons,
+  strict CSP (`default-src 'none'`, `script-src 'self'`, …), plus the
+  `nosniff`/`Referrer-Policy`/`X-Frame-Options` from #197.
 - **LOW (self-host only, #195 closed — fixed in #192):** partial-BYOK credential
   mixing. Same-source enforcement shipped with #192.
 - **LOW (#189):** no code-level resource caps (seed count, ingest items, O(n²) pair
