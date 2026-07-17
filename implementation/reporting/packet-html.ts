@@ -159,10 +159,17 @@ export async function packetMarkdownToHtml(
 }
 
 function escapeHtml(value: string): string {
-  let out = value;
-  out = replaceUntilStable(out, /&/g, '&amp;');
-  out = replaceUntilStable(out, /</g, '&lt;');
-  out = replaceUntilStable(out, />/g, '&gt;');
-  out = replaceUntilStable(out, /"/g, '&quot;');
-  return out;
+  // Single-pass sequential replacement, ampersand first. Do NOT use
+  // replaceUntilStable here: entity encoding reintroduces the matched '&'
+  // ('&' -> '&amp;'), so a fixpoint loop never terminates and pins the Worker
+  // at 100% CPU on any input containing '&' (a cheap DoS, and it breaks every
+  // legitimate PDF export whose content carries an ampersand). Unlike the
+  // tag/attribute stripping in sanitizePacketHtml (removal, where an outer
+  // match can expose a nested one and the CodeQL #65 fixpoint is required),
+  // encoding is monotonic: one ordered pass is complete.
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
