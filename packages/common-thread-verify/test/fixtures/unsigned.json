@@ -1,0 +1,5 @@
+{
+  "investigation_id": "synthetic-fixture-001",
+  "generated_at": "2026-07-17T00:00:00.000Z",
+  "markdown": "# Common Thread Evidence Packet (synthetic fixture)\n\nInvestigation: synthetic-fixture-001\n\nThis is a SYNTHETIC packet used only for verifier round-trip tests. No real accounts.\n"
+}
