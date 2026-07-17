@@ -57,6 +57,23 @@ describe('investigation API helpers', () => {
     expect(html).toContain('&lt;script&gt;');
     expect(html).toContain('<h1>Title</h1>');
   });
+
+  // Regression (#187 WS2): escapeHtml formerly used a replaceUntilStable
+  // fixpoint for entity encoding, so '&' -> '&amp;' -> '&amp;amp;' ... never
+  // terminated and pinned the Worker at 100% CPU on any ampersand. Drive an
+  // ampersand through both the title and a raw-HTML token; the call must
+  // return (a hang fails the suite via timeout) and encode exactly once.
+  it('packetMarkdownToHtml terminates and single-encodes ampersands', async () => {
+    const html = await packetMarkdownToHtml(
+      '<a href="https://x.example/?a=1&b=2">Q&A</a>\n\n# Tom & Jerry',
+      'Report &  <run>',
+    );
+    expect(html).toContain('&amp;');
+    expect(html).not.toContain('&amp;amp;');
+    expect(html).toContain('<h1>Tom &amp; Jerry</h1>');
+    // Raw inline HTML is escaped, not passed through.
+    expect(html).not.toMatch(/<a\s/i);
+  });
 });
 
 function escapeForExpect(value: string): string {
