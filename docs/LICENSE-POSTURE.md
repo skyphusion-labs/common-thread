@@ -6,6 +6,13 @@ noted licensed counsel, make the calls. Open questions are flagged **OPEN**.
 
 ## Question
 
+> **Factual base:** the component -> install-path -> license map lives in
+> [COMPONENTS.md](COMPONENTS.md) (paper CC-BY-4.0, `implementation/` AGPL-3.0,
+> offline toolchain MIT carve-out). This memo is the *reasoning* behind that
+> map's MIT/AGPL boundary; read the two together. Where they differ,
+> COMPONENTS.md is the factual index and this memo is the analysis.
+
+
 Common Thread is dual-licensed (see [NOTICE](../NOTICE)):
 
 - `implementation/` (the Worker, extractors, reasoner, archive) -- **AGPL-3.0-only**.

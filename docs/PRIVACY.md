@@ -23,9 +23,10 @@ Common Thread attributes coordinated inauthentic behavior to a **cluster** (a
 common operator) from **public** behavioral signals. By design it **never
 identifies natural persons** (methodology paper section 3.3.3). The hosted
 instance stores the investigation data a visitor supplies and derives, protected
-behind a per-investigation capability token, and it **never holds a shared AI
-credential** that visitors ride: attribution runs on the visitor's own key
-(BYOK).
+behind a per-investigation capability token, and **by design** holds no shared
+AI credential that visitors could ride: attribution runs on the visitor's own
+key (BYOK). (The BYOK handling described below is the design contract; it is
+verified in the #187 security pass, not asserted as fact here.)
 
 ## Two kinds of people in the data
 
@@ -76,17 +77,21 @@ recover it for you.
 
 Attribution (paper section 7) requires a language model. On the hosted instance
 **you bring your own credentials** (an Anthropic API key and/or an AI Gateway
-URL). The public Worker holds **no** shared `ANTHROPIC_API_KEY` / `AI_GATEWAY_URL`
-that visitors could ride, and it **fails closed** when BYOK is missing (clear
-error, no silent host fallback).
+URL). **By design** (the #187 non-negotiable), the public Worker holds no shared
+`ANTHROPIC_API_KEY` / `AI_GATEWAY_URL` that visitors could ride, and fails closed
+when BYOK is missing (clear error, no silent host fallback). This is the design
+contract; it is being verified in the #187 security pass, not asserted as an
+observed fact in this document.
 
-Handling of BYOK credentials (never logged, never returned on a GET, not written
-into evidence packets or R2 artifacts, memory lifetime bounded to the request)
-is a **security** property tracked under #187 workstream 2 (Rollins' adverse
-review). This document states the *privacy intent*; the security review verifies
-the *implementation*. **OPEN:** cross-reference the final #187 key-handling
-findings here once they land, and confirm whether any BYOK material is persisted
-at rest (intent: no).
+The **intended** handling of BYOK credentials is that they are not logged, not
+returned on a GET, not written into evidence packets or R2 artifacts, and held
+only for the lifetime of the request. That is the design contract, **not yet an
+asserted fact in this document.** It is being verified under #187 workstream 2
+(Rollins' adverse review), and this section will be reconciled with those
+findings when they land. Until then, treat the BYOK-handling guarantees as
+design intent pending verification. **OPEN:** confirm from the security pass
+whether any BYOK material is persisted at rest (intent: no) and fold the
+confirmed behavior in here.
 
 ### 4. Operational logs
 
