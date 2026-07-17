@@ -86,13 +86,16 @@ leave it unticked on a shared machine.
 ## Notes and limits
 
 - **Cluster-only by design.** Common Thread never attributes to a named natural
-  person. Do not use it to do so.
+  person. Do not use it to do so (paper section 3.3.3). See
+  [ACCEPTABLE-USE.md](ACCEPTABLE-USE.md) for prohibited uses and
+  [PRIVACY.md](PRIVACY.md) for what the hosted instance retains.
 - **Token custody is yours.** Lose the access token and the investigation cannot
   be recovered from the server. Share links embed the token, so anyone with the
   link has the same access.
 - **Rate / abuse limits.** The host may rate-limit anonymous investigation
   creation, ingest, and attribution, and may cap seed-set and artifact sizes, to
-  keep the shared instance healthy.
+  keep the shared instance healthy. Enforcement and prohibited uses are defined
+  in [ACCEPTABLE-USE.md](ACCEPTABLE-USE.md).
 - **Hosted API use.** This guide is for the web UI. Before using the direct API
   (`common-thread-backend.skyphusion.org`) in your own project, contact
   common-thread@skyphusion.org (see docs/contact.md).
@@ -103,3 +106,5 @@ If you would rather the deployment supply its own AI credentials (no BYOK), run
 your own backend and set `AI_GATEWAY_URL` plus either `CF_AIG_TOKEN` or
 `ANTHROPIC_API_KEY` as Worker secrets, and leave the web worker `PUBLIC_BYOK_ONLY`
 flag unset. See docs/SETUP.md and docs/DEPLOYMENT.md.
+
+> Note: ACCEPTABLE-USE.md and PRIVACY.md land with the hosted-legal-docs PR (#190); until it merges these links resolve on that branch.

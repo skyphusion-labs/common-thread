@@ -1,281 +1,20 @@
 // worker.js — Common Thread Web Frontend
+//
+// Self-contained: NO external CDN or runtime dependency (house rule). Tailwind
+// CSS is prebuilt and inlined below (regen: see web/README-assets.md); icons
+// are inline SVG (Feather geometry, MIT). Served as same-origin /app.css and
+// /app.js so a strict Content-Security-Policy needs no 'unsafe-inline'.
 
-const HTML = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Common Thread</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<style>
+const CSS = `*,:after,:before{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/*! tailwindcss v3.4.19 | MIT License | https://tailwindcss.com*/*,:after,:before{box-sizing:border-box;border:0 solid #e5e7eb}:after,:before{--tw-content:""}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;-o-tab-size:4;tab-size:4;font-family:ui-sans-serif,system-ui,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji;font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0}fieldset,legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::-moz-placeholder,textarea::-moz-placeholder{opacity:1;color:#9ca3af}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.\\!container{width:100%!important}.container{width:100%}@media (min-width:640px){.\\!container{max-width:640px!important}.container{max-width:640px}}@media (min-width:768px){.\\!container{max-width:768px!important}.container{max-width:768px}}@media (min-width:1024px){.\\!container{max-width:1024px!important}.container{max-width:1024px}}@media (min-width:1280px){.\\!container{max-width:1280px!important}.container{max-width:1280px}}@media (min-width:1536px){.\\!container{max-width:1536px!important}.container{max-width:1536px}}.mx-auto{margin-left:auto;margin-right:auto}.mb-1{margin-bottom:.25rem}.mb-2{margin-bottom:.5rem}.mb-3{margin-bottom:.75rem}.mb-4{margin-bottom:1rem}.mb-6{margin-bottom:1.5rem}.mt-1{margin-top:.25rem}.mt-2{margin-top:.5rem}.mt-4{margin-top:1rem}.mt-6{margin-top:1.5rem}.block{display:block}.inline-block{display:inline-block}.inline{display:inline}.flex{display:flex}.table{display:table}.grid{display:grid}.hidden{display:none}.h-10{height:2.5rem}.h-11{height:2.75rem}.h-28{height:7rem}.h-4{height:1rem}.h-5{height:1.25rem}.h-6{height:1.5rem}.h-8{height:2rem}.max-h-40{max-height:10rem}.max-h-48{max-height:12rem}.max-h-64{max-height:16rem}.max-h-96{max-height:24rem}.max-h-\\[28rem\\]{max-height:28rem}.min-h-\\[calc\\(100vh-4rem\\)\\]{min-height:calc(100vh - 4rem)}.w-10{width:2.5rem}.w-11{width:2.75rem}.w-4{width:1rem}.w-5{width:1.25rem}.w-6{width:1.5rem}.w-64{width:16rem}.w-8{width:2rem}.w-full{width:100%}.min-w-0{min-width:0}.max-w-2xl{max-width:42rem}.max-w-screen-2xl{max-width:1536px}.flex-1{flex:1 1 0%}.shrink-0{flex-shrink:0}.cursor-pointer{cursor:pointer}.list-inside{list-style-position:inside}.list-decimal{list-style-type:decimal}.grid-cols-1{grid-template-columns:repeat(1,minmax(0,1fr))}.grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.flex-wrap{flex-wrap:wrap}.items-start{align-items:flex-start}.items-center{align-items:center}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-2{gap:.5rem}.gap-3{gap:.75rem}.gap-4{gap:1rem}.gap-6{gap:1.5rem}.space-x-2>:not([hidden])~:not([hidden]){--tw-space-x-reverse:0;margin-right:calc(.5rem*var(--tw-space-x-reverse));margin-left:calc(.5rem*(1 - var(--tw-space-x-reverse)))}.space-y-1>:not([hidden])~:not([hidden]){--tw-space-y-reverse:0;margin-top:calc(.25rem*(1 - var(--tw-space-y-reverse)));margin-bottom:calc(.25rem*var(--tw-space-y-reverse))}.space-y-2>:not([hidden])~:not([hidden]){--tw-space-y-reverse:0;margin-top:calc(.5rem*(1 - var(--tw-space-y-reverse)));margin-bottom:calc(.5rem*var(--tw-space-y-reverse))}.space-y-3>:not([hidden])~:not([hidden]){--tw-space-y-reverse:0;margin-top:calc(.75rem*(1 - var(--tw-space-y-reverse)));margin-bottom:calc(.75rem*var(--tw-space-y-reverse))}.space-y-4>:not([hidden])~:not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1rem*(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1rem*var(--tw-space-y-reverse))}.space-y-5>:not([hidden])~:not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1.25rem*(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1.25rem*var(--tw-space-y-reverse))}.overflow-auto{overflow:auto}.overflow-hidden{overflow:hidden}.break-all{word-break:break-all}.rounded{border-radius:.25rem}.rounded-2xl{border-radius:1rem}.rounded-lg{border-radius:.5rem}.rounded-xl{border-radius:.75rem}.border{border-width:1px}.border-2{border-width:2px}.border-b{border-bottom-width:1px}.border-r{border-right-width:1px}.border-t{border-top-width:1px}.border-dashed{border-style:dashed}.border-amber-200{--tw-border-opacity:1;border-color:rgb(253 230 138/var(--tw-border-opacity,1))}.border-emerald-200{--tw-border-opacity:1;border-color:rgb(167 243 208/var(--tw-border-opacity,1))}.border-red-200{--tw-border-opacity:1;border-color:rgb(254 202 202/var(--tw-border-opacity,1))}.border-slate-300{--tw-border-opacity:1;border-color:rgb(203 213 225/var(--tw-border-opacity,1))}.border-violet-200{--tw-border-opacity:1;border-color:rgb(221 214 254/var(--tw-border-opacity,1))}.bg-amber-100{--tw-bg-opacity:1;background-color:rgb(254 243 199/var(--tw-bg-opacity,1))}.bg-amber-50{--tw-bg-opacity:1;background-color:rgb(255 251 235/var(--tw-bg-opacity,1))}.bg-emerald-100{--tw-bg-opacity:1;background-color:rgb(209 250 229/var(--tw-bg-opacity,1))}.bg-emerald-50{--tw-bg-opacity:1;background-color:rgb(236 253 245/var(--tw-bg-opacity,1))}.bg-emerald-600{--tw-bg-opacity:1;background-color:rgb(5 150 105/var(--tw-bg-opacity,1))}.bg-red-100{--tw-bg-opacity:1;background-color:rgb(254 226 226/var(--tw-bg-opacity,1))}.bg-red-50{--tw-bg-opacity:1;background-color:rgb(254 242 242/var(--tw-bg-opacity,1))}.bg-slate-100{--tw-bg-opacity:1;background-color:rgb(241 245 249/var(--tw-bg-opacity,1))}.bg-slate-50{--tw-bg-opacity:1;background-color:rgb(248 250 252/var(--tw-bg-opacity,1))}.bg-slate-900{--tw-bg-opacity:1;background-color:rgb(15 23 42/var(--tw-bg-opacity,1))}.bg-violet-100{--tw-bg-opacity:1;background-color:rgb(237 233 254/var(--tw-bg-opacity,1))}.bg-violet-50{--tw-bg-opacity:1;background-color:rgb(245 243 255/var(--tw-bg-opacity,1))}.bg-violet-600{--tw-bg-opacity:1;background-color:rgb(124 58 237/var(--tw-bg-opacity,1))}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255/var(--tw-bg-opacity,1))}.bg-gradient-to-br{background-image:linear-gradient(to bottom right,var(--tw-gradient-stops))}.from-violet-50{--tw-gradient-from:#f5f3ff var(--tw-gradient-from-position);--tw-gradient-to:rgba(245,243,255,0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from),var(--tw-gradient-to)}.to-white{--tw-gradient-to:#fff var(--tw-gradient-to-position)}.p-10{padding:2.5rem}.p-3{padding:.75rem}.p-4{padding:1rem}.p-5{padding:1.25rem}.p-6{padding:1.5rem}.px-1{padding-left:.25rem;padding-right:.25rem}.px-2{padding-left:.5rem;padding-right:.5rem}.px-3{padding-left:.75rem;padding-right:.75rem}.px-4{padding-left:1rem;padding-right:1rem}.px-6{padding-left:1.5rem;padding-right:1.5rem}.py-0\\.5{padding-top:.125rem;padding-bottom:.125rem}.py-1{padding-top:.25rem;padding-bottom:.25rem}.py-1\\.5{padding-top:.375rem;padding-bottom:.375rem}.py-2{padding-top:.5rem;padding-bottom:.5rem}.py-3{padding-top:.75rem;padding-bottom:.75rem}.pt-1{padding-top:.25rem}.pt-3{padding-top:.75rem}.text-left{text-align:left}.text-center{text-align:center}.font-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace}.text-2xl{font-size:1.5rem;line-height:2rem}.text-\\[10px\\]{font-size:10px}.text-\\[11px\\]{font-size:11px}.text-base{font-size:1rem;line-height:1.5rem}.text-lg{font-size:1.125rem;line-height:1.75rem}.text-sm{font-size:.875rem;line-height:1.25rem}.text-xl{font-size:1.25rem;line-height:1.75rem}.text-xs{font-size:.75rem;line-height:1rem}.font-medium{font-weight:500}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.tracking-tight{letter-spacing:-.025em}.tracking-widest{letter-spacing:.1em}.text-amber-700{--tw-text-opacity:1;color:rgb(180 83 9/var(--tw-text-opacity,1))}.text-amber-900{--tw-text-opacity:1;color:rgb(120 53 15/var(--tw-text-opacity,1))}.text-blue-700{--tw-text-opacity:1;color:rgb(29 78 216/var(--tw-text-opacity,1))}.text-emerald-300{--tw-text-opacity:1;color:rgb(110 231 183/var(--tw-text-opacity,1))}.text-emerald-800{--tw-text-opacity:1;color:rgb(6 95 70/var(--tw-text-opacity,1))}.text-emerald-900{--tw-text-opacity:1;color:rgb(6 78 59/var(--tw-text-opacity,1))}.text-red-600{--tw-text-opacity:1;color:rgb(220 38 38/var(--tw-text-opacity,1))}.text-red-800{--tw-text-opacity:1;color:rgb(153 27 27/var(--tw-text-opacity,1))}.text-slate-400{--tw-text-opacity:1;color:rgb(148 163 184/var(--tw-text-opacity,1))}.text-slate-500{--tw-text-opacity:1;color:rgb(100 116 139/var(--tw-text-opacity,1))}.text-slate-600{--tw-text-opacity:1;color:rgb(71 85 105/var(--tw-text-opacity,1))}.text-slate-700{--tw-text-opacity:1;color:rgb(51 65 85/var(--tw-text-opacity,1))}.text-slate-900{--tw-text-opacity:1;color:rgb(15 23 42/var(--tw-text-opacity,1))}.text-violet-800{--tw-text-opacity:1;color:rgb(91 33 182/var(--tw-text-opacity,1))}.text-white{--tw-text-opacity:1;color:rgb(255 255 255/var(--tw-text-opacity,1))}.underline{text-decoration-line:underline}.filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.transition{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,-webkit-backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter,-webkit-backdrop-filter;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}.hover\\:bg-black:hover{--tw-bg-opacity:1;background-color:rgb(0 0 0/var(--tw-bg-opacity,1))}.hover\\:bg-emerald-700:hover{--tw-bg-opacity:1;background-color:rgb(4 120 87/var(--tw-bg-opacity,1))}.hover\\:bg-slate-100:hover{--tw-bg-opacity:1;background-color:rgb(241 245 249/var(--tw-bg-opacity,1))}.hover\\:bg-slate-50:hover{--tw-bg-opacity:1;background-color:rgb(248 250 252/var(--tw-bg-opacity,1))}.hover\\:bg-violet-700:hover{--tw-bg-opacity:1;background-color:rgb(109 40 217/var(--tw-bg-opacity,1))}.hover\\:bg-white:hover{--tw-bg-opacity:1;background-color:rgb(255 255 255/var(--tw-bg-opacity,1))}.hover\\:underline:hover{text-decoration-line:underline}.disabled\\:cursor-not-allowed:disabled{cursor:not-allowed}.disabled\\:opacity-50:disabled{opacity:.5}@media (min-width:640px){.sm\\:inline{display:inline}}@media (min-width:768px){.md\\:grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}}@media (min-width:1024px){.lg\\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}}
 body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
 .dropzone { transition: all .2s ease; }
 .dropzone.dragover { background:#f0f9ff; border-color:#3b82f6; }
 .nav-active { background:#f1f5f9; font-weight:600; }
 .band-insufficient { background:#fef2f2; color:#991b1b; }
 .band-consistent { background:#fffbeb; color:#92400e; }
-.band-strongly_consistent { background:#ecfdf5; color:#065f46; }
-</style>
-</head>
-<body class="bg-slate-50 text-slate-900">
-<div class="max-w-screen-2xl mx-auto">
-  <header class="bg-white border-b px-6 py-3 flex items-center justify-between gap-4">
-    <div class="flex items-center gap-3">
-      <div class="w-10 h-10 bg-slate-900 rounded-2xl flex items-center justify-center"><i class="fa-solid fa-link text-white text-xl"></i></div>
-      <div>
-        <div class="font-semibold text-2xl tracking-tight">Common Thread</div>
-        <div class="text-xs text-slate-500">Sockpuppet attribution from public behavioral signals</div>
-      </div>
-    </div>
-    <div class="flex items-center gap-2 text-sm">
-      <span id="health-badge" class="px-2 py-1 rounded-lg text-xs bg-slate-100 text-slate-600">Checking backend…</span>
-      __SITE_HEADER__
-      <a href="https://github.com/skyphusion-labs/common-thread" target="_blank" class="px-3 py-1.5 rounded-xl border hover:bg-slate-50">GitHub</a>
-    </div>
-  </header>
+.band-strongly_consistent { background:#ecfdf5; color:#065f46; }`;
 
-  <div class="flex">
-    <aside class="w-64 bg-white border-r min-h-[calc(100vh-4rem)] p-4 shrink-0">
-      <div class="text-xs uppercase tracking-widest text-slate-500 mb-2 px-2">Workflow</div>
-      <nav class="space-y-1 text-sm" id="nav">
-        <a href="#" data-tab="setup" class="nav-link flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-100 nav-active"><i class="fa-solid fa-gear w-4"></i> Setup</a>
-        <a href="#" data-tab="investigation" class="nav-link flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-100"><i class="fa-solid fa-folder-open w-4"></i> Investigation</a>
-        <a href="#" data-tab="upload" class="nav-link flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-100"><i class="fa-solid fa-upload w-4"></i> Upload Data</a>
-        <a href="#" data-tab="features" class="nav-link flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-100"><i class="fa-solid fa-table w-4"></i> Features</a>
-        <a href="#" data-tab="attribute" class="nav-link flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-100"><i class="fa-solid fa-brain w-4"></i> Attribution</a>
-        <a href="#" data-tab="results" class="nav-link flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-100"><i class="fa-solid fa-file-lines w-4"></i> Results</a>
-      </nav>
-      <div class="mt-6 px-2 text-xs text-slate-500">
-        <div class="font-medium text-slate-700 mb-1">Active investigation</div>
-        <div id="sidebar-investigation" class="font-mono break-all text-[11px]">—</div>
-      </div>
-    </aside>
-
-    <main class="flex-1 p-6 min-w-0">
-      <div id="alert" class="hidden mb-4 px-4 py-3 rounded-xl text-sm"></div>
-
-      <!-- Setup -->
-      <section id="tab-setup">
-        <h2 class="text-2xl font-semibold mb-1">Setup</h2>
-        <p class="text-sm text-slate-600 mb-6">Connect to the Common Thread backend and provide your own AI credentials for attribution reasoning.</p>
-
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div class="bg-white rounded-2xl border p-5 space-y-4">
-            <h3 class="font-semibold">Backend</h3>
-            <label class="block text-xs text-slate-500">API base URL (optional if service binding is configured)</label>
-            <input id="backend-url" class="w-full border rounded-xl px-3 py-2 text-sm font-mono" placeholder="Leave empty when service binding is configured">
-            <p class="text-xs text-slate-500">Production UI: <a class="text-blue-700 underline" href="https://common-thread.skyphusion.org">common-thread.skyphusion.org</a>. Direct API: <a class="text-blue-700 underline" href="https://common-thread-backend.skyphusion.org">common-thread-backend.skyphusion.org</a> (contact <a class="text-blue-700 underline" href="mailto:common-thread@skyphusion.org">common-thread@skyphusion.org</a> before using the hosted API in your own project). This UI uses the <code class="bg-slate-100 px-1 rounded">BACKEND</code> service binding when deployed (leave the field above empty).</p>
-            <button onclick="checkHealth()" class="px-4 py-2 border rounded-xl text-sm hover:bg-slate-50">Test connection</button>
-          </div>
-
-          <div class="bg-white rounded-2xl border p-5 space-y-4">
-            <h3 class="font-semibold">AI credentials (BYOK)</h3>
-            <p class="text-xs text-slate-600">Attribution calls Anthropic via Cloudflare AI Gateway. Keys stay in your browser and are sent only when you run attribution — they are never stored on our servers.</p>
-            <label class="block text-xs text-slate-500">AI Gateway URL</label>
-            <input id="ai-gateway-url" class="w-full border rounded-xl px-3 py-2 text-sm font-mono" placeholder="https://gateway.ai.cloudflare.com/v1/ACCOUNT/GATEWAY/anthropic">
-            <p class="text-[11px] text-slate-500">Or use direct Anthropic API: <code class="bg-slate-100 px-1 rounded">https://api.anthropic.com</code></p>
-            <label class="block text-xs text-slate-500">Anthropic API key</label>
-            <input id="anthropic-api-key" type="password" class="w-full border rounded-xl px-3 py-2 text-sm font-mono" placeholder="sk-ant-…" autocomplete="off">
-            <label class="flex items-center gap-2 text-xs text-slate-600">
-              <input id="remember-keys" type="checkbox" class="rounded">
-              Remember credentials in this browser (localStorage)
-            </label>
-            <button onclick="saveSettings()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-sm hover:bg-black">Save settings</button>
-          </div>
-        </div>
-
-        <div class="mt-6 bg-white rounded-2xl border p-5 text-sm text-slate-700 space-y-5">
-          <h3 class="font-semibold text-base text-slate-900">How to get API keys</h3>
-          <p class="text-xs text-slate-600">Attribution uses Anthropic models for triage and reasoning. You pay Anthropic directly; the public host does not need to supply keys if users bring their own (BYOK).</p>
-
-          <div>
-            <h4 class="font-medium mb-1">1. Anthropic API key</h4>
-            <ol class="list-decimal list-inside text-xs space-y-1 text-slate-600">
-              <li>Create an account at <a class="text-blue-700 underline" href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a>.</li>
-              <li>Open <strong>API keys</strong> and create a key (starts with <code class="bg-slate-100 px-1 rounded">sk-ant-</code>).</li>
-              <li>Add billing or credits in Anthropic's console before running attribution.</li>
-            </ol>
-          </div>
-
-          <div>
-            <h4 class="font-medium mb-1">2a. Cloudflare AI Gateway (recommended)</h4>
-            <ol class="list-decimal list-inside text-xs space-y-1 text-slate-600">
-              <li>In the <a class="text-blue-700 underline" href="https://dash.cloudflare.com/" target="_blank" rel="noopener">Cloudflare dashboard</a>, go to <strong>AI → AI Gateway</strong>.</li>
-              <li>Create a gateway (or reuse an existing one).</li>
-              <li>Open the gateway and choose the <strong>Anthropic</strong> provider.</li>
-              <li>Copy the gateway base URL ending in <code class="bg-slate-100 px-1 rounded">/anthropic</code>, for example:<br>
-                <code class="block mt-1 bg-slate-100 px-2 py-1 rounded text-[11px] font-mono">https://gateway.ai.cloudflare.com/v1/&lt;account_id&gt;/&lt;gateway_name&gt;/anthropic</code></li>
-              <li>Paste that URL into <strong>AI Gateway URL</strong> above and your Anthropic key into <strong>Anthropic API key</strong>.</li>
-            </ol>
-            <p class="text-[11px] text-slate-500 mt-2">AI Gateway adds caching, rate limits, and usage visibility without changing the methodology.</p>
-          </div>
-
-          <div>
-            <h4 class="font-medium mb-1">2b. Direct Anthropic API (no Gateway)</h4>
-            <p class="text-xs text-slate-600">Set <strong>AI Gateway URL</strong> to <code class="bg-slate-100 px-1 rounded">https://api.anthropic.com</code> and use your Anthropic API key. The backend appends <code class="bg-slate-100 px-1 rounded">/v1/messages</code> automatically.</p>
-          </div>
-
-          <div class="text-xs text-slate-500 border-t pt-3">
-            <strong>Privacy:</strong> BYOK credentials are sent only when you run attribution. They are not stored on the server. Optional browser storage uses <code class="bg-slate-100 px-1 rounded">localStorage</code> on your device only.
-          </div>
-        </div>
-      </section>
-
-      <!-- Investigation -->
-      <section id="tab-investigation" class="hidden">
-        <h2 class="text-2xl font-semibold mb-1">Investigation</h2>
-        <p class="text-sm text-slate-600 mb-4">Each investigation is private. You receive an unguessable access token at creation — store it to reopen or share read access.</p>
-
-        <div class="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900 space-y-1">
-          <p><strong>Honest security note:</strong> Access tokens are capability secrets, not passwords. They stop casual browsing and guessing, but anyone with the token can read the investigation (and modify it while active). Tokens stored in this browser use <code class="bg-amber-100 px-1 rounded">localStorage</code> on your device — not encrypted. For high-sensitivity work, self-host the backend or use dedicated access controls.</p>
-          <p>If you lose the token, the investigation cannot be recovered from the server.</p>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div class="bg-white rounded-2xl border p-5 space-y-3">
-            <h3 class="font-semibold">Create new</h3>
-            <input id="inv-id" class="w-full border rounded-xl px-3 py-2 text-sm font-mono" placeholder="investigation-id">
-            <input id="inv-name" class="w-full border rounded-xl px-3 py-2 text-sm" placeholder="Display name">
-            <textarea id="inv-description" class="w-full border rounded-xl px-3 py-2 text-sm" rows="2" placeholder="Optional description"></textarea>
-            <button onclick="createInvestigation()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-sm hover:bg-black">Create</button>
-          </div>
-          <div class="bg-white rounded-2xl border p-5 space-y-3">
-            <h3 class="font-semibold">Open with access token</h3>
-            <input id="open-inv-id" class="w-full border rounded-xl px-3 py-2 text-sm font-mono" placeholder="investigation-id">
-            <input id="open-inv-token" type="password" class="w-full border rounded-xl px-3 py-2 text-sm font-mono" placeholder="ct_…" autocomplete="off">
-            <button onclick="openInvestigation()" class="px-4 py-2 border rounded-xl text-sm hover:bg-slate-50">Open</button>
-            <div class="text-xs text-slate-500 border-t pt-3">
-              <div class="font-medium text-slate-700 mb-2">Saved on this browser</div>
-              <div id="saved-investigation-list" class="space-y-2 max-h-40 overflow-auto"></div>
-            </div>
-          </div>
-        </div>
-
-        <div id="token-reveal" class="hidden mt-6 bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-3">
-          <h3 class="font-semibold text-emerald-900">Save your access token</h3>
-          <p class="text-xs text-emerald-800">This token is shown once. Copy it now — the server cannot recover it.</p>
-          <div class="flex gap-2">
-            <input id="token-reveal-value" readonly class="flex-1 border rounded-xl px-3 py-2 text-xs font-mono bg-white">
-            <button onclick="copyRevealedToken()" class="px-3 py-2 border rounded-xl text-xs hover:bg-white">Copy token</button>
-            <button onclick="copyShareLink()" class="px-3 py-2 border rounded-xl text-xs hover:bg-white">Copy link</button>
-          </div>
-        </div>
-
-        <div id="investigation-summary" class="hidden mt-6 bg-white rounded-2xl border p-5">
-          <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
-            <h3 class="font-semibold">Summary</h3>
-            <div class="flex items-center gap-2">
-              <span id="investigation-status-badge" class="text-xs px-2 py-1 rounded-lg bg-slate-100 text-slate-700">active</span>
-              <button id="seal-btn" onclick="sealInvestigation()" class="text-xs px-3 py-1.5 border rounded-lg hover:bg-slate-50">Seal (read-only)</button>
-            </div>
-          </div>
-          <p id="sealed-banner" class="hidden mb-3 text-xs text-violet-800 bg-violet-50 border border-violet-200 rounded-xl px-3 py-2">This investigation is sealed. You can review data and download evidence packets, but ingest and attribution are disabled.</p>
-          <div id="summary-content" class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm"></div>
-          <div class="mt-4">
-            <div class="flex items-center justify-between mb-2">
-              <h4 class="font-medium text-sm">Seed accounts</h4>
-              <button onclick="loadSeeds()" class="text-xs px-2 py-1 border rounded-lg hover:bg-slate-50">Refresh</button>
-            </div>
-            <div id="seeds-list" class="max-h-48 overflow-auto text-xs font-mono"></div>
-          </div>
-          <div class="mt-4">
-            <h4 class="font-medium text-sm mb-1">Triggering events (§4.2.2)</h4>
-            <p class="text-xs text-slate-500 mb-2">Configure practitioner-supplied events for response-latency extractors. Save before ingest when latency signals matter.</p>
-            <textarea id="triggering-events-json" class="w-full border rounded-xl px-3 py-2 text-xs font-mono h-28" placeholder='[{"id":"evt1","timestamp":"2025-01-01T12:00:00.000Z","label":"optional label"}]'></textarea>
-            <button onclick="saveTriggeringEvents()" class="mt-2 text-xs px-3 py-1.5 border rounded-lg hover:bg-slate-50">Save triggering events</button>
-          </div>
-        </div>
-      </section>
-
-      <!-- Upload -->
-      <section id="tab-upload" class="hidden">
-        <h2 class="text-2xl font-semibold mb-1">Upload Apify Twitter data</h2>
-        <p class="text-sm text-slate-600 mb-6">Upload Apify JSON exports (profiles, timelines, follower/following lists). The backend archives raw data and runs extractors.</p>
-
-        <div id="upload-drop" class="dropzone bg-white border-2 border-dashed border-slate-300 rounded-2xl p-10 text-center cursor-pointer mb-4">
-          <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-400 mb-2"></i>
-          <div class="text-sm font-medium">Drop JSON files here or click to browse</div>
-          <div class="text-xs text-slate-500 mt-1">Multiple files supported</div>
-          <input type="file" id="upload-files" accept=".json,application/json" multiple class="hidden">
-        </div>
-        <div id="upload-file-list" class="text-xs text-slate-600 mb-4"></div>
-        <button onclick="startIngest()" id="ingest-btn" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm disabled:opacity-50" disabled>Upload &amp; ingest</button>
-
-        <div id="ingest-status" class="hidden mt-6 bg-white rounded-2xl border p-5">
-          <h3 class="font-semibold mb-2">Ingest job</h3>
-          <pre id="ingest-status-body" class="text-xs bg-slate-900 text-emerald-300 p-4 rounded-xl overflow-auto max-h-48"></pre>
-        </div>
-      </section>
-
-      <!-- Features -->
-      <section id="tab-features" class="hidden">
-        <div class="flex items-center justify-between mb-4">
-          <div>
-            <h2 class="text-2xl font-semibold mb-1">Features</h2>
-            <p class="text-sm text-slate-600">Extracted signals from the backend pipeline.</p>
-          </div>
-          <button onclick="loadFeatures()" class="px-3 py-1.5 border rounded-xl text-sm hover:bg-white">Refresh</button>
-        </div>
-        <div id="features-summary" class="grid grid-cols-3 gap-3 mb-4"></div>
-        <pre id="features-body" class="text-xs bg-slate-900 text-emerald-300 p-4 rounded-2xl overflow-auto max-h-[28rem]"></pre>
-      </section>
-
-      <!-- Attribution -->
-      <section id="tab-attribute" class="hidden">
-        <h2 class="text-2xl font-semibold mb-1">Attribution</h2>
-        <p class="text-sm text-slate-600 mb-6">Run LLM reasoning over all active seed pairs. Requires AI credentials from Setup.</p>
-
-        <div class="bg-white rounded-2xl border p-5 space-y-4 max-w-2xl">
-          <label class="flex items-center gap-2 text-sm">
-            <input id="skip-triage" type="checkbox" class="rounded">
-            Skip triage (run reasoning on all pairs)
-          </label>
-          <label class="block text-xs text-slate-500">Account filter (comma-separated, optional)</label>
-          <input id="account-filter" class="w-full border rounded-xl px-3 py-2 text-sm font-mono" placeholder="alice,bob">
-          <div id="credential-hint" class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 hidden"></div>
-          <button onclick="runAttribution()" id="attribute-btn" class="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm disabled:opacity-50 disabled:cursor-not-allowed">Run attribution</button>
-        </div>
-
-        <div id="attribute-progress" class="hidden mt-6">
-          <pre id="attribute-body" class="text-xs bg-slate-900 text-emerald-300 p-4 rounded-2xl overflow-auto max-h-64"></pre>
-        </div>
-      </section>
-
-      <!-- Results -->
-      <section id="tab-results" class="hidden">
-        <div class="flex items-center justify-between mb-4">
-          <div>
-            <h2 class="text-2xl font-semibold mb-1">Attribution results</h2>
-            <p class="text-sm text-slate-600">Review runs and download evidence packets.</p>
-          </div>
-          <button onclick="loadRuns()" class="px-3 py-1.5 border rounded-xl text-sm hover:bg-white">Refresh</button>
-        </div>
-        <div id="runs-table-wrap" class="bg-white rounded-2xl border overflow-hidden mb-6">
-          <table class="w-full text-sm">
-            <thead class="bg-slate-50 text-left">
-              <tr>
-                <th class="px-4 py-2">Run</th>
-                <th class="px-4 py-2">Pair</th>
-                <th class="px-4 py-2">Band</th>
-                <th class="px-4 py-2">Summary</th>
-                <th class="px-4 py-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="runs-body"></tbody>
-          </table>
-        </div>
-        <div id="run-detail" class="hidden bg-white rounded-2xl border p-5">
-          <h3 class="font-semibold mb-2">Run detail</h3>
-          <pre id="run-detail-body" class="text-xs bg-slate-900 text-emerald-300 p-4 rounded-xl overflow-auto max-h-96"></pre>
-        </div>
-      </section>
-    </main>
-  </div>
-</div>
-
-<script>
-var state = {
+const APP_JS = `var state = {
   investigationId: null,
   accessToken: null,
   investigationStatus: 'active',
@@ -386,6 +125,7 @@ function isInvestigationWritable() {
 
 function updateWritableUi() {
   var writable = isInvestigationWritable();
+  updateByokGate();
   var ingestBtn = document.getElementById('ingest-btn');
   var attributeBtn = document.getElementById('attribute-btn');
   if (ingestBtn) ingestBtn.disabled = !writable || state.selectedFiles.length === 0;
@@ -1050,6 +790,28 @@ function escapeHtml(str) {
   return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function dispatchDataAction(e) {
+  var el = e.target.closest('[data-action]');
+  if (!el) return;
+  var fn = window[el.getAttribute('data-action')];
+  if (typeof fn === 'function') { e.preventDefault(); fn(); }
+}
+
+function gotoSetup() {
+  showTab('setup');
+}
+
+// Public no-credentials first-run: show the branded BYOK explainer and hide the
+// run controls until the visitor supplies their own key.
+function updateByokGate() {
+  var gate = document.getElementById('byok-gate');
+  var controls = document.getElementById('attribute-controls');
+  if (!gate) return;
+  var blocked = PUBLIC_BYOK_ONLY && !hasByokCredentials();
+  gate.classList.toggle('hidden', !blocked);
+  if (controls) controls.classList.toggle('hidden', blocked);
+}
+
 function init() {
   loadSettingsFromStorage();
   applySettingsToForm();
@@ -1074,6 +836,8 @@ function init() {
     });
   }
 
+  document.body.addEventListener('click', dispatchDataAction);
+  updateByokGate();
   document.getElementById('nav').addEventListener('click', function(e) {
     var link = e.target.closest('[data-tab]');
     if (!link) return;
@@ -1089,8 +853,293 @@ function init() {
   checkHealth();
 }
 
-window.onload = init;
-</script>
+window.onload = init;`;
+
+const HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Common Thread</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body class="bg-slate-50 text-slate-900">
+<div class="max-w-screen-2xl mx-auto">
+  <header class="bg-white border-b px-6 py-3 flex items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 bg-slate-900 rounded-2xl flex items-center justify-center"><svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
+      <div>
+        <div class="font-semibold text-2xl tracking-tight">Common Thread</div>
+        <div class="text-xs text-slate-500">Sockpuppet attribution from public behavioral signals</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-2 text-sm">
+      <span id="health-badge" class="px-2 py-1 rounded-lg text-xs bg-slate-100 text-slate-600">Checking backend…</span>
+      __SITE_HEADER__
+      <a href="https://github.com/skyphusion-labs/common-thread" target="_blank" class="px-3 py-1.5 rounded-xl border hover:bg-slate-50">GitHub</a>
+    </div>
+  </header>
+
+  <div class="flex">
+    <aside class="w-64 bg-white border-r min-h-[calc(100vh-4rem)] p-4 shrink-0">
+      <div class="text-xs uppercase tracking-widest text-slate-500 mb-2 px-2">Workflow</div>
+      <nav class="space-y-1 text-sm" id="nav">
+        <a href="#" data-tab="setup" class="nav-link flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-100 nav-active"><svg class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Setup</a>
+        <a href="#" data-tab="investigation" class="nav-link flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-100"><svg class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> Investigation</a>
+        <a href="#" data-tab="upload" class="nav-link flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-100"><svg class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Upload Data</a>
+        <a href="#" data-tab="features" class="nav-link flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-100"><svg class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> Features</a>
+        <a href="#" data-tab="attribute" class="nav-link flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-100"><svg class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg> Attribution</a>
+        <a href="#" data-tab="results" class="nav-link flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-100"><svg class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> Results</a>
+      </nav>
+      <div class="mt-6 px-2 text-xs text-slate-500">
+        <div class="font-medium text-slate-700 mb-1">Active investigation</div>
+        <div id="sidebar-investigation" class="font-mono break-all text-[11px]">—</div>
+      </div>
+    </aside>
+
+    <main class="flex-1 p-6 min-w-0">
+      <div id="alert" class="hidden mb-4 px-4 py-3 rounded-xl text-sm"></div>
+
+      <!-- Setup -->
+      <section id="tab-setup">
+        <h2 class="text-2xl font-semibold mb-1">Setup</h2>
+        <p class="text-sm text-slate-600 mb-6">Connect to the Common Thread backend and provide your own AI credentials for attribution reasoning.</p>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-white rounded-2xl border p-5 space-y-4">
+            <h3 class="font-semibold">Backend</h3>
+            <label class="block text-xs text-slate-500">API base URL (optional if service binding is configured)</label>
+            <input id="backend-url" class="w-full border rounded-xl px-3 py-2 text-sm font-mono" placeholder="Leave empty when service binding is configured">
+            <p class="text-xs text-slate-500">Production UI: <a class="text-blue-700 underline" href="https://common-thread.skyphusion.org">common-thread.skyphusion.org</a>. Direct API: <a class="text-blue-700 underline" href="https://common-thread-backend.skyphusion.org">common-thread-backend.skyphusion.org</a> (contact <a class="text-blue-700 underline" href="mailto:common-thread@skyphusion.org">common-thread@skyphusion.org</a> before using the hosted API in your own project). This UI uses the <code class="bg-slate-100 px-1 rounded">BACKEND</code> service binding when deployed (leave the field above empty).</p>
+            <button data-action="checkHealth" class="px-4 py-2 border rounded-xl text-sm hover:bg-slate-50">Test connection</button>
+          </div>
+
+          <div class="bg-white rounded-2xl border p-5 space-y-4">
+            <h3 class="font-semibold">AI credentials (BYOK)</h3>
+            <p class="text-xs text-slate-600">Attribution calls Anthropic via Cloudflare AI Gateway. Keys stay in your browser and are sent only when you run attribution — they are never stored on our servers.</p>
+            <label class="block text-xs text-slate-500">AI Gateway URL</label>
+            <input id="ai-gateway-url" class="w-full border rounded-xl px-3 py-2 text-sm font-mono" placeholder="https://gateway.ai.cloudflare.com/v1/ACCOUNT/GATEWAY/anthropic">
+            <p class="text-[11px] text-slate-500">Or use direct Anthropic API: <code class="bg-slate-100 px-1 rounded">https://api.anthropic.com</code></p>
+            <label class="block text-xs text-slate-500">Anthropic API key</label>
+            <input id="anthropic-api-key" type="password" class="w-full border rounded-xl px-3 py-2 text-sm font-mono" placeholder="sk-ant-…" autocomplete="off">
+            <label class="flex items-center gap-2 text-xs text-slate-600">
+              <input id="remember-keys" type="checkbox" class="rounded">
+              Remember credentials in this browser (localStorage)
+            </label>
+            <button data-action="saveSettings" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-sm hover:bg-black">Save settings</button>
+          </div>
+        </div>
+
+        <div class="mt-6 bg-white rounded-2xl border p-5 text-sm text-slate-700 space-y-5">
+          <h3 class="font-semibold text-base text-slate-900">How to get API keys</h3>
+          <p class="text-xs text-slate-600">Attribution uses Anthropic models for triage and reasoning. You pay Anthropic directly; the public host does not need to supply keys if users bring their own (BYOK).</p>
+
+          <div>
+            <h4 class="font-medium mb-1">1. Anthropic API key</h4>
+            <ol class="list-decimal list-inside text-xs space-y-1 text-slate-600">
+              <li>Create an account at <a class="text-blue-700 underline" href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a>.</li>
+              <li>Open <strong>API keys</strong> and create a key (starts with <code class="bg-slate-100 px-1 rounded">sk-ant-</code>).</li>
+              <li>Add billing or credits in Anthropic's console before running attribution.</li>
+            </ol>
+          </div>
+
+          <div>
+            <h4 class="font-medium mb-1">2a. Cloudflare AI Gateway (recommended)</h4>
+            <ol class="list-decimal list-inside text-xs space-y-1 text-slate-600">
+              <li>In the <a class="text-blue-700 underline" href="https://dash.cloudflare.com/" target="_blank" rel="noopener">Cloudflare dashboard</a>, go to <strong>AI → AI Gateway</strong>.</li>
+              <li>Create a gateway (or reuse an existing one).</li>
+              <li>Open the gateway and choose the <strong>Anthropic</strong> provider.</li>
+              <li>Copy the gateway base URL ending in <code class="bg-slate-100 px-1 rounded">/anthropic</code>, for example:<br>
+                <code class="block mt-1 bg-slate-100 px-2 py-1 rounded text-[11px] font-mono">https://gateway.ai.cloudflare.com/v1/&lt;account_id&gt;/&lt;gateway_name&gt;/anthropic</code></li>
+              <li>Paste that URL into <strong>AI Gateway URL</strong> above and your Anthropic key into <strong>Anthropic API key</strong>.</li>
+            </ol>
+            <p class="text-[11px] text-slate-500 mt-2">AI Gateway adds caching, rate limits, and usage visibility without changing the methodology.</p>
+          </div>
+
+          <div>
+            <h4 class="font-medium mb-1">2b. Direct Anthropic API (no Gateway)</h4>
+            <p class="text-xs text-slate-600">Set <strong>AI Gateway URL</strong> to <code class="bg-slate-100 px-1 rounded">https://api.anthropic.com</code> and use your Anthropic API key. The backend appends <code class="bg-slate-100 px-1 rounded">/v1/messages</code> automatically.</p>
+          </div>
+
+          <div class="text-xs text-slate-500 border-t pt-3">
+            <strong>Privacy:</strong> BYOK credentials are sent only when you run attribution. They are not stored on the server. Optional browser storage uses <code class="bg-slate-100 px-1 rounded">localStorage</code> on your device only.
+          </div>
+        </div>
+      </section>
+
+      <!-- Investigation -->
+      <section id="tab-investigation" class="hidden">
+        <h2 class="text-2xl font-semibold mb-1">Investigation</h2>
+        <p class="text-sm text-slate-600 mb-4">Each investigation is private. You receive an unguessable access token at creation — store it to reopen or share read access.</p>
+
+        <div class="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900 space-y-1">
+          <p><strong>Honest security note:</strong> Access tokens are capability secrets, not passwords. They stop casual browsing and guessing, but anyone with the token can read the investigation (and modify it while active). Tokens stored in this browser use <code class="bg-amber-100 px-1 rounded">localStorage</code> on your device — not encrypted. For high-sensitivity work, self-host the backend or use dedicated access controls.</p>
+          <p>If you lose the token, the investigation cannot be recovered from the server.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-white rounded-2xl border p-5 space-y-3">
+            <h3 class="font-semibold">Create new</h3>
+            <input id="inv-id" class="w-full border rounded-xl px-3 py-2 text-sm font-mono" placeholder="investigation-id">
+            <input id="inv-name" class="w-full border rounded-xl px-3 py-2 text-sm" placeholder="Display name">
+            <textarea id="inv-description" class="w-full border rounded-xl px-3 py-2 text-sm" rows="2" placeholder="Optional description"></textarea>
+            <button data-action="createInvestigation" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-sm hover:bg-black">Create</button>
+          </div>
+          <div class="bg-white rounded-2xl border p-5 space-y-3">
+            <h3 class="font-semibold">Open with access token</h3>
+            <input id="open-inv-id" class="w-full border rounded-xl px-3 py-2 text-sm font-mono" placeholder="investigation-id">
+            <input id="open-inv-token" type="password" class="w-full border rounded-xl px-3 py-2 text-sm font-mono" placeholder="ct_…" autocomplete="off">
+            <button data-action="openInvestigation" class="px-4 py-2 border rounded-xl text-sm hover:bg-slate-50">Open</button>
+            <div class="text-xs text-slate-500 border-t pt-3">
+              <div class="font-medium text-slate-700 mb-2">Saved on this browser</div>
+              <div id="saved-investigation-list" class="space-y-2 max-h-40 overflow-auto"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="token-reveal" class="hidden mt-6 bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-3">
+          <h3 class="font-semibold text-emerald-900">Save your access token</h3>
+          <p class="text-xs text-emerald-800">This token is shown once. Copy it now — the server cannot recover it.</p>
+          <div class="flex gap-2">
+            <input id="token-reveal-value" readonly class="flex-1 border rounded-xl px-3 py-2 text-xs font-mono bg-white">
+            <button data-action="copyRevealedToken" class="px-3 py-2 border rounded-xl text-xs hover:bg-white">Copy token</button>
+            <button data-action="copyShareLink" class="px-3 py-2 border rounded-xl text-xs hover:bg-white">Copy link</button>
+          </div>
+        </div>
+
+        <div id="investigation-summary" class="hidden mt-6 bg-white rounded-2xl border p-5">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <h3 class="font-semibold">Summary</h3>
+            <div class="flex items-center gap-2">
+              <span id="investigation-status-badge" class="text-xs px-2 py-1 rounded-lg bg-slate-100 text-slate-700">active</span>
+              <button id="seal-btn" data-action="sealInvestigation" class="text-xs px-3 py-1.5 border rounded-lg hover:bg-slate-50">Seal (read-only)</button>
+            </div>
+          </div>
+          <p id="sealed-banner" class="hidden mb-3 text-xs text-violet-800 bg-violet-50 border border-violet-200 rounded-xl px-3 py-2">This investigation is sealed. You can review data and download evidence packets, but ingest and attribution are disabled.</p>
+          <div id="summary-content" class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm"></div>
+          <div class="mt-4">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="font-medium text-sm">Seed accounts</h4>
+              <button data-action="loadSeeds" class="text-xs px-2 py-1 border rounded-lg hover:bg-slate-50">Refresh</button>
+            </div>
+            <div id="seeds-list" class="max-h-48 overflow-auto text-xs font-mono"></div>
+          </div>
+          <div class="mt-4">
+            <h4 class="font-medium text-sm mb-1">Triggering events (§4.2.2)</h4>
+            <p class="text-xs text-slate-500 mb-2">Configure practitioner-supplied events for response-latency extractors. Save before ingest when latency signals matter.</p>
+            <textarea id="triggering-events-json" class="w-full border rounded-xl px-3 py-2 text-xs font-mono h-28" placeholder='[{"id":"evt1","timestamp":"2025-01-01T12:00:00.000Z","label":"optional label"}]'></textarea>
+            <button data-action="saveTriggeringEvents" class="mt-2 text-xs px-3 py-1.5 border rounded-lg hover:bg-slate-50">Save triggering events</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Upload -->
+      <section id="tab-upload" class="hidden">
+        <h2 class="text-2xl font-semibold mb-1">Upload Apify Twitter data</h2>
+        <p class="text-sm text-slate-600 mb-6">Upload Apify JSON exports (profiles, timelines, follower/following lists). The backend archives raw data and runs extractors.</p>
+
+        <div id="upload-drop" class="dropzone bg-white border-2 border-dashed border-slate-300 rounded-2xl p-10 text-center cursor-pointer mb-4">
+          <svg class="w-8 h-8 text-slate-400 mb-2 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/></svg>
+          <div class="text-sm font-medium">Drop JSON files here or click to browse</div>
+          <div class="text-xs text-slate-500 mt-1">Multiple files supported</div>
+          <input type="file" id="upload-files" accept=".json,application/json" multiple class="hidden">
+        </div>
+        <div id="upload-file-list" class="text-xs text-slate-600 mb-4"></div>
+        <button data-action="startIngest" id="ingest-btn" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm disabled:opacity-50" disabled>Upload &amp; ingest</button>
+
+        <div id="ingest-status" class="hidden mt-6 bg-white rounded-2xl border p-5">
+          <h3 class="font-semibold mb-2">Ingest job</h3>
+          <pre id="ingest-status-body" class="text-xs bg-slate-900 text-emerald-300 p-4 rounded-xl overflow-auto max-h-48"></pre>
+        </div>
+      </section>
+
+      <!-- Features -->
+      <section id="tab-features" class="hidden">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-2xl font-semibold mb-1">Features</h2>
+            <p class="text-sm text-slate-600">Extracted signals from the backend pipeline.</p>
+          </div>
+          <button data-action="loadFeatures" class="px-3 py-1.5 border rounded-xl text-sm hover:bg-white">Refresh</button>
+        </div>
+        <div id="features-summary" class="grid grid-cols-3 gap-3 mb-4"></div>
+        <pre id="features-body" class="text-xs bg-slate-900 text-emerald-300 p-4 rounded-2xl overflow-auto max-h-[28rem]"></pre>
+      </section>
+
+      <!-- Attribution -->
+      <section id="tab-attribute" class="hidden">
+        <h2 class="text-2xl font-semibold mb-1">Attribution</h2>
+        <p class="text-sm text-slate-600 mb-6">Run LLM reasoning over all active seed pairs. Requires AI credentials from Setup.</p>
+
+        <div id="byok-gate" class="hidden mb-6 rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white p-6 max-w-2xl">
+          <div class="flex items-start gap-4">
+            <div class="w-11 h-11 shrink-0 bg-violet-600 rounded-2xl flex items-center justify-center"><svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></div>
+            <div class="space-y-3">
+              <div>
+                <h3 class="font-semibold text-lg text-slate-900">This public instance runs on your own API key</h3>
+                <p class="text-sm text-slate-600 mt-1">Common Thread never charges you for attribution and never uses a shared key. Bring your own Anthropic API key (optionally via a Cloudflare AI Gateway) to run the reasoning step. Your key stays in your browser and is sent only when you run attribution.</p>
+              </div>
+              <ol class="text-sm text-slate-700 space-y-1 list-decimal list-inside">
+                <li>Create an Anthropic API key at <a class="text-blue-700 underline" href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a>.</li>
+                <li>Optionally set up a <a class="text-blue-700 underline" href="https://dash.cloudflare.com/" target="_blank" rel="noopener">Cloudflare AI Gateway</a> (adds caching and usage visibility).</li>
+                <li>Paste both into Setup, then return here to run attribution.</li>
+              </ol>
+              <div class="flex flex-wrap gap-2 pt-1">
+                <button data-action="gotoSetup" class="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm">Add your key in Setup</button>
+                <a href="https://github.com/skyphusion-labs/common-thread/blob/main/docs/PUBLIC-USAGE.md" target="_blank" rel="noopener" class="px-4 py-2 border rounded-xl text-sm hover:bg-white">Read the usage guide</a>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="attribute-controls" class="bg-white rounded-2xl border p-5 space-y-4 max-w-2xl">
+          <label class="flex items-center gap-2 text-sm">
+            <input id="skip-triage" type="checkbox" class="rounded">
+            Skip triage (run reasoning on all pairs)
+          </label>
+          <label class="block text-xs text-slate-500">Account filter (comma-separated, optional)</label>
+          <input id="account-filter" class="w-full border rounded-xl px-3 py-2 text-sm font-mono" placeholder="alice,bob">
+          <div id="credential-hint" class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 hidden"></div>
+          <button data-action="runAttribution" id="attribute-btn" class="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm disabled:opacity-50 disabled:cursor-not-allowed">Run attribution</button>
+        </div>
+
+        <div id="attribute-progress" class="hidden mt-6">
+          <pre id="attribute-body" class="text-xs bg-slate-900 text-emerald-300 p-4 rounded-2xl overflow-auto max-h-64"></pre>
+        </div>
+      </section>
+
+      <!-- Results -->
+      <section id="tab-results" class="hidden">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-2xl font-semibold mb-1">Attribution results</h2>
+            <p class="text-sm text-slate-600">Review runs and download evidence packets.</p>
+          </div>
+          <button data-action="loadRuns" class="px-3 py-1.5 border rounded-xl text-sm hover:bg-white">Refresh</button>
+        </div>
+        <div id="runs-table-wrap" class="bg-white rounded-2xl border overflow-hidden mb-6">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-left">
+              <tr>
+                <th class="px-4 py-2">Run</th>
+                <th class="px-4 py-2">Pair</th>
+                <th class="px-4 py-2">Band</th>
+                <th class="px-4 py-2">Summary</th>
+                <th class="px-4 py-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="runs-body"></tbody>
+          </table>
+        </div>
+        <div id="run-detail" class="hidden bg-white rounded-2xl border p-5">
+          <h3 class="font-semibold mb-2">Run detail</h3>
+          <pre id="run-detail-body" class="text-xs bg-slate-900 text-emerald-300 p-4 rounded-xl overflow-auto max-h-96"></pre>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script src="/app.js" defer></script>
 </body>
 </html>`;
 
@@ -1125,15 +1174,37 @@ function buildProxyHeaders(request, forwardSensitive) {
   return headers;
 }
 
+const CSP = [
+  "default-src 'none'",
+  "script-src 'self'",
+  "style-src 'self'",
+  "img-src 'self' data:",
+  "connect-src 'self'",
+  "base-uri 'none'",
+  "form-action 'none'",
+  "frame-ancestors 'none'",
+].join('; ');
+
+const SECURITY_HEADERS = {
+  'x-content-type-options': 'nosniff',
+  'referrer-policy': 'no-referrer',
+  'x-frame-options': 'DENY',
+  'content-security-policy': CSP,
+};
+
 function renderHtml(env) {
   const publicUrl = (env.PUBLIC_URL || '').replace(/\/$/, '');
   const siteHeader = publicUrl
     ? '<a href="' + publicUrl + '" class="text-xs text-slate-500 hidden sm:inline hover:underline">' + publicUrl + '</a>'
     : '';
-  const byokRequired = String(env.PUBLIC_BYOK_ONLY || '').toLowerCase() === 'true';
-  return HTML
-    .replace('__SITE_HEADER__', siteHeader)
-    .replace('__PUBLIC_BYOK_ONLY__', byokRequired ? 'true' : 'false');
+  return HTML.replace('__SITE_HEADER__', siteHeader);
+}
+
+// The public-mode flag is projected into the EXTERNAL app.js (not the HTML), so
+// the served script is byte-stable per deploy and the strict CSP needs no inline.
+function renderAppJs(env) {
+  const byokOnly = String(env.PUBLIC_BYOK_ONLY || '').toLowerCase() === 'true';
+  return APP_JS.replace('__PUBLIC_BYOK_ONLY__', byokOnly ? 'true' : 'false');
 }
 
 function normalizeBase(value) {
@@ -1236,16 +1307,23 @@ export default {
     if (request.method === 'GET' && url.pathname === '/') {
       const html = renderHtml(env);
       return new Response(html, {
-        headers: {
-          'content-type': 'text/html; charset=utf-8',
-          // Defense-in-depth for a page that holds a BYOK key in the browser.
-          // Strict CSP is deferred to PR B (only clean once the external CDNs
-          // are self-hosted). Referrer-Policy also keeps a share-link access
-          // token in the query string from leaking off-origin.
-          'x-content-type-options': 'nosniff',
-          'referrer-policy': 'no-referrer',
-          'x-frame-options': 'DENY',
-        },
+        headers: Object.assign({ 'content-type': 'text/html; charset=utf-8' }, SECURITY_HEADERS),
+      });
+    }
+
+    if (request.method === 'GET' && url.pathname === '/app.css') {
+      return new Response(CSS, {
+        headers: Object.assign(
+          { 'content-type': 'text/css; charset=utf-8', 'cache-control': 'public, max-age=3600' },
+          SECURITY_HEADERS),
+      });
+    }
+
+    if (request.method === 'GET' && url.pathname === '/app.js') {
+      return new Response(renderAppJs(env), {
+        headers: Object.assign(
+          { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'public, max-age=3600' },
+          SECURITY_HEADERS),
       });
     }
 
