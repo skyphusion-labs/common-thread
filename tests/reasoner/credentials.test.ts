@@ -236,4 +236,58 @@ describe('resolveAttributionCredentials', () => {
       });
     });
   });
+
+  // #187 confused-deputy hardening: a server-held x-api-key must never be sent
+  // to a request-supplied (caller-controlled, allowlisted) gateway. Same-source
+  // BYOK: if the request supplies any credential, both must come from the
+  // request; env creds are never backfilled into a request-driven call.
+  describe('same-source BYOK (no env backfill)', () => {
+    it('does NOT ride the env key when the request supplies only a gateway', () => {
+      const result = resolveAttributionCredentials(
+        withAllowedHosts({
+          // Server key IS set; the request supplies its own gateway but no key.
+          envAnthropicApiKey: 'house-key',
+          requestHeaders: new Headers({
+            'x-ai-gateway-url': 'https://api.anthropic.com',
+          }),
+        })
+      );
+
+      // Must refuse (both required from the request), and the house key must
+      // never appear in the result -- it is NOT sent to the caller gateway.
+      expect(result).toMatchObject({ error: expect.stringContaining('both') });
+      expect(JSON.stringify(result)).not.toContain('house-key');
+    });
+
+    it('does NOT pair a request key with the env gateway', () => {
+      const result = resolveAttributionCredentials(
+        withAllowedHosts({
+          envAiGatewayUrl: 'https://gateway.example/anthropic',
+          requestHeaders: new Headers({ 'x-anthropic-api-key': 'visitor-key' }),
+        })
+      );
+
+      // Request supplied a key but no gateway: refuse rather than backfill the
+      // env gateway. (Existing "incomplete credentials" invariant, restated.)
+      expect(result).toMatchObject({ error: expect.stringContaining('both') });
+    });
+
+    it('keeps the keyless Unified Billing (env cf-aig) path green', () => {
+      const result = resolveAttributionCredentials(
+        withAllowedHosts({
+          // House keyless: no request creds -> env gateway + env cf-aig token.
+          envAiGatewayUrl: 'https://gateway.example/anthropic',
+          envCfAigToken: 'house-cf-aig-token',
+          requestHeaders: new Headers(),
+        })
+      );
+
+      expect(result).toEqual({
+        aiGatewayUrl: 'https://gateway.example/anthropic',
+        anthropicApiKey: '',
+        cfAigToken: 'house-cf-aig-token',
+        source: 'environment',
+      });
+    });
+  });
 });

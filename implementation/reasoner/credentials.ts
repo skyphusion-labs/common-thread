@@ -192,8 +192,13 @@ export function resolveAttributionCredentials(
   const envAnthropicApiKey = byokOnly ? '' : input.envAnthropicApiKey?.trim() || '';
   const envCfAigToken = byokOnly ? '' : input.envCfAigToken?.trim() || '';
 
-  const aiGatewayUrl = requestGateway || envAiGatewayUrl;
-  const anthropicApiKey = requestKey || envAnthropicApiKey;
+  // Same-source BYOK (confused-deputy hardening, #187): when the caller supplies
+  // ANY credential, BOTH the gateway URL and the x-api-key must come from the
+  // request. Server-side credentials are never backfilled into a request-driven
+  // call, so a server-held ANTHROPIC_API_KEY can never be sent as x-api-key to a
+  // caller-chosen (allowlisted) gateway that the caller controls and can log.
+  const aiGatewayUrl = usedRequest ? requestGateway || '' : envAiGatewayUrl;
+  const anthropicApiKey = usedRequest ? requestKey || '' : envAnthropicApiKey;
 
   // Keyless Unified Billing token (#111) is a server-only secret. It is used
   // only when the request did not supply its own credentials, so BYOK stays
