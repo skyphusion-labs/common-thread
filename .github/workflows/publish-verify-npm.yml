@@ -6,7 +6,7 @@ name: publish-verify-npm
 on:
   push:
     tags:
-      - 'verify-v*'
+      - "verify-v*"
 
 permissions:
   contents: read
@@ -19,8 +19,16 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: '22'
+          node-version: "22"
           registry-url: https://registry.npmjs.org
+      # Gate the publish on the package tests + the clean-room MIT/AGPL import
+      # lint. The lint scans the ACTUAL npm-pack ship list, so an AGPL/implementation
+      # or external-dependency import fails the release, not just review.
+      - name: Test + clean-room lint
+        working-directory: packages/common-thread-verify
+        run: |
+          npm test
+          npm run cleanroom
       - name: Set package version from tag
         working-directory: packages/common-thread-verify
         run: |

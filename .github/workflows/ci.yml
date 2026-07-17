@@ -148,3 +148,20 @@ jobs:
         with:
           file: ./coverage/cobertura-coverage.xml
           language: javascript
+
+  verify-package:
+    # Package-level gate for @skyphusion/common-thread-verify (#188 A2/B1):
+    # node:test suite (fixtures + keygen round-trip + script/bin parity) and the
+    # clean-room MIT/AGPL import lint. Zero runtime deps -> no npm ci needed.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - name: Verifier tests (node:test)
+        working-directory: packages/common-thread-verify
+        run: npm test
+      - name: Clean-room import lint
+        working-directory: packages/common-thread-verify
+        run: npm run cleanroom
