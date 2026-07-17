@@ -106,6 +106,13 @@ export interface Env {
   CF_AIG_TOKEN?: string;
   /** Comma-separated hostnames allowed for AI Gateway URLs (BYOK + server secret). */
   AI_GATEWAY_ALLOWED_HOSTS?: string;
+  /**
+   * BYOK-only enforcement for the public hosted Worker (#187). When "true"/"1",
+   * resolveAttributionCredentials ignores ALL server-side AI credentials and
+   * requires visitor BYOK, so a mistakenly-set AI secret cannot be ridden by an
+   * anonymous caller. Credential-less attribution then returns 400 byok_required.
+   */
+  PUBLIC_BYOK_ONLY?: string;
   SIGNER_PUBLIC_KEY?: string;
   /** In-Worker Ed25519 signing key (base64 seed) for detached evidence-packet
    * signing (§8.1.3). Optional: when unset, packets export unsigned. Provide
@@ -849,8 +856,16 @@ async function handleAttribute(ctx: RouteContext): Promise<Response> {
     requestHeaders: request.headers,
     body,
     allowedGatewayHosts: parseAllowedGatewayHosts(env.AI_GATEWAY_ALLOWED_HOSTS),
+    publicByokOnly: isTruthyFlag(env.PUBLIC_BYOK_ONLY),
   });
   if ('error' in credentials) {
+    // BYOK-only with no visitor credentials is a client precondition, not a
+    // server fault: emit a stable machine-readable code (the web UI and API
+    // clients branch on `error`, not the prose) with HTTP 400. All other
+    // credential-resolution failures stay 503.
+    if (credentials.code === 'byok_required') {
+      return jsonResponse({ error: 'byok_required', message: credentials.error }, 400);
+    }
     return jsonResponse({ error: credentials.error }, 503);
   }
 
@@ -1236,6 +1251,12 @@ async function parseJsonBody<T>(request: Request): Promise<T | Response> {
       400
     );
   }
+}
+
+/** Parse a wrangler string var as a boolean flag ("true"/"1", case-insensitive). */
+function isTruthyFlag(value: string | undefined): boolean {
+  const flag = (value ?? '').trim().toLowerCase();
+  return flag === 'true' || flag === '1';
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
