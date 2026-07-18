@@ -1009,7 +1009,11 @@ async function loadSeedAccounts(
 ): Promise<Array<{ account: string; platform: string }>> {
   const res = await db
     .prepare(
-      `SELECT account_identifier, platform
+      // DISTINCT: a non-idempotent ingest can leave duplicate seed rows for the
+      // same (account, platform); without dedup the pair loop would form a
+      // self-pair and canonicalPlatformedPair would throw (500). Mirrors
+      // resolveAccountPlatforms below.
+      `SELECT DISTINCT account_identifier, platform
        FROM seed_accounts
        WHERE investigation_id = ? AND removed_at IS NULL
        ORDER BY account_identifier ASC, platform ASC`

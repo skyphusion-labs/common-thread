@@ -98,13 +98,25 @@ export async function insertSeedIfActive(
 ): Promise<boolean> {
   const result = (await execute(
     db,
+    // Idempotent: skip the insert when an active seed with the same
+    // (investigation, platform, account) already exists, so a re-run ingest
+    // does not stack duplicate seed rows (which would otherwise self-pair in
+    // attribution). Soft-deleted rows (removed_at set) are ignored, so a
+    // removed seed can still be re-added.
     `INSERT INTO seed_accounts (
        investigation_id, platform, account_identifier, basis_statement,
        added_at, added_by, is_control
      )
      SELECT ?, ?, ?, ?, ?, ?, ?
      FROM investigations
-     WHERE id = ? AND status = 'active'`,
+     WHERE id = ? AND status = 'active'
+       AND NOT EXISTS (
+         SELECT 1 FROM seed_accounts s
+         WHERE s.investigation_id = ?
+           AND s.platform = ?
+           AND s.account_identifier = ?
+           AND s.removed_at IS NULL
+       )`,
     [
       p.investigationId,
       p.platform,
@@ -114,6 +126,9 @@ export async function insertSeedIfActive(
       p.addedBy,
       p.isControl,
       p.investigationId,
+      p.investigationId,
+      p.platform,
+      p.account,
     ]
   )) as unknown as { affectedRows?: number };
   return (result.affectedRows ?? 0) > 0;
