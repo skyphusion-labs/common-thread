@@ -278,3 +278,32 @@ npm run r2:create:prod
 ```
 
 For HTTP routes see [API.md](API.md). For first-time setup see [SETUP.md](SETUP.md).
+
+## Operator instance (Access-gated, keyless server-side attribution)
+
+The PUBLIC hosted Worker (`common-thread-prod`) runs `PUBLIC_BYOK_ONLY = "1"`
+with its server AI secrets stripped, so visitors must bring their own key
+(#187). The **operator instance** is a separate, Cloudflare Access-gated
+deployment that lets the account owner run server-side attribution on a FUNDED
+Cloudflare AI Gateway (keyless Unified Billing; bills CF credits) without
+re-opening credential-riding on the public box.
+
+```
+common-thread-ops.skyphusion.org   OPS web (env.operator), behind CF Access (owner only)
+   -> [BACKEND service binding] -> common-thread-ops-backend (env.operator)
+                                    PUBLIC_BYOK_ONLY unset; AI_GATEWAY_URL + CF_AIG_TOKEN
+                                    NO public route -- reachable only via the binding
+```
+
+- Config only, no app code: `[env.operator]` in `wrangler.toml` and
+  `web/wrangler.toml` (see the `.example` files). The existing UI works as-is;
+  with `PUBLIC_BYOK_ONLY` unset the BYOK gate is dormant and the backend
+  resolves the keyless server path (`source: "environment"`,
+  `implementation/reasoner/credentials.ts`, #111).
+- Deploy is **manual and gated**: run the `deploy` workflow via
+  `workflow_dispatch` with `deploy_operator = true` (a push to main NEVER
+  deploys the operator env). Backend deploys before web (service-binding order).
+- Full deploy + Cloudflare Access + secrets runbook (aviation-grade,
+  reproducible-from-docs) lives in fleet-chezmoi:
+  **`system/common-thread/RUNBOOK-ops-instance.md`**, with the Access IaC at
+  `system/cloudflare/access/apply-common-thread-ops-access.sh`.
