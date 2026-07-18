@@ -255,6 +255,11 @@ name = "common-thread-ops-backend"
 ENVIRONMENT = "production"
 TRIAGE_MODEL = "claude-haiku-4-5"
 REASONING_MODEL = "claude-opus-4-8"
+# The operator instance REUSES the shared prod ingest/PDF containers so real
+# ingest works (inline Worker ingest handles only a tiny tweet set and 500s on
+# real payloads). These point at the same VPC container hostnames as prod.
+INGEST_WORKER_URL = "http://json-ingest:8080/trigger"
+PDF_WORKER_URL = "http://json-pdf:8081/render"
 # PUBLIC_BYOK_ONLY intentionally UNSET: this private instance runs keyless
 # server-side attribution on the funded gateway. Do NOT set it here.
 
@@ -273,3 +278,17 @@ class_name = "ManifestCoordinator"
 [[env.operator.migrations]]
 tag = "v1"
 new_sqlite_classes = ["ManifestCoordinator"]
+
+# Ingest + PDF containers: REUSE the SHARED prod VPC services (same service_ids
+# as [env.production]; the containers are shared across dev/prod). Required for
+# real ingest. The attribution executor (VPC_ATTRIBUTION) is deliberately NOT
+# bound here, so attribution runs INLINE on the operator keyless CF_AIG_TOKEN.
+[[env.operator.vpc_services]]
+binding = "VPC_INGEST"
+service_id = "YOUR_VPC_INGEST_SERVICE_ID"
+remote = true
+
+[[env.operator.vpc_services]]
+binding = "VPC_PDF"
+service_id = "YOUR_VPC_PDF_SERVICE_ID"
+remote = true
