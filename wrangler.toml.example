@@ -219,3 +219,57 @@ enabled = true
 # SIGNER_ID           -- optional signer identity recorded in packet signatures
 # INGEST_SECRET       — VPC ingest container auth (required with VPC_INGEST)
 # PDF_SECRET          — VPC PDF container auth (?format=pdf)
+
+# =============================================================================
+# Operator (env.operator) -- account owner PRIVATE keyless attribution instance
+# =============================================================================
+# A separate, Cloudflare Access-gated operator backend so the account owner can
+# run server-side attribution on a FUNDED Cloudflare AI Gateway (keyless Unified
+# Billing: bills CF credits, needs zero Anthropic credits) WITHOUT re-opening
+# credential-riding on the PUBLIC common-thread-prod Worker, which stays
+# PUBLIC_BYOK_ONLY = "1" with its server AI secrets stripped (#187).
+#
+# Topology:
+#   common-thread-ops.skyphusion.org  (OPS web, web env.operator, Access-gated)
+#     -> [BACKEND service binding] -> common-thread-ops-backend  (THIS env)
+#   The ops backend has NO public route; it is reachable ONLY through the web
+#   Worker service binding (mirrors the prod web -> backend topology). This env
+#   deliberately leaves PUBLIC_BYOK_ONLY UNSET, so credentials.ts resolves the
+#   keyless server path (source: "environment", CF_AIG_TOKEN, #111). The PUBLIC
+#   common-thread-prod Worker is UNAFFECTED by this env.
+#
+# Secrets (NEVER in this file; set via `wrangler secret put --env operator`):
+#   AI_GATEWAY_URL  -- funded keyless CF AI Gateway base URL
+#   CF_AIG_TOKEN    -- per-function AI Gateway Run token (keyless Unified Billing)
+#
+# DB + ARCHIVE reuse the production resources below (single operator; no public
+# listing and capability-token scoping mean no cross-tenant exposure). The ops
+# runbook documents the optional "isolate resources" hardening (own Hyperdrive
+# + own R2 bucket) if fully separate operator storage is later wanted.
+[env.operator]
+name = "common-thread-ops-backend"
+
+# NO [[env.operator.routes]] -- reachable ONLY via the web service binding.
+
+[env.operator.vars]
+ENVIRONMENT = "production"
+TRIAGE_MODEL = "claude-haiku-4-5"
+REASONING_MODEL = "claude-opus-4-8"
+# PUBLIC_BYOK_ONLY intentionally UNSET: this private instance runs keyless
+# server-side attribution on the funded gateway. Do NOT set it here.
+
+[[env.operator.hyperdrive]]
+binding = "DB"
+id = "YOUR_PROD_HYPERDRIVE_ID_HERE"
+
+[[env.operator.r2_buckets]]
+binding = "ARCHIVE"
+bucket_name = "common-thread-archive-prod"
+
+[[env.operator.durable_objects.bindings]]
+name = "MANIFEST_COORDINATOR"
+class_name = "ManifestCoordinator"
+
+[[env.operator.migrations]]
+tag = "v1"
+new_sqlite_classes = ["ManifestCoordinator"]

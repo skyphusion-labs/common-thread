@@ -74,3 +74,29 @@ custom_domain = true
 [[env.production.services]]
 binding = "BACKEND"
 service = "common-thread-prod"
+
+# =============================================================================
+# Operator (env.operator) -- Access-gated hosted UI for the account owner
+# =============================================================================
+# Serves the SAME browser UI as prod with NO code change. PUBLIC_BYOK_ONLY is
+# UNSET here, so the BYOK gate is dormant (worker.js reads a STRICT === "true");
+# the operator leaves the key field blank and the ops backend resolves the
+# keyless server path. Cloudflare Access (Zero Trust) gates the hostname to the
+# account owner only; IaC lives in fleet-chezmoi:
+#   system/cloudflare/access/apply-common-thread-ops-access.sh
+# The hostname is a Workers custom domain (wrangler creates + owns the proxied
+# DNS record at deploy; it is NOT declared in the fleet DNS zone JSON).
+[env.operator]
+name = "common-thread-ops-web"
+
+[env.operator.vars]
+PUBLIC_URL = "https://common-thread-ops.skyphusion.org"
+# PUBLIC_BYOK_ONLY intentionally UNSET (BYOK gate dormant; keyless server path).
+
+[[env.operator.routes]]
+pattern = "common-thread-ops.skyphusion.org"
+custom_domain = true
+
+[[env.operator.services]]
+binding = "BACKEND"
+service = "common-thread-ops-backend"
