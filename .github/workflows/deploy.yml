@@ -1,8 +1,9 @@
 name: deploy
 
-# Deploy backend + web Workers to production on a green push to main.
-# PRs are gated by ci.yml; this re-runs typecheck + tests on the exact commit
-# being shipped (same pattern as postern deploy.yml).
+# Deploy backend + web Workers to production on a pushed version tag (v*).
+# A bare merge to main NEVER redeploys prod; cut a SemVer tag to ship
+# (git tag -a vX.Y.Z && git push origin vX.Y.Z). This re-runs typecheck + tests
+# on the exact commit being shipped (same pattern as postern deploy.yml).
 #
 # Workers:
 #   root wrangler.toml -> common-thread-prod (API)
@@ -29,7 +30,7 @@ name: deploy
 
 on:
   push:
-    branches: [main]
+    tags: ["v*"]
   workflow_dispatch:
     inputs:
       deploy_operator:
@@ -41,7 +42,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: deploy-common-thread-main
+  group: deploy-common-thread-tag
   cancel-in-progress: false
 
 jobs:
@@ -68,6 +69,17 @@ jobs:
       TEST_MYSQL_URL: mysql://root@127.0.0.1:3306/common_thread_test
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Assert tag is on main (no prod deploy from an unmerged branch)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::tag $GITHUB_REF_NAME points at $GITHUB_SHA which is not on origin/main; refusing to deploy an unreviewed commit"
+            exit 1
+          fi
 
       - uses: actions/setup-node@v7
         with:
@@ -86,7 +98,7 @@ jobs:
           MYSQL_URL: mysql://root@127.0.0.1:3306/common_thread_test
 
       - name: Deploy backend (common-thread-prod)
-        if: github.event_name == 'push'
+        if: startsWith(github.ref, 'refs/tags/v')
         env:
           COMMON_THREAD_BACKEND_WRANGLER: ${{ secrets.COMMON_THREAD_BACKEND_WRANGLER }}
         run: |
@@ -100,7 +112,7 @@ jobs:
           rm -f wrangler.ci.toml
 
       - name: Deploy web (common-thread-web-prod)
-        if: github.event_name == 'push'
+        if: startsWith(github.ref, 'refs/tags/v')
         env:
           COMMON_THREAD_WEB_WRANGLER: ${{ secrets.COMMON_THREAD_WEB_WRANGLER }}
         run: |
