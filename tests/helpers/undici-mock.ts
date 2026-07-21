@@ -14,6 +14,7 @@
 
 import {
   MockAgent,
+  fetch as undiciFetch,
   setGlobalDispatcher,
   getGlobalDispatcher,
   type Dispatcher,
@@ -22,13 +23,18 @@ import {
 
 let agent: MockAgent | null = null;
 let previousDispatcher: Dispatcher | null = null;
+let previousFetch: typeof globalThis.fetch | undefined;
 
 /** Activate interception: install a fresh MockAgent as the global dispatcher. */
 function activate(): void {
   if (agent) return;
   previousDispatcher = getGlobalDispatcher();
+  previousFetch = globalThis.fetch;
   agent = new MockAgent();
   setGlobalDispatcher(agent);
+  // Node 22's bundled fetch can ignore npm undici 8's global dispatcher; route
+  // through the same undici build that owns MockAgent so intercepts apply.
+  globalThis.fetch = undiciFetch as typeof fetch;
 }
 
 /** Fail (rather than hit the network) on any un-intercepted request. */
@@ -54,8 +60,12 @@ function deactivate(): void {
   if (previousDispatcher) {
     setGlobalDispatcher(previousDispatcher);
   }
+  if (previousFetch) {
+    globalThis.fetch = previousFetch;
+  }
   agent = null;
   previousDispatcher = null;
+  previousFetch = undefined;
 }
 
 export const fetchMock = {
