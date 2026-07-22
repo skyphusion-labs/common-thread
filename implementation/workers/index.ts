@@ -348,7 +348,7 @@ const ROUTES: Route[] = [
   { method: 'GET', pattern: /^\/investigations\/([^/]+)\/runs\/([^/]+)$/, handler: handleSingleRun },
 
   // Investigation-level evidence packet (§8.1.1)
-  { method: 'GET', pattern: /^\/investigations\/([^/]+)\/packet$/, handler: handleInvestigationPacket },
+  { method: 'GET', pattern: /^\/investigations\/([^/]+)\/packet$/, auth: {}, handler: handleInvestigationPacket },
 
   // Evidence packet for an attribution run (§8.1; validates run_id before auth)
   { method: 'GET', pattern: /^\/investigations\/([^/]+)\/packet\/([^/]+)$/, handler: handlePacket },
