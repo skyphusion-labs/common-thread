@@ -48,7 +48,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: skyphusion-labs/fleet-chezmoi
-          ref: main
+          ref: fix/adversarial-audit-k27-json
           path: fleet-chezmoi
           token: ${{ secrets.RUNNER_GROUP_ADMIN_TOKEN }}
 
@@ -59,9 +59,10 @@ jobs:
           CF_AIG_TOKEN: ${{ secrets.CF_AIG_TOKEN }}
           AI_GATEWAY_ID: ${{ vars.AI_GATEWAY_ID }}
           GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          AUDIT_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'pr' }}
         run: |
           set -euo pipefail
-          mode="${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'pr' }}"
+          mode="${AUDIT_MODE}"
           if [[ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]]; then
             echo "::error::CLOUDFLARE_ACCOUNT_ID unset (org var or repo secret)"
             exit 2
