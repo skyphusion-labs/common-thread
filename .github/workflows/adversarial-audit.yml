@@ -48,8 +48,8 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: skyphusion-labs/fleet-chezmoi
-          # Pinned merge SHA (fleet-chezmoi #968); do not use floating branch refs with RUNNER_GROUP_ADMIN_TOKEN.
-          ref: 00b509b6c56b160c6cd078db21b9b4dc222cd9f9
+          # Pinned merge SHA (fleet-chezmoi #970 baseline pack); do not use floating branch refs with RUNNER_GROUP_ADMIN_TOKEN.
+          ref: 8d7a3a590fdfd316556c105cd127c362b6bcc937
           path: fleet-chezmoi
           token: ${{ secrets.RUNNER_GROUP_ADMIN_TOKEN }}
 
@@ -85,22 +85,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          marker="<!-- adversarial-audit -->"
-          {
-            printf '%s\n\n' "$marker"
-            cat audit-report.md
-          } > pr-comment.md
-          existing="$(
-            gh api "repos/${GITHUB_REPOSITORY}/issues/${{ github.event.pull_request.number }}/comments" \
-              --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("'"${marker}"'"))) | .id' \
-              | head -1 || true
-          )"
-          if [[ -n "${existing}" ]]; then
-            jq -n --rawfile body pr-comment.md '{body: $body}' \
-              | gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" --input -
-          else
-            gh pr comment "${{ github.event.pull_request.number }}" --body-file pr-comment.md
-          fi
+          bash fleet-chezmoi/scripts/adversarial-audit/post-pr-comment.sh "${{ github.event.pull_request.number }}"
 
       - name: Upload audit artifact
         uses: actions/upload-artifact@v4
