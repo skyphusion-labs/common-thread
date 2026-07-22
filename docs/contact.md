@@ -103,8 +103,38 @@ Security-sensitive bug reports should use the private email channel and use the 
 
 The reference implementation has no SLA for security response. Severity is assessed on a case-by-case basis; vulnerabilities that affect the methodology's commitments (chain of custody integrity, attribution-output integrity, audience-exclusion enforcement) are prioritized over vulnerabilities that affect convenience or non-critical functionality.
 
+## Abuse reports (hosted instance)
+
+Report misuse of the hosted instance at
+[common-thread.skyphusion.org](https://common-thread.skyphusion.org), or a
+violation of [ACCEPTABLE-USE.md](ACCEPTABLE-USE.md), to the private email channel
+with the subject prefix `[ABUSE]`:
+
+**common-thread@skyphusion.org**
+
+Use this channel to report, for example, an investigation that appears to target
+a protected population (paper section 1.2, section 10.2), an attempt to use the
+tool for natural-person identification (section 3.3.3), or output presented as a
+"verdict" or as proof of a specific person's identity (section 3.2.2).
+
+**What to include:**
+
+- The nature of the misuse and why you believe it violates acceptable use.
+- Enough context to assess the report, and no more. Do **not** send unsolicited
+  PII, case filings, or documents about the accounts involved (see "What to send
+  and what not to send" above); describe the concern rather than attaching
+  sensitive material.
+
+**What the host can do.** On a credible report the host can revoke the offending
+investigation's capability token and access, rate-limit or block abusive callers,
+and decline to support (and where appropriate publicly disavow) the use
+(section 10.8). The host's safeguards are largely moral and reputational, not
+technical: the hosted instance cannot inspect a practitioner's intent and cannot
+prevent a determined misuser who controls their own deployment. Absence of
+enforcement in a given case is not endorsement.
+
 ---
 
-**Last updated:** 5/19/2026
+**Last updated:** 7/17/2026
 
 **Project status:** v1 in active stabilization; see README for maintenance posture.
