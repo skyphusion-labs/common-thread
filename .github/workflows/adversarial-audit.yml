@@ -6,6 +6,7 @@ name: Adversarial audit
 #   repo -> moonshotai/kimi-k3 full tree (workflow_dispatch only; needs CF_AIG_TOKEN)
 #
 # Secrets: CLOUDFLARE_API_TOKEN (+ CF_AIG_TOKEN for repo mode) at repo or org scope.
+#           RUNNER_GROUP_ADMIN_TOKEN (org, all repos) to clone private fleet-chezmoi.
 # Vars:    CLOUDFLARE_ACCOUNT_ID, AI_GATEWAY_ID (org)
 
 on:
@@ -49,6 +50,7 @@ jobs:
           repository: skyphusion-labs/fleet-chezmoi
           ref: main
           path: fleet-chezmoi
+          token: ${{ secrets.RUNNER_GROUP_ADMIN_TOKEN }}
 
       - name: Run adversarial audit
         env:
