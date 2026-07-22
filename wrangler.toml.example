@@ -14,6 +14,9 @@
 # Attribution (server-side keys OR user BYOK from web UI):
 #   Secrets: AI_GATEWAY_URL, ANTHROPIC_API_KEY (optional if all users BYOK)
 #   Vars: AI_GATEWAY_ALLOWED_HOSTS (optional; default gateway.ai.cloudflare.com)
+#   Var:  PUBLIC_BYOK_ONLY = "1" on the PUBLIC hosted Worker (#187) forces
+#         visitor BYOK and ignores any server-side AI secret so it cannot be
+#         ridden; credential-less attribution then returns 400 byok_required.
 
 name = "common-thread"
 main = "implementation/workers/index.ts"
@@ -82,6 +85,9 @@ TRIAGE_MODEL = "claude-haiku-4-5"
 REASONING_MODEL = "claude-opus-4-8"
 # Optional: "true" / "1" enables synchronous dual-write to ARCHIVE_REPLICA (§5.4.4).
 # ARCHIVE_DUAL_WRITE = "true"
+# Optional: "true" / "1" forces visitor BYOK and ignores server AI secrets (#187).
+# Required on the public hosted Worker; leave unset for a self-host with server keys.
+# PUBLIC_BYOK_ONLY = "1"
 # Comma-separated browser origins allowed to call the API directly (empty = blocked).
 # CORS_ALLOWED_ORIGINS = "http://127.0.0.1:8787,http://localhost:8787"
 
@@ -160,6 +166,9 @@ custom_domain = true
 ENVIRONMENT = "production"
 TRIAGE_MODEL = "claude-haiku-4-5"
 REASONING_MODEL = "claude-opus-4-8"
+# Public hosted instance is BYOK-only (#187): server AI secrets, if any are
+# ever set, are ignored and cannot be ridden. Credential-less attribution -> 400.
+PUBLIC_BYOK_ONLY = "1"
 # Browser origins approved for direct API use (comma-separated). Empty blocks all.
 # CORS_ALLOWED_ORIGINS = "https://your-approved-app.example.com"
 # INGEST_WORKER_URL = "http://json-ingest:8080/trigger"
@@ -210,3 +219,76 @@ enabled = true
 # SIGNER_ID           -- optional signer identity recorded in packet signatures
 # INGEST_SECRET       — VPC ingest container auth (required with VPC_INGEST)
 # PDF_SECRET          — VPC PDF container auth (?format=pdf)
+
+# =============================================================================
+# Operator (env.operator) -- account owner PRIVATE keyless attribution instance
+# =============================================================================
+# A separate, Cloudflare Access-gated operator backend so the account owner can
+# run server-side attribution on a FUNDED Cloudflare AI Gateway (keyless Unified
+# Billing: bills CF credits, needs zero Anthropic credits) WITHOUT re-opening
+# credential-riding on the PUBLIC common-thread-prod Worker, which stays
+# PUBLIC_BYOK_ONLY = "1" with its server AI secrets stripped (#187).
+#
+# Topology:
+#   common-thread-ops.skyphusion.org  (OPS web, web env.operator, Access-gated)
+#     -> [BACKEND service binding] -> common-thread-ops-backend  (THIS env)
+#   The ops backend has NO public route; it is reachable ONLY through the web
+#   Worker service binding (mirrors the prod web -> backend topology). This env
+#   deliberately leaves PUBLIC_BYOK_ONLY UNSET, so credentials.ts resolves the
+#   keyless server path (source: "environment", CF_AIG_TOKEN, #111). The PUBLIC
+#   common-thread-prod Worker is UNAFFECTED by this env.
+#
+# Secrets (NEVER in this file; set via `wrangler secret put --env operator`):
+#   AI_GATEWAY_URL  -- funded keyless CF AI Gateway base URL
+#   CF_AIG_TOKEN    -- per-function AI Gateway Run token (keyless Unified Billing)
+#
+# DB + ARCHIVE reuse the production resources below (single operator; no public
+# listing and capability-token scoping mean no cross-tenant exposure). The ops
+# runbook documents the optional "isolate resources" hardening (own Hyperdrive
+# + own R2 bucket) if fully separate operator storage is later wanted.
+[env.operator]
+name = "common-thread-ops-backend"
+
+# NO [[env.operator.routes]] -- reachable ONLY via the web service binding.
+
+[env.operator.vars]
+ENVIRONMENT = "production"
+TRIAGE_MODEL = "claude-haiku-4-5"
+REASONING_MODEL = "claude-opus-4-8"
+# The operator instance REUSES the shared prod ingest/PDF containers so real
+# ingest works (inline Worker ingest handles only a tiny tweet set and 500s on
+# real payloads). These point at the same VPC container hostnames as prod.
+INGEST_WORKER_URL = "http://json-ingest:8080/trigger"
+PDF_WORKER_URL = "http://json-pdf:8081/render"
+# PUBLIC_BYOK_ONLY intentionally UNSET: this private instance runs keyless
+# server-side attribution on the funded gateway. Do NOT set it here.
+
+[[env.operator.hyperdrive]]
+binding = "DB"
+id = "YOUR_PROD_HYPERDRIVE_ID_HERE"
+
+[[env.operator.r2_buckets]]
+binding = "ARCHIVE"
+bucket_name = "common-thread-archive-prod"
+
+[[env.operator.durable_objects.bindings]]
+name = "MANIFEST_COORDINATOR"
+class_name = "ManifestCoordinator"
+
+[[env.operator.migrations]]
+tag = "v1"
+new_sqlite_classes = ["ManifestCoordinator"]
+
+# Ingest + PDF containers: REUSE the SHARED prod VPC services (same service_ids
+# as [env.production]; the containers are shared across dev/prod). Required for
+# real ingest. The attribution executor (VPC_ATTRIBUTION) is deliberately NOT
+# bound here, so attribution runs INLINE on the operator keyless CF_AIG_TOKEN.
+[[env.operator.vpc_services]]
+binding = "VPC_INGEST"
+service_id = "YOUR_VPC_INGEST_SERVICE_ID"
+remote = true
+
+[[env.operator.vpc_services]]
+binding = "VPC_PDF"
+service_id = "YOUR_VPC_PDF_SERVICE_ID"
+remote = true

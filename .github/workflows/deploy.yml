@@ -1,30 +1,48 @@
 name: deploy
 
-# Deploy backend + web Workers to production on a green push to main.
-# PRs are gated by ci.yml; this re-runs typecheck + tests on the exact commit
-# being shipped (same pattern as postern deploy.yml).
+# Deploy backend + web Workers to production on a pushed version tag (v*).
+# A bare merge to main NEVER redeploys prod; cut a SemVer tag to ship
+# (git tag -a vX.Y.Z && git push origin vX.Y.Z). This re-runs typecheck + tests
+# on the exact commit being shipped (same pattern as postern deploy.yml).
 #
 # Workers:
 #   root wrangler.toml -> common-thread-prod (API)
 #   web/wrangler.toml  -> common-thread-web-prod (browser UI)
 #
+# Operator instance (manual, gated -- NEVER auto-fires on push):
+#   Trigger this workflow via workflow_dispatch with deploy_operator = true to
+#   deploy the Access-gated operator instance (--env operator):
+#     root wrangler.toml -> common-thread-ops-backend (no public route)
+#     web/wrangler.toml  -> common-thread-ops-web (common-thread-ops.skyphusion.org)
+#   A push to main NEVER deploys the operator env; a manual operator run NEVER
+#   redeploys prod. See fleet-chezmoi system/common-thread/RUNBOOK-ops-instance.md.
+#
 # Required repo secrets:
 #   CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID
-#   COMMON_THREAD_BACKEND_WRANGLER -- full production backend wrangler.toml (real ids)
-#   COMMON_THREAD_WEB_WRANGLER      -- full production web wrangler.toml
+#   COMMON_THREAD_BACKEND_WRANGLER      -- full production backend wrangler.toml (real ids)
+#   COMMON_THREAD_WEB_WRANGLER          -- full production web wrangler.toml
+#   COMMON_THREAD_OPS_BACKEND_WRANGLER  -- full operator backend wrangler.toml (real ids)
+#   COMMON_THREAD_OPS_WEB_WRANGLER      -- full operator web wrangler.toml
 #
-# Runtime secrets (INGEST_SECRET, PDF_SECRET, AI keys, etc.) are set once via
-# `wrangler secret put` and persist across deploys -- not managed here.
+# Runtime secrets (INGEST_SECRET, PDF_SECRET, AI keys, AI_GATEWAY_URL,
+# CF_AIG_TOKEN, etc.) are set once via `wrangler secret put [--env operator]`
+# and persist across deploys -- not managed here.
 
 on:
   push:
-    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      deploy_operator:
+        description: "Deploy the Access-gated operator instance (--env operator) instead of prod"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: deploy-common-thread-main
+  group: deploy-common-thread-tag
   cancel-in-progress: false
 
 jobs:
@@ -51,6 +69,17 @@ jobs:
       TEST_MYSQL_URL: mysql://root@127.0.0.1:3306/common_thread_test
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Assert tag is on main (no prod deploy from an unmerged branch)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::tag $GITHUB_REF_NAME points at $GITHUB_SHA which is not on origin/main; refusing to deploy an unreviewed commit"
+            exit 1
+          fi
 
       - uses: actions/setup-node@v7
         with:
@@ -69,6 +98,7 @@ jobs:
           MYSQL_URL: mysql://root@127.0.0.1:3306/common_thread_test
 
       - name: Deploy backend (common-thread-prod)
+        if: startsWith(github.ref, 'refs/tags/v')
         env:
           COMMON_THREAD_BACKEND_WRANGLER: ${{ secrets.COMMON_THREAD_BACKEND_WRANGLER }}
         run: |
@@ -82,6 +112,7 @@ jobs:
           rm -f wrangler.ci.toml
 
       - name: Deploy web (common-thread-web-prod)
+        if: startsWith(github.ref, 'refs/tags/v')
         env:
           COMMON_THREAD_WEB_WRANGLER: ${{ secrets.COMMON_THREAD_WEB_WRANGLER }}
         run: |
@@ -92,4 +123,38 @@ jobs:
           }
           printf '%s' "$COMMON_THREAD_WEB_WRANGLER" > web/wrangler.ci.toml
           npx wrangler deploy --env production -c web/wrangler.ci.toml
+          rm -f web/wrangler.ci.toml
+
+      # -----------------------------------------------------------------------
+      # Operator instance -- MANUAL/gated only (workflow_dispatch, deploy_operator=true).
+      # Deploy the backend BEFORE the web: the web service binding targets
+      # common-thread-ops-backend, which must EXIST at deploy time or the web
+      # deploy fails on a dangling binding.
+      # -----------------------------------------------------------------------
+      - name: Deploy operator backend (common-thread-ops-backend)
+        if: github.event_name == 'workflow_dispatch' && inputs.deploy_operator == true
+        env:
+          COMMON_THREAD_OPS_BACKEND_WRANGLER: ${{ secrets.COMMON_THREAD_OPS_BACKEND_WRANGLER }}
+        run: |
+          set -euo pipefail
+          [ -n "${COMMON_THREAD_OPS_BACKEND_WRANGLER:-}" ] || {
+            echo "::error::COMMON_THREAD_OPS_BACKEND_WRANGLER secret is unset"
+            exit 1
+          }
+          printf '%s' "$COMMON_THREAD_OPS_BACKEND_WRANGLER" > wrangler.ci.toml
+          npx wrangler deploy --env operator -c wrangler.ci.toml
+          rm -f wrangler.ci.toml
+
+      - name: Deploy operator web (common-thread-ops-web)
+        if: github.event_name == 'workflow_dispatch' && inputs.deploy_operator == true
+        env:
+          COMMON_THREAD_OPS_WEB_WRANGLER: ${{ secrets.COMMON_THREAD_OPS_WEB_WRANGLER }}
+        run: |
+          set -euo pipefail
+          [ -n "${COMMON_THREAD_OPS_WEB_WRANGLER:-}" ] || {
+            echo "::error::COMMON_THREAD_OPS_WEB_WRANGLER secret is unset"
+            exit 1
+          }
+          printf '%s' "$COMMON_THREAD_OPS_WEB_WRANGLER" > web/wrangler.ci.toml
+          npx wrangler deploy --env operator -c web/wrangler.ci.toml
           rm -f web/wrangler.ci.toml

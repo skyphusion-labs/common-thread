@@ -173,4 +173,121 @@ describe('resolveAttributionCredentials', () => {
         'AI Gateway URL must not target private, link-local, or loopback hosts.',
     });
   });
+
+  // #187 non-negotiable: PUBLIC_BYOK_ONLY must code-enforce fail-closed so a
+  // mistakenly-set server AI secret cannot be ridden by an anonymous caller.
+  describe('PUBLIC_BYOK_ONLY (publicByokOnly)', () => {
+    it('does NOT ride the server key: server creds present, no visitor creds -> byok_required', () => {
+      const result = resolveAttributionCredentials(
+        withAllowedHosts({
+          // House credentials ARE set (the misconfiguration we defend against).
+          envAiGatewayUrl: 'https://gateway.example/anthropic',
+          envAnthropicApiKey: 'house-key',
+          envCfAigToken: 'house-cf-aig-token',
+          requestHeaders: new Headers(),
+          publicByokOnly: true,
+        })
+      );
+
+      // Fails closed with the stable machine-readable code, NOT a usable
+      // credential set. The house key must appear nowhere in the result.
+      expect(result).toEqual({
+        error: expect.stringContaining('your own credentials'),
+        code: 'byok_required',
+      });
+      expect(JSON.stringify(result)).not.toContain('house-key');
+      expect(JSON.stringify(result)).not.toContain('house-cf-aig-token');
+      expect('source' in result).toBe(false);
+    });
+
+    it('still honors genuine visitor BYOK under the flag', () => {
+      const result = resolveAttributionCredentials(
+        withAllowedHosts({
+          envAiGatewayUrl: 'https://gateway.example/anthropic',
+          envAnthropicApiKey: 'house-key',
+          requestHeaders: new Headers({
+            'x-ai-gateway-url': 'https://api.anthropic.com',
+            'x-anthropic-api-key': 'visitor-key',
+          }),
+          publicByokOnly: true,
+        })
+      );
+
+      expect(result).toEqual({
+        aiGatewayUrl: 'https://api.anthropic.com',
+        anthropicApiKey: 'visitor-key',
+        source: 'request',
+      });
+    });
+
+    it('CONTROL: without the flag, server creds are used (env source)', () => {
+      const result = resolveAttributionCredentials(
+        withAllowedHosts({
+          envAiGatewayUrl: 'https://gateway.example/anthropic',
+          envAnthropicApiKey: 'house-key',
+          requestHeaders: new Headers(),
+        })
+      );
+
+      expect(result).toEqual({
+        aiGatewayUrl: 'https://gateway.example/anthropic',
+        anthropicApiKey: 'house-key',
+        source: 'environment',
+      });
+    });
+  });
+
+  // #187 confused-deputy hardening: a server-held x-api-key must never be sent
+  // to a request-supplied (caller-controlled, allowlisted) gateway. Same-source
+  // BYOK: if the request supplies any credential, both must come from the
+  // request; env creds are never backfilled into a request-driven call.
+  describe('same-source BYOK (no env backfill)', () => {
+    it('does NOT ride the env key when the request supplies only a gateway', () => {
+      const result = resolveAttributionCredentials(
+        withAllowedHosts({
+          // Server key IS set; the request supplies its own gateway but no key.
+          envAnthropicApiKey: 'house-key',
+          requestHeaders: new Headers({
+            'x-ai-gateway-url': 'https://api.anthropic.com',
+          }),
+        })
+      );
+
+      // Must refuse (both required from the request), and the house key must
+      // never appear in the result -- it is NOT sent to the caller gateway.
+      expect(result).toMatchObject({ error: expect.stringContaining('both') });
+      expect(JSON.stringify(result)).not.toContain('house-key');
+    });
+
+    it('does NOT pair a request key with the env gateway', () => {
+      const result = resolveAttributionCredentials(
+        withAllowedHosts({
+          envAiGatewayUrl: 'https://gateway.example/anthropic',
+          requestHeaders: new Headers({ 'x-anthropic-api-key': 'visitor-key' }),
+        })
+      );
+
+      // Request supplied a key but no gateway: refuse rather than backfill the
+      // env gateway. (Existing "incomplete credentials" invariant, restated.)
+      expect(result).toMatchObject({ error: expect.stringContaining('both') });
+    });
+
+    it('keeps the keyless Unified Billing (env cf-aig) path green', () => {
+      const result = resolveAttributionCredentials(
+        withAllowedHosts({
+          // House keyless: no request creds -> env gateway + env cf-aig token.
+          envAiGatewayUrl: 'https://gateway.example/anthropic',
+          envCfAigToken: 'house-cf-aig-token',
+          requestHeaders: new Headers(),
+        })
+      );
+
+      expect(result).toEqual({
+        aiGatewayUrl: 'https://gateway.example/anthropic',
+        anthropicApiKey: '',
+        cfAigToken: 'house-cf-aig-token',
+        source: 'environment',
+      });
+    });
+  });
 });
