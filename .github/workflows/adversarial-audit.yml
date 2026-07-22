@@ -48,7 +48,8 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: skyphusion-labs/fleet-chezmoi
-          ref: fix/adversarial-audit-k27-json
+          # Pinned merge SHA (fleet-chezmoi #968); do not use floating branch refs with RUNNER_GROUP_ADMIN_TOKEN.
+          ref: 00b509b6c56b160c6cd078db21b9b4dc222cd9f9
           path: fleet-chezmoi
           token: ${{ secrets.RUNNER_GROUP_ADMIN_TOKEN }}
 
