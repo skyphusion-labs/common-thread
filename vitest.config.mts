@@ -76,6 +76,9 @@ const nodeSuites = [
   'tests/reasoner/ai-gateway.test.ts',
   'tests/reasoner/reasoner.test.ts',
   'tests/reasoner/runner.test.ts',
+  // Encryption-at-rest round trip (§3.5): seeds MySQL via the mysql2 helpers,
+  // so it belongs to the node-db project, not the workers pool.
+  'tests/reasoner/encryption-roundtrip.test.ts',
   'tests/reasoner/triage.test.ts',
   // Worker error-hygiene e2e (#67): drives worker.fetch, which imports the
   // mysql2 DB layer and so cannot run in the workers pool.

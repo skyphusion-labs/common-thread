@@ -19,6 +19,10 @@ export interface InvestigationRow {
   metadata_json: string | null;
   /** SHA-256 hex digest of the investigation capability token; never expose. */
   access_token_hash: string;
+  /** Encryption scheme tag (§3.5); null = legacy plaintext investigation. */
+  crypto_version: string | null;
+  /** Sentinel encrypted under the derived key; verifies a presented token. */
+  key_check: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -63,7 +67,7 @@ export type FeatureCategory =
   | 'content_artifacts'
   | 'metadata_leakage';
 
-interface FeatureValueColumns {
+export interface FeatureValueColumns {
   feature_value_text: string | null;
   feature_value_numeric: number | null;
   feature_value_json: string | null;

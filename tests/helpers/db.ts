@@ -11,6 +11,11 @@ import {
   generateAccessToken,
   hashAccessToken,
 } from '../../implementation/investigations/access';
+import {
+  CRYPTO_VERSION,
+  computeKeyCheck,
+  deriveInvestigationKey,
+} from '../../implementation/crypto/investigation-key';
 
 // ---------------------------------------------------------------------------
 // Investigation
@@ -24,11 +29,19 @@ export interface CreateInvestigationOpts {
   metadata?: Record<string, unknown>;
   /** Plaintext capability token; generated when omitted. */
   accessToken?: string;
+  /**
+   * When true, create an encrypted investigation (§3.5): stamp crypto_version
+   * + key_check exactly as the production create path does, and return the
+   * derived key. Default false = legacy plaintext investigation.
+   */
+  encrypted?: boolean;
 }
 
 export interface CreateInvestigationResult {
   id: string;
   accessToken: string;
+  /** Derived encryption key when `encrypted` was set; otherwise null. */
+  encKey: CryptoKey | null;
 }
 
 export async function createInvestigation(
@@ -38,11 +51,22 @@ export async function createInvestigation(
   const now = new Date().toISOString();
   const accessToken = opts.accessToken ?? generateAccessToken();
   const accessTokenHash = await hashAccessToken(accessToken);
+
+  let encKey: CryptoKey | null = null;
+  let cryptoVersion: string | null = null;
+  let keyCheck: string | null = null;
+  if (opts.encrypted) {
+    encKey = await deriveInvestigationKey(accessToken, opts.id);
+    cryptoVersion = CRYPTO_VERSION;
+    keyCheck = await computeKeyCheck(encKey);
+  }
+
   await db
     .prepare(
       `INSERT INTO investigations (
-         id, name, description, status, created_at, updated_at, metadata_json, access_token_hash
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+         id, name, description, status, created_at, updated_at, metadata_json,
+         access_token_hash, crypto_version, key_check
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       opts.id,
@@ -52,10 +76,12 @@ export async function createInvestigation(
       now,
       now,
       opts.metadata ? JSON.stringify(opts.metadata) : null,
-      accessTokenHash
+      accessTokenHash,
+      cryptoVersion,
+      keyCheck
     )
     .run();
-  return { id: opts.id, accessToken };
+  return { id: opts.id, accessToken, encKey };
 }
 
 // ---------------------------------------------------------------------------

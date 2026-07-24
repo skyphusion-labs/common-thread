@@ -32,9 +32,9 @@ import { ManifestStore } from '../archive/manifest';
 import type { DatabaseClient } from '../db';
 import {
   canonicalPlatformedPair,
-  packFeatureValue,
   readFeatureValue,
 } from '../schema/db-types';
+import { packTextCell } from '../crypto/feature-cells';
 import type {
   ConfidenceBand,
   FeatureValue,
@@ -118,6 +118,14 @@ export interface RunAttributionOptions {
    * cost saving is not desired. Default false.
    */
   skipTriage?: boolean;
+
+  /**
+   * Per-investigation encryption key (§3.5). When set (an encrypted
+   * investigation), the attribution output (output_summary + output_json) is
+   * encrypted at rest under it before the attribution_runs row is written.
+   * Null/undefined leaves the output plaintext (legacy investigation).
+   */
+  encKey?: CryptoKey | null;
 }
 
 export interface AttributionRunSummary {
@@ -312,7 +320,7 @@ export async function runAttribution(
             isNonEnglish: languageProfile.is_non_english,
           });
 
-      const attributionRunId = await writeAttributionRun(env.DB, {
+      const attributionRunId = await writeAttributionRun(env.DB, options.encKey ?? null, {
         investigation_id: options.investigationId,
         accounts: [left.account, right.account],
         platforms: [left.platform, right.platform],
@@ -1097,6 +1105,7 @@ async function resolveAccountPlatforms(
 
 async function writeAttributionRun(
   db: DatabaseClient,
+  encKey: CryptoKey | null,
   row: NewAttributionRun
 ): Promise<number> {
   // Canonicalize accounts + platforms (mirrors NewPairFeature handling
@@ -1107,6 +1116,18 @@ async function writeAttributionRun(
   const [pa, pb] = row.accounts[0] < row.accounts[1]
     ? [row.platforms[0], row.platforms[1]]
     : [row.platforms[1], row.platforms[0]];
+
+  // Encryption at rest (§3.5): the analytic conclusion (summary + full output
+  // JSON) is the sensitive payload. Encrypt it under the investigation key when
+  // present; structural columns (accounts, platforms, band, timestamps) stay
+  // plaintext so listing/indexing keep working.
+  const ctx = {
+    key: encKey,
+    investigationId: row.investigation_id,
+    column: 'attribution_runs.output',
+  };
+  const outputSummaryCell = await packTextCell(row.output_summary, ctx);
+  const outputJsonCell = await packTextCell(JSON.stringify(row.output), ctx);
 
   const result = await db
     .prepare(
@@ -1132,8 +1153,8 @@ async function writeAttributionRun(
       row.randomization_seed,
       row.input_feature_count,
       row.confidence_band,
-      row.output_summary,
-      JSON.stringify(row.output),
+      outputSummaryCell,
+      outputJsonCell,
       row.started_at,
       row.completed_at,
       row.manifest_hash_at_run

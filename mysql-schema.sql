@@ -23,6 +23,12 @@ CREATE TABLE investigations (
   updated_at          VARCHAR(64) NOT NULL,
   metadata_json       TEXT,
   access_token_hash   VARCHAR(128) NOT NULL,
+  -- Encryption at rest (§3.5, migration 0013). crypto_version NULL = legacy
+  -- plaintext investigation; 'v1' = analytic payload columns are ciphertext
+  -- under a key derived from the access token. key_check verifies a presented
+  -- token derives the right key (crypto/investigation-key.ts).
+  crypto_version      VARCHAR(16),
+  key_check           TEXT,
   CONSTRAINT chk_investigations_status
     CHECK (status IN ('active', 'archived', 'sealed'))
 ) ENGINE=InnoDB;
@@ -329,5 +335,5 @@ CREATE TABLE schema_metadata (
 ) ENGINE=InnoDB;
 
 INSERT INTO schema_metadata (`key`, value, updated_at) VALUES
-  ('schema_version', '0011', '1970-01-01T00:00:00.000Z'),
+  ('schema_version', '0013', '1970-01-01T00:00:00.000Z'),
   ('schema_initialized_at', '1970-01-01T00:00:00.000Z', '1970-01-01T00:00:00.000Z');
