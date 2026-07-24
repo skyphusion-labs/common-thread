@@ -44,12 +44,16 @@ import {
   readAttributionRuns,
   startExtractorRun,
 } from '../helpers/db';
-import { testDb, testReasonerEnv } from '../helpers/test-env';
+import { env, testDb, testReasonerEnv } from '../helpers/test-env';
 import { mockTriageResponse } from '../helpers/llm';
-import type { Hyperdrive } from '@cloudflare/workers-types';
 
-/** getAttributionRun is typed to Hyperdrive; the test client resolves at runtime. */
-const hd = () => testDb() as unknown as Hyperdrive;
+/**
+ * getAttributionRun takes a Hyperdrive and resolves its own client from the
+ * binding's connection fields, so it needs the fake-Hyperdrive `env.DB` (which
+ * points at the test MySQL), not the already-resolved `testDb()` client. Both
+ * target the same committed database.
+ */
+const hd = () => env.DB;
 
 beforeAll(() => {
   fetchMock.activate();
