@@ -217,9 +217,12 @@ export async function buildEvidencePacket(
   archive: R2Bucket,
   investigationId: string,
   runId: number,
-  packetSigner?: { privateKey: string; signerId?: string }
+  packetSigner?: { privateKey: string; signerId?: string },
+  // Encryption at rest (§3.5): decrypts the attribution output for an encrypted
+  // investigation. Null for a legacy plaintext investigation.
+  encKey: CryptoKey | null = null
 ): Promise<EvidencePacket | null> {
-  const run = await getAttributionRun(db, investigationId, runId);
+  const run = await getAttributionRun(db, investigationId, runId, encKey);
   if (!run) return null;
 
   const investigation = await queryOne<InvestigationRow>(
@@ -366,7 +369,10 @@ export async function buildInvestigationEvidencePacket(
   db: Hyperdrive,
   archive: R2Bucket,
   investigationId: string,
-  options: BuildInvestigationPacketOptions = {}
+  options: BuildInvestigationPacketOptions = {},
+  // Encryption at rest (§3.5): decrypts attribution output for an encrypted
+  // investigation. Null for a legacy plaintext investigation.
+  encKey: CryptoKey | null = null
 ): Promise<EvidencePacket | null> {
   const investigation = await queryOne<InvestigationRow>(
     db,
@@ -375,7 +381,7 @@ export async function buildInvestigationEvidencePacket(
   );
   if (!investigation) return null;
 
-  const runSummaries = await listAttributionRuns(db, investigationId);
+  const runSummaries = await listAttributionRuns(db, investigationId, encKey);
   if (runSummaries.length === 0) return null;
 
   const seedCount = await queryOne<{ count: number }>(
@@ -417,7 +423,7 @@ export async function buildInvestigationEvidencePacket(
   let latestMethodology: Record<string, unknown> = {};
 
   for (const summary of runSummaries) {
-    const run = await getAttributionRun(db, investigationId, summary.id);
+    const run = await getAttributionRun(db, investigationId, summary.id, encKey);
     if (!run) continue;
 
     for (const id of collectCitedSignalIds(run.output)) {

@@ -27,11 +27,17 @@ import type { InvestigationRow } from '../schema/db-types';
 import {
   accessErrorStatus,
   authorizeInvestigation,
+  extractAccessToken,
   generateAccessToken,
   hashAccessToken,
   InvestigationAccessError,
   publicInvestigationView,
 } from '../investigations/access';
+import {
+  CRYPTO_VERSION,
+  computeKeyCheck,
+  deriveInvestigationKey,
+} from '../crypto/investigation-key';
 import {
   assertInvestigationActiveForWrite,
   insertSeedIfActive,
@@ -198,6 +204,12 @@ interface RouteContext {
   investigationId: string;
   /** Authorized investigation row, set only when the route declares `auth`. */
   auth?: InvestigationRow;
+  /**
+   * Per-investigation encryption key (§3.5), derived from the presented token
+   * for an encrypted investigation (crypto_version set); null/undefined for a
+   * legacy plaintext investigation. Lives only for the request; never stored.
+   */
+  encKey?: CryptoKey | null;
 }
 
 type RouteHandler = (ctx: RouteContext) => Promise<Response> | Response;
@@ -221,6 +233,25 @@ interface Route {
   /** When present, the dispatcher authorizes before invoking the handler. */
   auth?: AuthConfig;
   handler: RouteHandler;
+}
+
+/**
+ * Encryption at rest (§3.5): derive the in-memory investigation key from the
+ * already-validated request token when the investigation is encrypted
+ * (crypto_version set); return null for a legacy plaintext investigation. The
+ * token matched the stored auth hash, so the derived key is necessarily the
+ * one used at creation. Used both by the auth funnel and by handlers that
+ * authorize themselves (single-run, per-run packet).
+ */
+async function resolveEncKey(
+  request: Request,
+  url: URL,
+  row: InvestigationRow,
+  investigationId: string
+): Promise<CryptoKey | null> {
+  if (!row.crypto_version) return null;
+  const token = extractAccessToken(request, url);
+  return token ? deriveInvestigationKey(token, investigationId) : null;
 }
 
 async function handle(request: Request, env: Env): Promise<Response> {
@@ -261,6 +292,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
       );
       if (authed instanceof Response) return authed;
       ctx.auth = authed;
+      ctx.encKey = await resolveEncKey(request, url, authed, ctx.investigationId);
     }
 
     return route.handler(ctx);
@@ -410,12 +442,28 @@ async function handleCreateInvestigation(ctx: RouteContext): Promise<Response> {
   const accessToken = generateAccessToken();
   const accessTokenHash = await hashAccessToken(accessToken);
 
+  // Encryption at rest (§3.5): every new investigation is encrypted. The key is
+  // derived from the access token (never stored); key_check lets a later request
+  // prove its token derives the right key. Losing the token = unrecoverable.
+  const encKey = await deriveInvestigationKey(accessToken, body.id);
+  const keyCheck = await computeKeyCheck(encKey);
+
   await execute(
     env.DB,
     `INSERT INTO investigations (
-       id, name, description, status, created_at, updated_at, access_token_hash
-     ) VALUES (?, ?, ?, 'active', ?, ?, ?)`,
-    [body.id, body.name, body.description ?? null, now, now, accessTokenHash]
+       id, name, description, status, created_at, updated_at, access_token_hash,
+       crypto_version, key_check
+     ) VALUES (?, ?, ?, 'active', ?, ?, ?, ?, ?)`,
+    [
+      body.id,
+      body.name,
+      body.description ?? null,
+      now,
+      now,
+      accessTokenHash,
+      CRYPTO_VERSION,
+      keyCheck,
+    ]
   );
 
   return jsonResponse(
@@ -894,7 +942,14 @@ async function handleAttribute(ctx: RouteContext): Promise<Response> {
   // 'request') and environments without the executor bound fall through to
   // the synchronous inline path below, unchanged. No credential is persisted
   // or handed to the executor: options carries only non-secret run parameters.
-  if (shouldRunAttributionAsync(env, credentials.source)) {
+  //
+  // Encryption at rest (§3.5): an encrypted investigation MUST run inline. The
+  // in-memory key lives only in this request; the detached VPC executor has no
+  // way to derive it, so dispatching there would silently write the plaintext
+  // conclusion into an investigation the caller was told is encrypted. Forcing
+  // inline keeps the invariant intact (key-on-dispatch for the executor is a
+  // tracked follow-up, not shipped here).
+  if (!ctx.encKey && shouldRunAttributionAsync(env, credentials.source)) {
     const { jobId, status } = await enqueueAttributionJob(env, investigationId, {
       accountFilter,
       skipTriage,
@@ -921,6 +976,7 @@ async function handleAttribute(ctx: RouteContext): Promise<Response> {
       skipTriage,
       maxRetries,
       randomizationSeed,
+      encKey: ctx.encKey ?? null,
     }
   );
 
@@ -936,7 +992,7 @@ async function handleAttribute(ctx: RouteContext): Promise<Response> {
 async function handleListRuns(ctx: RouteContext): Promise<Response> {
   const { env } = ctx;
   const investigationId = ctx.investigationId;
-  const rows = await listAttributionRuns(env.DB, investigationId);
+  const rows = await listAttributionRuns(env.DB, investigationId, ctx.encKey ?? null);
   return jsonResponse({ investigationId, runs: rows, count: rows.length });
 }
 
@@ -952,7 +1008,8 @@ async function handleSingleRun(ctx: RouteContext): Promise<Response> {
   const auth = await authorizeOrRespond(env, request, url, investigationId);
   if (auth instanceof Response) return auth;
 
-  const run = await getAttributionRun(env.DB, investigationId, runId);
+  const encKey = await resolveEncKey(request, url, auth, investigationId);
+  const run = await getAttributionRun(env.DB, investigationId, runId, encKey);
   if (!run) {
     return jsonResponse({ error: `Attribution run not found: ${runId}` }, 404);
   }
@@ -974,6 +1031,7 @@ async function handleInvestigationPacket(ctx: RouteContext): Promise<Response> {
     .map((v) => v.trim())
     .filter(Boolean);
 
+  const encKey = await resolveEncKey(request, url, auth, investigationId);
   const packet = await buildInvestigationEvidencePacket(
     env.DB,
     env.ARCHIVE,
@@ -988,7 +1046,8 @@ async function handleInvestigationPacket(ctx: RouteContext): Promise<Response> {
       packetSigner: env.SIGNER_PRIVATE_KEY
         ? { privateKey: env.SIGNER_PRIVATE_KEY, signerId: env.SIGNER_ID }
         : undefined,
-    }
+    },
+    encKey
   );
 
   if (!packet) {
@@ -1020,6 +1079,7 @@ async function handlePacket(ctx: RouteContext): Promise<Response> {
   const auth = await authorizeOrRespond(env, request, url, investigationId);
   if (auth instanceof Response) return auth;
 
+  const encKey = await resolveEncKey(request, url, auth, investigationId);
   const packet = await buildEvidencePacket(
     env.DB,
     env.ARCHIVE,
@@ -1027,7 +1087,8 @@ async function handlePacket(ctx: RouteContext): Promise<Response> {
     runId,
     env.SIGNER_PRIVATE_KEY
       ? { privateKey: env.SIGNER_PRIVATE_KEY, signerId: env.SIGNER_ID }
-      : undefined
+      : undefined,
+    encKey
   );
   if (!packet) {
     return jsonResponse({ error: `Attribution run not found: ${runId}` }, 404);
