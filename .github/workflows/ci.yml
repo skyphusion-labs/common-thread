@@ -140,7 +140,7 @@ jobs:
       - name: Coverage (both projects, unified istanbul report)
         run: npm run test:coverage
       - name: Upload cobertura artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cobertura-coverage
           path: coverage/cobertura-coverage.xml
@@ -155,7 +155,7 @@ jobs:
       id-token: write
       code-quality: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: cobertura-coverage
       - name: Upload coverage report
