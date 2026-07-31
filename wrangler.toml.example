@@ -155,8 +155,14 @@ new_sqlite_classes = ["ManifestCoordinator"]
 [env.production]
 name = "common-thread-prod"
 
-# Optional when using a custom domain and you want to disable *.workers.dev:
-# workers_dev = false
+# Disable the *.workers.dev hostname. ON BY DEFAULT if this line is absent.
+#
+# This is NOT optional hardening when the Worker is meant to be reached only
+# through a custom domain. An Access application binds a HOSTNAME, so a policy
+# on the custom domain does NOT cover <script>.<subdomain>.workers.dev -- the
+# same Worker, same bindings, no Access. Leaving it enabled is a second front
+# door that no zone-level rule, WAF policy or Access app applies to.
+workers_dev = false
 
 [[env.production.routes]]
 pattern = "common-thread-backend.skyphusion.org"
