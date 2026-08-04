@@ -4,7 +4,9 @@
 
 import type { Hyperdrive } from '@cloudflare/workers-types';
 import { query } from '../db';
-import { canonicalPair, readFeatureValue } from '../schema/db-types';
+import { canonicalPair } from '../schema/db-types';
+import { readFeatureCell, readTextCell } from '../crypto/feature-cells';
+import type { FeatureValue } from '../schema/db-types';
 
 export type FeatureScope = 'account' | 'pair' | 'event' | 'all';
 
@@ -17,6 +19,8 @@ export interface FeaturesQueryOptions {
   category?: string;
   scope?: FeatureScope;
   includeProvenance?: boolean;
+  /** Per-investigation encryption key (§3.5 / #228). */
+  encKey?: CryptoKey | null;
 }
 
 export interface FeatureProvenanceRow {
@@ -31,7 +35,7 @@ export interface AccountFeatureResponse {
   account_identifier: string;
   feature_category: string;
   feature_name: string;
-  value: ReturnType<typeof readFeatureValue>;
+  value: FeatureValue;
   extracted_at: string;
   extractor_name: string;
   extractor_version: string;
@@ -49,7 +53,7 @@ export interface PairFeatureResponse {
   account_b: string;
   feature_category: string;
   feature_name: string;
-  value: ReturnType<typeof readFeatureValue>;
+  value: FeatureValue;
   extracted_at: string;
   extractor_name: string;
   extractor_version: string;
@@ -210,6 +214,16 @@ export async function queryInvestigationFeatures(
   const accountFeatures: AccountFeatureResponse[] = [];
   const pairFeatures: PairFeatureResponse[] = [];
   const eventFeatures: EventFeatureResponse[] = [];
+  const featureCtx = {
+    key: options.encKey ?? null,
+    investigationId: options.investigationId,
+    column: 'account_features.value',
+  };
+  const pairCtx = { ...featureCtx, column: 'pair_features.value' };
+  const eventCtx = {
+    ...featureCtx,
+    column: 'event_features.event_data_json',
+  };
 
   if (scope === 'all' || scope === 'account') {
     const conditions = ['investigation_id = ?'];
@@ -248,7 +262,7 @@ export async function queryInvestigationFeatures(
         account_identifier: row.account_identifier,
         feature_category: row.feature_category,
         feature_name: row.feature_name,
-        value: readFeatureValue(row),
+        value: await readFeatureCell(row, featureCtx),
         extracted_at: row.extracted_at,
         extractor_name: row.extractor_name,
         extractor_version: row.extractor_version,
@@ -298,7 +312,7 @@ export async function queryInvestigationFeatures(
         account_b: row.account_b,
         feature_category: row.feature_category,
         feature_name: row.feature_name,
-        value: readFeatureValue(row),
+        value: await readFeatureCell(row, pairCtx),
         extracted_at: row.extracted_at,
         extractor_name: row.extractor_name,
         extractor_version: row.extractor_version,
@@ -335,11 +349,12 @@ export async function queryInvestigationFeatures(
       : new Map();
     for (const row of rows) {
       let eventData: unknown = null;
-      if (row.event_data_json) {
+      const eventJson = await readTextCell(row.event_data_json, eventCtx);
+      if (eventJson) {
         try {
-          eventData = JSON.parse(row.event_data_json);
+          eventData = JSON.parse(eventJson);
         } catch {
-          eventData = row.event_data_json;
+          eventData = eventJson;
         }
       }
       eventFeatures.push({

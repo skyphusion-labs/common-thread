@@ -32,9 +32,8 @@ import { ManifestStore } from '../archive/manifest';
 import type { DatabaseClient } from '../db';
 import {
   canonicalPlatformedPair,
-  readFeatureValue,
 } from '../schema/db-types';
-import { packTextCell } from '../crypto/feature-cells';
+import { packTextCell, readFeatureCell, readTextCell } from '../crypto/feature-cells';
 import type {
   ConfidenceBand,
   FeatureValue,
@@ -179,16 +178,19 @@ export async function runAttribution(
   }
 
   // Investigation-level context (basis statements, time bounds) once.
+  const encKey = options.encKey ?? null;
   const basisStatements = await loadBasisStatements(
     env.DB,
     options.investigationId,
-    candidates.map(c => c.account)
+    candidates.map(c => c.account),
+    encKey
   );
-  const timeBounds = await loadTimeBounds(env.DB, options.investigationId);
+  const timeBounds = await loadTimeBounds(env.DB, options.investigationId, encKey);
   const controlAccounts = await loadControlAccounts(env.DB, options.investigationId);
   const languageProfile = await determineInvestigationLanguage(
     env.DB,
-    options.investigationId
+    options.investigationId,
+    encKey
   );
   const controlKeys = new Set(
     controlAccounts.map((c) => `${c.platform}:${c.account}`)
@@ -219,6 +221,7 @@ export async function runAttribution(
         controlAccounts,
         randomizationSeed: seed,
         nonEnglishInvestigation: languageProfile.is_non_english,
+        encKey,
       });
 
       const triageUserPrompt = buildTriageUserPrompt({
@@ -375,10 +378,15 @@ export async function runAttribution(
     controlKeys
   );
 
-  await persistAttributionMetadata(env.DB, options.investigationId, {
-    investigation_language: languageProfile,
-    cluster_composition: composition,
-  });
+  await persistAttributionMetadata(
+    env.DB,
+    options.investigationId,
+    {
+      investigation_language: languageProfile,
+      cluster_composition: composition,
+    },
+    encKey
+  );
 
   return summaries;
 }
@@ -611,21 +619,27 @@ interface BuildSignalTableArgs {
   controlAccounts?: Array<{ account: string; platform: string }>;
   randomizationSeed: string;
   nonEnglishInvestigation?: boolean;
+  encKey?: CryptoKey | null;
 }
 
 async function buildSignalTable(
   db: DatabaseClient,
   args: BuildSignalTableArgs
 ): Promise<SignalTable> {
-  const pairSignals = await loadPairSignals(db, args.investigationId, args.pair);
-  const accountSignals = await loadAccountSignals(db, args.investigationId, [
-    args.pair.account_a,
-    args.pair.account_b,
-  ]);
-  const eventSignals = await loadEventSignals(db, args.investigationId, [
-    args.pair.account_a,
-    args.pair.account_b,
-  ]);
+  const encKey = args.encKey ?? null;
+  const pairSignals = await loadPairSignals(db, args.investigationId, args.pair, encKey);
+  const accountSignals = await loadAccountSignals(
+    db,
+    args.investigationId,
+    [args.pair.account_a, args.pair.account_b],
+    encKey
+  );
+  const eventSignals = await loadEventSignals(
+    db,
+    args.investigationId,
+    [args.pair.account_a, args.pair.account_b],
+    encKey
+  );
 
   const all = [...pairSignals, ...accountSignals, ...eventSignals];
   const ordered = seededShuffle(all, args.randomizationSeed);
@@ -663,7 +677,8 @@ interface PairSignalRow {
 async function loadPairSignals(
   db: DatabaseClient,
   investigationId: string,
-  pair: { account_a: string; account_b: string }
+  pair: { account_a: string; account_b: string },
+  encKey: CryptoKey | null = null
 ): Promise<PresentedSignal[]> {
   const sql = `
     SELECT
@@ -701,13 +716,22 @@ async function loadPairSignals(
     rows.map(r => r.id)
   );
 
-  return rows.map((row): PresentedSignal => {
-    const value = readFeatureValue({
-      feature_value_text: row.feature_value_text,
-      feature_value_numeric: row.feature_value_numeric,
-      feature_value_json: row.feature_value_json,
-    });
-    return {
+  const out: PresentedSignal[] = [];
+  const cellCtx = {
+    key: encKey,
+    investigationId,
+    column: 'pair_features.value',
+  };
+  for (const row of rows) {
+    const value = await readFeatureCell(
+      {
+        feature_value_text: row.feature_value_text,
+        feature_value_numeric: row.feature_value_numeric,
+        feature_value_json: row.feature_value_json,
+      },
+      cellCtx
+    );
+    out.push({
       signal_id: `pair:${row.id}` as SignalId,
       category: row.feature_category,
       feature_name: row.feature_name,
@@ -724,8 +748,9 @@ async function loadPairSignals(
         row.extractor_status === 'completed' && !row.extractor_error
       ),
       provenance_fingerprint: fingerprintMap.get(row.id) ?? '',
-    };
-  });
+    });
+  }
+  return out;
 }
 
 interface AccountSignalRow {
@@ -745,7 +770,8 @@ interface AccountSignalRow {
 async function loadAccountSignals(
   db: DatabaseClient,
   investigationId: string,
-  accounts: string[]
+  accounts: string[],
+  encKey: CryptoKey | null = null
 ): Promise<PresentedSignal[]> {
   if (accounts.length === 0) return [];
   const placeholders = accounts.map(() => '?').join(', ');
@@ -782,13 +808,22 @@ async function loadAccountSignals(
     rows.map(r => r.id)
   );
 
-  return rows.map((row): PresentedSignal => {
-    const value = readFeatureValue({
-      feature_value_text: row.feature_value_text,
-      feature_value_numeric: row.feature_value_numeric,
-      feature_value_json: row.feature_value_json,
-    });
-    return {
+  const out: PresentedSignal[] = [];
+  const cellCtx = {
+    key: encKey,
+    investigationId,
+    column: 'account_features.value',
+  };
+  for (const row of rows) {
+    const value = await readFeatureCell(
+      {
+        feature_value_text: row.feature_value_text,
+        feature_value_numeric: row.feature_value_numeric,
+        feature_value_json: row.feature_value_json,
+      },
+      cellCtx
+    );
+    out.push({
       signal_id: `account:${row.id}` as SignalId,
       category: row.feature_category,
       feature_name: row.feature_name,
@@ -803,8 +838,9 @@ async function loadAccountSignals(
         row.extractor_status === 'completed' && !row.extractor_error
       ),
       provenance_fingerprint: fingerprintMap.get(row.id) ?? '',
-    };
-  });
+    });
+  }
+  return out;
 }
 
 interface EventSignalRow {
@@ -822,7 +858,8 @@ interface EventSignalRow {
 async function loadEventSignals(
   db: DatabaseClient,
   investigationId: string,
-  accounts: string[]
+  accounts: string[],
+  encKey: CryptoKey | null = null
 ): Promise<PresentedSignal[]> {
   if (accounts.length === 0) return [];
   const placeholders = accounts.map(() => '?').join(', ');
@@ -858,17 +895,24 @@ async function loadEventSignals(
     rows.map(r => r.id)
   );
 
-  return rows.map((row): PresentedSignal => {
+  const out: PresentedSignal[] = [];
+  const cellCtx = {
+    key: encKey,
+    investigationId,
+    column: 'event_features.event_data_json',
+  };
+  for (const row of rows) {
     let eventData: unknown = row.event_data_json;
-    if (typeof row.event_data_json === 'string') {
+    const plain = await readTextCell(row.event_data_json, cellCtx);
+    if (typeof plain === 'string') {
       try {
-        eventData = JSON.parse(row.event_data_json);
+        eventData = JSON.parse(plain);
       } catch {
-        eventData = row.event_data_json;
+        eventData = plain;
       }
     }
 
-    return {
+    out.push({
       signal_id: `event:${row.id}` as SignalId,
       category: 'event',
       feature_name: row.event_type,
@@ -890,8 +934,9 @@ async function loadEventSignals(
         row.extractor_status === 'completed' && !row.extractor_error
       ),
       provenance_fingerprint: fingerprintMap.get(row.id) ?? '',
-    };
-  });
+    });
+  }
+  return out;
 }
 
 /**
@@ -942,7 +987,8 @@ async function loadProvenanceFingerprints(
 async function loadBasisStatements(
   db: DatabaseClient,
   investigationId: string,
-  accounts: string[]
+  accounts: string[],
+  encKey: CryptoKey | null = null
 ): Promise<Array<{ account: string; platform: string; statement: string }>> {
   if (accounts.length === 0) return [];
   const placeholders = accounts.map(() => '?').join(', ');
@@ -958,16 +1004,28 @@ async function loadBasisStatements(
     .prepare(sql)
     .bind(investigationId, ...accounts)
     .all<{ account_identifier: string; platform: string; basis_statement: string }>();
-  return (res.results ?? []).map(r => ({
-    account: r.account_identifier,
-    platform: r.platform,
-    statement: r.basis_statement,
-  }));
+  const out: Array<{ account: string; platform: string; statement: string }> = [];
+  const cellCtx = {
+    key: encKey,
+    investigationId,
+    column: 'seed_accounts.basis_statement',
+  };
+  for (const r of res.results ?? []) {
+    const statement =
+      (await readTextCell(r.basis_statement, cellCtx)) ?? r.basis_statement;
+    out.push({
+      account: r.account_identifier,
+      platform: r.platform,
+      statement,
+    });
+  }
+  return out;
 }
 
 async function loadTimeBounds(
   db: DatabaseClient,
-  investigationId: string
+  investigationId: string,
+  encKey: CryptoKey | null = null
 ): Promise<{ start: string; end: string } | undefined> {
   const res = await db
     .prepare('SELECT metadata_json FROM investigations WHERE id = ?')
@@ -975,7 +1033,13 @@ async function loadTimeBounds(
     .first<{ metadata_json: string | null }>();
   if (!res || !res.metadata_json) return undefined;
   try {
-    const parsed = JSON.parse(res.metadata_json) as Record<string, unknown>;
+    const plain =
+      (await readTextCell(res.metadata_json, {
+        key: encKey,
+        investigationId,
+        column: 'investigations.metadata_json',
+      })) ?? res.metadata_json;
+    const parsed = JSON.parse(plain) as Record<string, unknown>;
     const tb = parsed.time_bounds as Record<string, unknown> | undefined;
     if (tb && typeof tb.start === 'string' && typeof tb.end === 'string') {
       return { start: tb.start, end: tb.end };

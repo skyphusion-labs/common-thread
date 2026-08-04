@@ -53,6 +53,7 @@ import {
   resolveResourceCaps,
   seedCapExceeded,
 } from './resource-caps';
+import { packTextCell, readTextCell } from '../crypto/feature-cells';
 import {
   mergeInvestigationMetadata,
   publicMetadataView,
@@ -547,14 +548,27 @@ async function handlePatchInvestigationMetadata(ctx: RouteContext): Promise<Resp
     [investigationId]
   );
 
-  const merged = mergeInvestigationMetadata(row?.metadata_json ?? null, body);
-  const metadataJson = serializeInvestigationMetadata(merged);
+  const existingPlain = await readTextCell(row?.metadata_json ?? null, {
+    key: ctx.encKey ?? null,
+    investigationId,
+    column: 'investigations.metadata_json',
+  });
+  const merged = mergeInvestigationMetadata(existingPlain, body);
+  const serialized = serializeInvestigationMetadata(merged);
+  const metadataJson =
+    serialized.length > 0
+      ? await packTextCell(serialized, {
+          key: ctx.encKey ?? null,
+          investigationId,
+          column: 'investigations.metadata_json',
+        })
+      : null;
   const now = new Date().toISOString();
 
   await execute(
     env.DB,
     `UPDATE investigations SET metadata_json = ?, updated_at = ? WHERE id = ?`,
-    [metadataJson.length > 0 ? metadataJson : null, now, investigationId]
+    [metadataJson, now, investigationId]
   );
 
   return jsonResponse({
@@ -649,7 +663,32 @@ async function handleListSeeds(ctx: RouteContext): Promise<Response> {
     [investigationId]
   );
 
-  return jsonResponse({ investigationId, seeds: rows, count: rows.length });
+  const seeds = [];
+  for (const row of rows as Array<Record<string, unknown>>) {
+    const basis = await readTextCell(
+      typeof row.basis_statement === 'string' ? row.basis_statement : null,
+      {
+        key: ctx.encKey ?? null,
+        investigationId,
+        column: 'seed_accounts.basis_statement',
+      }
+    );
+    const removed = await readTextCell(
+      typeof row.removed_reason === 'string' ? row.removed_reason : null,
+      {
+        key: ctx.encKey ?? null,
+        investigationId,
+        column: 'seed_accounts.removed_reason',
+      }
+    );
+    seeds.push({
+      ...row,
+      basis_statement: basis,
+      removed_reason: removed,
+    });
+  }
+
+  return jsonResponse({ investigationId, seeds, count: seeds.length });
 }
 
 async function handleSummary(ctx: RouteContext): Promise<Response> {
@@ -807,7 +846,12 @@ async function handleAddSeed(ctx: RouteContext): Promise<Response> {
   }
 
   const now = new Date().toISOString();
-  const basis = body.basis_statement ?? body.basisStatement ?? 'Added via API';
+  const basisPlain = body.basis_statement ?? body.basisStatement ?? 'Added via API';
+  const basis = await packTextCell(basisPlain, {
+    key: ctx.encKey ?? null,
+    investigationId,
+    column: 'seed_accounts.basis_statement',
+  });
   const isControl = body.is_control ? 1 : 0;
 
   // Gate the INSERT on committed-active status inside the write statement so a
@@ -887,8 +931,13 @@ async function handleDeleteSeed(ctx: RouteContext): Promise<Response> {
   }
 
   const now = new Date().toISOString();
-  const reason =
+  const reasonPlain =
     body.removed_reason ?? body.removedReason ?? 'Removed via API';
+  const reason = await packTextCell(reasonPlain, {
+    key: ctx.encKey ?? null,
+    investigationId,
+    column: 'seed_accounts.removed_reason',
+  });
 
   // The soft-delete UPDATE (§5.1) is gated on committed-active status via an
   // EXISTS predicate so a stale-active cache read cannot mutate a sealed
@@ -911,7 +960,7 @@ async function handleDeleteSeed(ctx: RouteContext): Promise<Response> {
     platform: body.platform,
     account: body.account,
     removed_at: now,
-    removed_reason: reason,
+    removed_reason: reasonPlain,
     removed_count: changes,
   });
 }
@@ -925,7 +974,10 @@ async function handleFeatures(ctx: RouteContext): Promise<Response> {
     return jsonResponse({ error: parsed.error }, 400);
   }
 
-  const result = await queryInvestigationFeatures(env.DB, parsed);
+  const result = await queryInvestigationFeatures(env.DB, {
+    ...parsed,
+    encKey: ctx.encKey ?? null,
+  });
   return jsonResponse(result);
 }
 
@@ -1260,11 +1312,9 @@ async function handleIngestApify(ctx: RouteContext): Promise<Response> {
     return jsonResponse(ingestCapExceeded(caps.maxIngestItems, allItems.length), 400);
   }
 
-  const result = await ingestApifyTwitter(
-    env,
-    investigationId,
-    allItems
-  );
+  const result = await ingestApifyTwitter(env, investigationId, allItems, {
+    encKey: ctx.encKey ?? null,
+  });
 
   const status = result.delegatedToContainer ? 202 : 200;
   return jsonResponse(result, status);

@@ -9,6 +9,7 @@
 import { ArchiveStore } from '../archive/store';
 import { ManifestStore } from '../archive/manifest';
 import type { DatabaseClient } from '../db';
+import { packTextCell } from '../crypto/feature-cells';
 import { inferPlatform } from './platform';
 import type { EventFeatureExtractor, ExtractedEvent } from './event-types';
 import {
@@ -28,6 +29,8 @@ export interface RunEventExtractorsOptions {
   extractors: EventFeatureExtractor[];
   /** §6.1.2 explicit cross-version replace. Default false. */
   replacePriorVersions?: boolean;
+  /** Per-investigation encryption key (§3.5 / #228). */
+  encKey?: CryptoKey | null;
 }
 
 export interface EventExtractorRunResult {
@@ -128,6 +131,7 @@ export async function runEventExtractors(
             artifactHash: entry.hash,
             manifestEntryHash: entry.hash,
             replacePriorVersions: options.replacePriorVersions,
+            encKey: options.encKey ?? null,
           });
           outputCount++;
         }
@@ -196,6 +200,7 @@ async function writeEventFeature(
     extractorRunId: number;
     artifactHash: string;
     manifestEntryHash?: string;
+    encKey?: CryptoKey | null;
   } & FeatureWritePolicyOptions
 ): Promise<void> {
   await prepareEventFeatureWrite(
@@ -213,6 +218,11 @@ async function writeEventFeature(
   );
 
   const extractedAt = new Date().toISOString();
+  const eventDataJson = await packTextCell(JSON.stringify(params.event.eventData), {
+    key: params.encKey ?? null,
+    investigationId: params.investigationId,
+    column: 'event_features.event_data_json',
+  });
 
   const result = await db
     .prepare(
@@ -228,7 +238,7 @@ async function writeEventFeature(
       params.account,
       params.event.eventTimestamp,
       params.event.eventType,
-      JSON.stringify(params.event.eventData),
+      eventDataJson,
       extractedAt,
       params.extractorName,
       params.extractorVersion,

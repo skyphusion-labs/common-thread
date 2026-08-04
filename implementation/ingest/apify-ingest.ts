@@ -33,8 +33,10 @@ function vpcIngestEnabled(env: Env): boolean {
 export async function ingestApifyTwitter(
   env: Env,
   investigationId: string,
-  payload: unknown
+  payload: unknown,
+  options?: { encKey?: CryptoKey | null }
 ): Promise<ApifyIngestResult> {
+  const encKey = options?.encKey ?? null;
   const parsedTweets = parseApifyTwitterItems(payload);
   const handles = extractAllHandlesFromApifyTwitter(payload);
   const now = new Date().toISOString();
@@ -47,6 +49,10 @@ export async function ingestApifyTwitter(
     extension: 'json',
   });
 
+  // Encrypted investigations must run extractors inline: the VPC container has
+  // no request-scoped key (#228). Same force-inline pattern as attribution.
+  const useVpc = vpcIngestEnabled(env) && !encKey;
+
   await execute(
     env.DB,
     `INSERT INTO ingest_jobs
@@ -55,7 +61,7 @@ export async function ingestApifyTwitter(
     [
       jobId,
       investigationId,
-      vpcIngestEnabled(env) ? 'queued' : 'running',
+      useVpc ? 'queued' : 'running',
       parsedTweets.length,
       JSON.stringify([]),
       JSON.stringify([rawHash]),
@@ -63,7 +69,7 @@ export async function ingestApifyTwitter(
     ]
   );
 
-  if (vpcIngestEnabled(env)) {
+  if (useVpc) {
     const dispatchResponse = await dispatchIngestJob(env, {
       jobId,
       investigationId,
@@ -110,6 +116,7 @@ export async function ingestApifyTwitter(
       parsedTweets,
       handles,
       now,
+      encKey,
     }
   );
 

@@ -5,6 +5,7 @@
 import type { DatabaseClient } from '../db';
 import type { InvestigationComposition } from '../reasoner/cluster-composition';
 import type { InvestigationLanguageProfile } from '../reasoner/investigation-language';
+import { packTextCell, readTextCell } from '../crypto/feature-cells';
 
 export interface AttributionMetadataFields {
   investigation_language?: InvestigationLanguageProfile;
@@ -56,7 +57,8 @@ export function parseAttributionMetadata(
 export async function persistAttributionMetadata(
   db: DatabaseClient,
   investigationId: string,
-  fields: AttributionMetadataFields
+  fields: AttributionMetadataFields,
+  encKey: CryptoKey | null = null
 ): Promise<void> {
   const row = await db
     .prepare('SELECT metadata_json FROM investigations WHERE id = ?')
@@ -64,10 +66,20 @@ export async function persistAttributionMetadata(
     .first<{ metadata_json: string | null }>();
   if (!row) return;
 
-  const merged = mergeAttributionMetadataJson(row.metadata_json, fields);
+  const existingPlain = await readTextCell(row.metadata_json, {
+    key: encKey,
+    investigationId,
+    column: 'investigations.metadata_json',
+  });
+  const merged = mergeAttributionMetadataJson(existingPlain, fields);
+  const stored = await packTextCell(merged, {
+    key: encKey,
+    investigationId,
+    column: 'investigations.metadata_json',
+  });
   const now = new Date().toISOString();
   await db
     .prepare('UPDATE investigations SET metadata_json = ?, updated_at = ? WHERE id = ?')
-    .bind(merged, now, investigationId)
+    .bind(stored, now, investigationId)
     .run();
 }
