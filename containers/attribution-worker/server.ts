@@ -3,13 +3,12 @@
  *
  * Receives async attribution jobs from the Cloudflare Worker via Workers VPC
  * HTTP, runs the reasoner pipeline (runAttribution) against MySQL + R2 using its
- * OWN server-side credentials, and records the terminal job status.
+ * OWN server-side AI credentials, and records the terminal job status.
  *
  * Mirrors containers/ingest-worker/server.ts. Per Conrad's 2026-07-11 decision,
- * this executor only ever runs server-credential jobs: the handoff carries no
- * credential, and the container uses its own AI_GATEWAY_URL / ANTHROPIC_API_KEY.
- * BYOK attribution stays synchronous inline in the Worker and never reaches
- * here.
+ * AI credentials are NEVER in the handoff (BYOK stays Worker-inline). Optional
+ * encryptionKeyMaterial (#246) is accepted for encrypted investigations so
+ * conclusions write as ciphertext; it is never AI credentials.
  *
  * Contract: POST /trigger -- see implementation/attribution/handoff.ts
  */
@@ -22,6 +21,10 @@ import {
   r2S3ConfigFromEnv,
 } from '../ingest-worker/r2-bucket';
 import { createDatabaseClient, parseMysqlUrl } from '../../implementation/db';
+import {
+  unsealInvestigationKeyFromVpcHandoff,
+  verifyKeyCheck,
+} from '../../implementation/crypto/investigation-key';
 import { runAttribution } from '../../implementation/reasoner/runner';
 import {
   claimAttributionJob,
@@ -111,36 +114,75 @@ async function processJob(handoff: AttributionJobHandoff): Promise<void> {
 
   await claimAttributionJob(db, handoff.jobId, CONTAINER_NAME);
 
-  const summaries = await runAttribution(
-    {
-      DB: db,
-      ARCHIVE: archive as unknown as R2Bucket,
-      AI_GATEWAY_URL,
-      ANTHROPIC_API_KEY,
-      CF_AIG_TOKEN: CF_AIG_TOKEN || undefined,
-      TRIAGE_MODEL,
-      REASONING_MODEL,
-    },
-    {
-      investigationId: handoff.investigationId,
-      accountFilter: handoff.options?.accountFilter,
-      skipTriage: handoff.options?.skipTriage,
-      maxRetries: handoff.options?.maxRetries,
-      randomizationSeed: handoff.options?.randomizationSeed,
+  const inv = await db
+    .prepare(
+      'SELECT crypto_version, key_check FROM investigations WHERE id = ?'
+    )
+    .bind(handoff.investigationId)
+    .first<{ crypto_version: string | null; key_check: string | null }>();
+  const isEncrypted = Boolean(inv?.crypto_version);
+  const sealedMaterial = handoff.encryptionKeyMaterial;
+  handoff.encryptionKeyMaterial = undefined;
+
+  if (isEncrypted && !sealedMaterial) {
+    throw new Error(
+      `Encrypted investigation ${handoff.investigationId} requires encryptionKeyMaterial on the VPC handoff (#246)`
+    );
+  }
+
+  let encKey: CryptoKey | null = null;
+  if (sealedMaterial) {
+    encKey = await unsealInvestigationKeyFromVpcHandoff(
+      sealedMaterial,
+      ATTRIBUTION_SECRET,
+      handoff.investigationId
+    );
+    if (inv?.key_check) {
+      const ok = await verifyKeyCheck(encKey, inv.key_check);
+      if (!ok) {
+        throw new Error(
+          `Encrypted investigation ${handoff.investigationId}: handoff key failed key_check`
+        );
+      }
     }
-  );
+  }
 
-  await completeAttributionJob(db, handoff.jobId, summaries.length);
+  try {
+    const summaries = await runAttribution(
+      {
+        DB: db,
+        ARCHIVE: archive as unknown as R2Bucket,
+        AI_GATEWAY_URL,
+        ANTHROPIC_API_KEY,
+        CF_AIG_TOKEN: CF_AIG_TOKEN || undefined,
+        TRIAGE_MODEL,
+        REASONING_MODEL,
+      },
+      {
+        investigationId: handoff.investigationId,
+        accountFilter: handoff.options?.accountFilter,
+        skipTriage: handoff.options?.skipTriage,
+        maxRetries: handoff.options?.maxRetries,
+        randomizationSeed: handoff.options?.randomizationSeed,
+        encKey,
+      }
+    );
 
-  // Pass the user-controlled ids as args, not inside the format string, so a
-  // crafted jobId cannot inject console format directives (CodeQL
-  // js/tainted-format-string).
-  console.log(
-    '[attribution] completed job %s investigation=%s pairs=%d',
-    handoff.jobId,
-    handoff.investigationId,
-    summaries.length
-  );
+    await completeAttributionJob(db, handoff.jobId, summaries.length);
+
+    // Pass the user-controlled ids as args, not inside the format string, so a
+    // crafted jobId cannot inject console format directives (CodeQL
+    // js/tainted-format-string).
+    console.log(
+      '[attribution] completed job %s investigation=%s pairs=%d encrypted=%s',
+      handoff.jobId,
+      handoff.investigationId,
+      summaries.length,
+      isEncrypted
+    );
+  } finally {
+    encKey = null;
+  }
 }
 
 const server = http.createServer(async (req, res) => {
@@ -179,21 +221,23 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  handoff.encryptionKeyMaterial = undefined;
+  const jobId = handoff.jobId;
   processJob(handoff).catch(async (err) => {
     const message = err instanceof Error ? err.message : String(err);
-    console.error('[attribution] job %s failed:', handoff.jobId, err);
+    console.error('[attribution] job %s failed: %s', jobId, message);
     try {
       if (MYSQL_URL) {
         const db = createDatabaseClient(parseMysqlUrl(MYSQL_URL));
-        await failAttributionJob(db, handoff.jobId, message);
+        await failAttributionJob(db, jobId, message);
       }
-    } catch (dbErr) {
-      console.error('[attribution] failed to record job failure for %s:', handoff.jobId, dbErr);
+    } catch {
+      console.error('[attribution] failed to record job failure for %s', jobId);
     }
   });
 
   res.writeHead(202, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ accepted: true, jobId: handoff.jobId }) + '\n');
+  res.end(JSON.stringify({ accepted: true, jobId }) + '\n');
 });
 
 server.listen(PORT, () => {

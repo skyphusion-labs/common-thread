@@ -37,6 +37,7 @@ import {
   CRYPTO_VERSION,
   computeKeyCheck,
   deriveInvestigationKey,
+  sealInvestigationKeyForVpcHandoff,
 } from '../crypto/investigation-key';
 import {
   assertInvestigationActiveForWrite,
@@ -1066,23 +1067,52 @@ async function handleAttribute(ctx: RouteContext): Promise<Response> {
 
   // Async path (#69): server-credentials-only runs delegate to the VPC
   // executor and return 202 + a job id. BYOK requests (credential source
-  // 'request') and environments without the executor bound fall through to
-  // the synchronous inline path below, unchanged. No credential is persisted
-  // or handed to the executor: options carries only non-secret run parameters.
-  //
-  // Encryption at rest (§3.5): an encrypted investigation MUST run inline. The
-  // in-memory key lives only in this request; the detached VPC executor has no
-  // way to derive it, so dispatching there would silently write the plaintext
-  // conclusion into an investigation the caller was told is encrypted. Forcing
-  // inline keeps the invariant intact (key-on-dispatch for the executor is a
-  // tracked follow-up, not shipped here).
-  if (!ctx.encKey && shouldRunAttributionAsync(env, credentials.source)) {
-    const { jobId, status } = await enqueueAttributionJob(env, investigationId, {
-      accountFilter,
-      skipTriage,
-      maxRetries,
-      randomizationSeed,
-    });
+  // 'request') stay synchronous so a user AI key never reaches the executor.
+  // Encrypted investigations (#246) may async when the access token is present:
+  // investigation key is envelope-sealed under ATTRIBUTION_SECRET into the VPC
+  // handoff only (never options_json / jobs table). Missing token/key on an
+  // encrypted inv would write plaintext conclusions -- refuse that path.
+  if (shouldRunAttributionAsync(env, credentials.source)) {
+    if (ctx.auth?.crypto_version && !ctx.encKey) {
+      return jsonResponse(
+        {
+          error: 'encryption_key_required',
+          message:
+            'Encrypted investigation requires the access token to derive the encryption key for async attribution.',
+        },
+        400
+      );
+    }
+    let encryptionKeyMaterial: string | undefined;
+    if (ctx.auth?.crypto_version) {
+      const token = extractAccessToken(request, url);
+      if (!token || !env.ATTRIBUTION_SECRET) {
+        return jsonResponse(
+          {
+            error: 'encryption_key_required',
+            message:
+              'Encrypted async attribution requires access token and ATTRIBUTION_SECRET for key-on-dispatch sealing.',
+          },
+          400
+        );
+      }
+      encryptionKeyMaterial = await sealInvestigationKeyForVpcHandoff(
+        token,
+        investigationId,
+        env.ATTRIBUTION_SECRET
+      );
+    }
+    const { jobId, status } = await enqueueAttributionJob(
+      env,
+      investigationId,
+      {
+        accountFilter,
+        skipTriage,
+        maxRetries,
+        randomizationSeed,
+      },
+      encryptionKeyMaterial
+    );
     return jsonResponse({ investigationId, jobId, status, mode: 'async' }, 202);
   }
 
@@ -1325,6 +1355,7 @@ async function handleIngestApify(ctx: RouteContext): Promise<Response> {
   try {
     const result = await ingestApifyTwitter(env, investigationId, allItems, {
       encKey: ctx.encKey ?? null,
+      accessToken: extractAccessToken(ctx.request, ctx.url) ?? undefined,
     });
     const status = result.delegatedToContainer ? 202 : 200;
     return jsonResponse(result, status);

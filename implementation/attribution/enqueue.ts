@@ -7,8 +7,10 @@
  * reason persisted so the failure is observable via the status endpoint rather
  * than left dangling in 'queued'.
  *
- * No credential is ever written to the row: options carries only non-secret run
- * parameters, and the executor uses its own server-side credentials.
+ * No AI credential is ever written to the row: options carries only non-secret
+ * run parameters, and the executor uses its own server-side AI credentials.
+ * Investigation encryption key material (#246) is sent only in the VPC handoff
+ * body -- never in options_json / attribution_jobs.
  */
 
 import { execute } from '../db';
@@ -27,7 +29,12 @@ export interface EnqueuedAttributionJob {
 export async function enqueueAttributionJob(
   env: AttributionEnqueueEnv,
   investigationId: string,
-  options: AttributionJobOptions
+  options: AttributionJobOptions,
+  /**
+   * Transient encryption key material for encrypted investigations (#246).
+   * Passed only to the VPC handoff; never written to the jobs table.
+   */
+  encryptionKeyMaterial?: string
 ): Promise<EnqueuedAttributionJob> {
   const jobId = `attrjob_${crypto.randomUUID()}`;
   const now = new Date().toISOString();
@@ -46,6 +53,7 @@ export async function enqueueAttributionJob(
       jobId,
       investigationId,
       options: options ?? {},
+      encryptionKeyMaterial,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

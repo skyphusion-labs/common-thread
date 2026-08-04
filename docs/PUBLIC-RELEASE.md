@@ -30,7 +30,7 @@ the retention/DELETE update in `PRIVACY.md`. **Positive BYOK E2E PASS** 2026-08-
 | Archive / R2 | GO | Content-addressed, hash re-verified on read; BYOK keys never persisted. |
 | VPC ingest / PDF / attribution | **GO** | Executor confirmed internal-only both sides (code: `[[vpc_services]]` binding, no public route to :8082; infra: no public ingress). BYOK runs inline, never dispatches; only the no-BYOK path reaches the executor and it fails closed once the flag is set / secrets stripped. wkhtmltopdf SSRF locked. |
 | Offline verifier package | **GO** | Published `@skyphusion/common-thread-verify@0.1.0` (`verify-v0.1.0`, 2026-08-04). |
-| Encryption at rest (§3.5) | **GO** | Conclusion + features/basis/events/metadata (#228 / #244). VPC key-on-dispatch still deferred (inline force). |
+| Encryption at rest (§3.5) | **GO** | Conclusion + features/basis/events/metadata (#228 / #244). VPC key-on-dispatch (#246) for encrypted inv when request holds key. |
 | CORS / origin | GO | Prod `CORS_ALLOWED_ORIGINS=""` (browser API blocked); never `*`-with-credentials. |
 | Legal / policy docs | **UPDATED** (retention/DELETE/R2 + BYOK verified) | `PRIVACY.md` / `ACCEPTABLE-USE.md` are active disclosures. Controller/processor and calendar retention still OPEN. UI-vs-API: Option 1 (UI public; API not third-party open) remains the default. |
 

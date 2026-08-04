@@ -83,16 +83,29 @@ Pack/read seam: `implementation/crypto/feature-cells.ts`.
 - **Reads:** `getAttributionRun` / `listAttributionRuns` and the evidence-packet
   builders decrypt with the key; the PDF path renders already-decrypted HTML in
   the container, so the key never leaves the Worker.
-- **Async attribution and VPC ingest are forced inline for encrypted
-  investigations.** The detached VPC containers have no request-scoped key, so
-  dispatching there would write plaintext features/conclusions. `handleAttribute`
-  and `ingestApifyTwitter` run encrypted investigations inline instead.
-  **Fail closed:** if `crypto_version` is set and the request-scoped key is
-  missing, ingest throws `EncryptedIngestKeyRequiredError` (HTTP 400
-  `encryption_key_required`) rather than VPC-dispatching and writing plaintext.
-  Encrypted-cell reads throw on missing/wrong key (never return `enc:1:` ciphertext
-  to callers or the LLM). Key-on-dispatch for VPC is a remaining follow-up if the
-  container path must return for encrypted work.
+- **VPC key-on-dispatch (#246):** when the request holds a valid access token
+  for an encrypted investigation, the Worker may hand work to VPC ingest /
+  attribution. The investigation AES key is **envelope-sealed** under a key
+  derived from the container shared secret (`INGEST_SECRET` /
+  `ATTRIBUTION_SECRET`) + investigation id: wire format
+  `inv-enc-handoff:v1:<base64url>`. Cleartext AES bytes never ride the VPC body.
+  The request-scoped `CryptoKey` in the Worker stays **non-extractable**; only
+  a temporary extractable derivation exists inside the seal helper.
+  Sealed material is sent **only** in the bearer-authenticated VPC handoff
+  body — **never** `ingest_jobs` / `attribution_jobs`, R2, logs, or HTTP client
+  responses. Containers unseal, optional `key_check` verify, pack/write, then
+  drop the key. Error logs record `jobId` + message only (no Error object /
+  handoff dump). **Fail closed:** `crypto_version` set with no sealed material
+  refuses the job. BYOK AI credentials still never leave the Worker.
+  Encrypted-cell reads throw on missing/wrong key (never return `enc:1:`
+  ciphertext to callers or the LLM).
+
+  **Trust boundary (accepted, pre-existing):** containers authorize with a
+  static bearer shared secret on the private Workers VPC network (no public
+  route). Compromising `INGEST_SECRET` / `ATTRIBUTION_SECRET` or a fleet
+  container is already full data-plane compromise for that path; key-on-dispatch
+  does not add a new public attack surface. mTLS / per-investigation MFA for
+  container entry is out of scope for this change.
 
 ## Backward compatibility
 
@@ -120,6 +133,5 @@ runbook) by piping the migration SQL through `docker exec` into the
 
 ## Follow-up
 
-- Key-on-dispatch for VPC ingest / attribution containers (encrypted
-  investigations currently force the inline Worker path). Tracked as a
-  separate issue when the container path must resume for encrypted work.
+- Container image rebuild + fleet roll of ingest/attribution workers to pick up
+  #246 key-on-dispatch handlers (code is in-repo; live containers need a bake).

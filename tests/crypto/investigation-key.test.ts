@@ -12,6 +12,8 @@ import {
   deriveInvestigationKey,
   encryptCell,
   isEncryptedCell,
+  sealInvestigationKeyForVpcHandoff,
+  unsealInvestigationKeyFromVpcHandoff,
   verifyKeyCheck,
 } from '../../implementation/crypto/investigation-key';
 
@@ -111,5 +113,42 @@ describe('key check', () => {
 describe('CRYPTO_VERSION', () => {
   it('is the stable v1 tag', () => {
     expect(CRYPTO_VERSION).toBe('v1');
+  });
+});
+
+describe('VPC handoff seal / unseal (#246)', () => {
+  const WRAP = 'test-ingest-or-attribution-secret';
+
+  it('round-trips: sealed handoff unseals to a key that matches derive', async () => {
+    const key = await deriveInvestigationKey(TOKEN, INV);
+    const sealed = await sealInvestigationKeyForVpcHandoff(TOKEN, INV, WRAP);
+    expect(sealed.startsWith('inv-enc-handoff:v1:')).toBe(true);
+    // Cleartext AES material must not appear in the wire blob.
+    expect(sealed.includes('inv-enc-key:')).toBe(false);
+
+    const unsealed = await unsealInvestigationKeyFromVpcHandoff(sealed, WRAP, INV);
+    const cell = await encryptCell(key, 'handoff-payload', AAD);
+    expect(await decryptCell(unsealed, cell, AAD)).toBe('handoff-payload');
+    expect(await verifyKeyCheck(unsealed, await computeKeyCheck(key))).toBe(true);
+  });
+
+  it('rejects wrong wrapping secret', async () => {
+    const sealed = await sealInvestigationKeyForVpcHandoff(TOKEN, INV, WRAP);
+    await expect(
+      unsealInvestigationKeyFromVpcHandoff(sealed, 'wrong-secret', INV)
+    ).rejects.toThrow();
+  });
+
+  it('rejects wrong investigation id (AAD)', async () => {
+    const sealed = await sealInvestigationKeyForVpcHandoff(TOKEN, INV, WRAP);
+    await expect(
+      unsealInvestigationKeyFromVpcHandoff(sealed, WRAP, 'other-inv')
+    ).rejects.toThrow();
+  });
+
+  it('rejects unknown wire prefixes', async () => {
+    await expect(
+      unsealInvestigationKeyFromVpcHandoff('not-a-key', WRAP, INV)
+    ).rejects.toThrow(/unknown handoff format/);
   });
 });

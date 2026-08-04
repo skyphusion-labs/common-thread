@@ -11,4 +11,11 @@ export interface IngestJobHandoff {
    * Example: https://common-thread-backend.skyphusion.org/internal/manifest
    */
   manifestAppendBaseUrl?: string;
+  /**
+   * Envelope-sealed investigation encryption key for encrypted invs (#246).
+   * Format: `inv-enc-handoff:v1:<base64url>` (AES-GCM under a key derived from
+   * INGEST_SECRET + investigationId). Sent only over bearer-authenticated VPC;
+   * NEVER written to ingest_jobs or any durable store. Omit for plaintext invs.
+   */
+  encryptionKeyMaterial?: string;
 }
