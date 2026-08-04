@@ -103,7 +103,8 @@ unhandled error; container bearer auth + 32MB body cap.
 - [x] Prod BYOK smoke — **positive** round-trip PASS 2026-08-04 (ops AI Gateway Run token as visitor `X-CF-AIG-Token` + gateway URL; inv `e2e187-55af59cb8f15`; create → inline ingest 2 accts → attribute request-source sync → packet JSON)
 - [x] workers_dev closed for prod + ops (2026-08-04)
 - [x] WAF/rate-limit applied (2026-08-04)
-- [x] Follow-up issues filed (#189); hard caps shipped (#243); encryption expansion (#244); VPC key-on-dispatch deferred (#246)
+- [x] Follow-up issues filed (#189); hard caps shipped (#243); encryption expansion (#244); VPC key-on-dispatch shipped (#246 / #250 / #251)
+- [x] Encrypted VPC ingest + skyphusion-llm BYOK attribute smoke PASS 2026-08-04 (inv `vpc4-20260804-898729`)
 - [x] npm `@skyphusion/common-thread-verify@0.1.0` published (`verify-v0.1.0`)
 - [x] Prod `PUBLIC_BYOK_ONLY` durable in wrangler escrow + deploy assert (2026-08-04)
 

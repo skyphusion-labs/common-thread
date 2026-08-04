@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.3.0
+
+MINOR (visitor BYOK + encrypted VPC key-on-dispatch):
+
+- **Visitor CF AIG BYOK (#249 / #187):** public attribution accepts an AI Gateway Run token (`X-CF-AIG-Token` / `cfAigToken`) with gateway URL, or an Anthropic key; web Setup forwards the token; `PUBLIC_BYOK_ONLY` fail-closed.
+- **VPC key-on-dispatch (#246 / #250 / #251):** encrypted investigations may ingest (and attribute when async) via fleet containers. Worker seals the investigation key under `INGEST_SECRET` / `ATTRIBUTION_SECRET` for the handoff only; jobs tables never store key material. #251 fixes a container bug that stripped handoff material before `processJob`.
+- **Deploy hygiene (#248):** prod tag filter is SemVer-only (`v[0-9]*`); tag deploy fails closed without `PUBLIC_BYOK_ONLY=1` in wrangler escrow.
+- **Live smoke (2026-08-04):** encrypted inv → VPC ingest 202 → job completed on `json-ingest` → attribute via `…/skyphusion-llm/anthropic` BYOK → packet 200.
+
+Tag-gated prod deploy: `v0.3.0` (Workers + GHCR image push/roll on `v*`).
+
 ## v0.2.0
 
 MINOR (public-host hardening + §3.5 scope expansion):
