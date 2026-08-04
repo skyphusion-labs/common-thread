@@ -26,7 +26,7 @@ in `PRIVACY.md`. Detail below.
 | Backend auth / authZ | **GO** | Constant-time token compare; no route missing authorize; IDOR closed — all three GET packet/run reads self-authorize in-handler, scoped to path investigation_id, integer runId (no hash-unguessability reliance). Confirmed. |
 | Fail-closed BYOK (prod) | **LIVE** | Code fix merged (#192); activated on prod 2026-07-18 (`PUBLIC_BYOK_ONLY` set both workers, host AI secrets stripped). Smoke-verified: no-BYOK → `400 byok_required`, 0 runs dispatched (Rollins 8/0); web gate + CSP clean (Joan). Host key cannot be ridden. |
 | Web UI | **GO** | Parse-break (dead since #69) + BYOK fail-closed gate + headers (#197); de-CDN (self-hosted Tailwind + inline SVG) + strict CSP + branded BYOK error page (#199). Verified in a real browser under enforced CSP, zero violations, both modes. |
-| Deterministic extractors | GO with follow-up | No code-level resource caps (#189) — WAF + app limits bound the acute case. |
+| Deterministic extractors | GO | Resource caps in Worker (#189): seeds / ingest items / attribution pairs. WAF still front-line. |
 | Attribution reasoner (§7) | GO | Citation-required, declines rather than guesses; BYOK SSRF guard verified. |
 | Archive / R2 | GO | Content-addressed, hash re-verified on read; BYOK keys never persisted. |
 | VPC ingest / PDF / attribution | **GO** | Executor confirmed internal-only both sides (code: `[[vpc_services]]` binding, no public route to :8082; infra: no public ingress). BYOK runs inline, never dispatches; only the no-BYOK path reaches the executor and it fails closed once the flag is set / secrets stripped. wkhtmltopdf SSRF locked. |
@@ -69,8 +69,8 @@ inline-script parse break that had left the whole UI non-functional since #69.
   `nosniff`/`Referrer-Policy`/`X-Frame-Options` from #197.
 - **LOW (self-host only, #195 closed — fixed in #192):** partial-BYOK credential
   mixing. Same-source enforcement shipped with #192.
-- **LOW (#189):** no code-level resource caps (seed count, ingest items, O(n²) pair
-  fan-out). Follow-up; WAF/app limits cover the acute case.
+- **LOW (#189):** code-level resource caps shipped (seed count, ingest items,
+  O(n²) pair fan-out) with wrangler-tunable defaults; WAF remains front-line.
 
 ## Verified clean (do not re-audit)
 Constant-time token compare; no route missing authorize; SQL fully parameterized;

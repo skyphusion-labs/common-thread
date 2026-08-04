@@ -83,6 +83,8 @@ const nodeSuites = [
   // Worker error-hygiene e2e (#67): drives worker.fetch, which imports the
   // mysql2 DB layer and so cannot run in the workers pool.
   'tests/workers/error-hygiene.test.ts',
+  // #189 resource-cap HTTP reject paths (worker.fetch + MySQL).
+  'tests/workers/resource-caps-http.test.ts',
   // Dual-mode AI Gateway auth (#111).
   'tests/reasoner/dual-mode-auth.test.ts',
   // Writer/reader archive-key round trip (#108).

@@ -302,6 +302,10 @@ Add a seed account.
 
 **Response `201`**
 
+**Response `400` `seed_cap_exceeded`**: active seed count is already at
+`MAX_SEED_ACCOUNTS` (default 50; wrangler var). Body includes `limit` and
+`attempted`. Re-adding an existing active seed is not blocked.
+
 ### `DELETE /investigations/:id/seeds`
 
 Soft-delete active seeds for a platform + account (sets `removed_at`,
@@ -370,6 +374,9 @@ extractor pipeline (container when `VPC_INGEST`, `INGEST_WORKER_URL`, and
 - `application/json`,  array of items, or `{ "items": [...] }` / `{ "data": [...] }`
 - `multipart/form-data`,  one or more `file` fields containing JSON
 
+**Response `400` `ingest_cap_exceeded`**: item count exceeds `MAX_INGEST_ITEMS`
+(default 5000 per request; wrangler var). Split the upload.
+
 **Response `202`**:  job delegated to ingest container (`delegatedToContainer: true`).  
 **Response `200`**:  inline pipeline completed.
 
@@ -405,6 +412,11 @@ Requires Anthropic credentials via **server secrets** or **request BYOK**
 | `accountFilter=a,b` | Restrict to listed accounts |
 | `maxRetries` | Reasoning retry cap (default 3) |
 | `randomizationSeed` | Reproducible signal-table shuffle (§7.4.1) |
+
+**Response `400` `pair_cap_exceeded`**: canonical pair count
+(`n*(n-1)/2` over active seeds, or the `accountFilter` subset) exceeds
+`MAX_ATTRIBUTION_PAIRS` (default 1225 = C(50,2); wrangler var). Checked
+before credential resolution / LLM work. Narrow the filter or raise the var.
 
 **Bring-your-own-key (BYOK)**:  for public deployments where the host
 does not supply API keys:
