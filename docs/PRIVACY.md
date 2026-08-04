@@ -1,11 +1,12 @@
 # Privacy (hosted instance)
 
-**DRAFT for Conrad's review. Not legal advice, not a compliance certification.**
-This document is a plain-language, structural disclosure of what the hosted
-Common Thread instance does with data. It is written by the project (Ernst,
-legal-affairs helper, not a practicing lawyer) to be honest and reproducible
-from the docs, not to certify compliance with any specific privacy statute
-(GDPR, CCPA/CPRA, or others). Open questions are flagged inline as **OPEN**.
+**Active disclosure for the hosted instance (v0.1.2+). Not legal advice, not a
+compliance certification.** This document is a plain-language structural
+disclosure of what the hosted Common Thread instance does with data. It is
+written by the project (Ernst, legal-affairs helper, not a practicing lawyer) to
+be honest and reproducible from the docs, not to certify compliance with any
+specific privacy statute (GDPR, CCPA/CPRA, or others). Remaining operator
+decisions are flagged **OPEN**.
 
 ## Scope
 
@@ -23,10 +24,11 @@ Common Thread attributes coordinated inauthentic behavior to a **cluster** (a
 common operator) from **public** behavioral signals. By design it **never
 identifies natural persons** (methodology paper section 3.3.3). The hosted
 instance stores the investigation data a visitor supplies and derives, protected
-behind a per-investigation capability token, and **by design** holds no shared
-AI credential that visitors could ride: attribution runs on the visitor's own
-key (BYOK). (The BYOK handling described below is the design contract; it is
-verified in the #187 security pass, not asserted as fact here.)
+behind a per-investigation capability token, and holds no shared AI credential
+that visitors could ride: attribution runs on the visitor's own key (BYOK).
+Fail-closed BYOK on the public Worker was activated and smoke-verified
+2026-07-18 (#187 / #192): no-BYOK attribution returns `400 byok_required` and
+does not dispatch a run.
 
 ## Two kinds of people in the data
 
@@ -77,21 +79,17 @@ recover it for you.
 
 Attribution (paper section 7) requires a language model. On the hosted instance
 **you bring your own credentials** (an Anthropic API key and/or an AI Gateway
-URL). **By design** (the #187 non-negotiable), the public Worker holds no shared
-`ANTHROPIC_API_KEY` / `AI_GATEWAY_URL` that visitors could ride, and fails closed
-when BYOK is missing (clear error, no silent host fallback). This is the design
-contract; it is being verified in the #187 security pass, not asserted as an
-observed fact in this document.
+URL). The public Worker is configured with `PUBLIC_BYOK_ONLY` so that:
 
-The **intended** handling of BYOK credentials is that they are not logged, not
-returned on a GET, not written into evidence packets or R2 artifacts, and held
-only for the lifetime of the request. That is the design contract, **not yet an
-asserted fact in this document.** It is being verified under #187 workstream 2
-(Rollins' adverse review), and this section will be reconciled with those
-findings when they land. Until then, treat the BYOK-handling guarantees as
-design intent pending verification. **OPEN:** confirm from the security pass
-whether any BYOK material is persisted at rest (intent: no) and fold the
-confirmed behavior in here.
+- Shared host `ANTHROPIC_API_KEY` / `AI_GATEWAY_URL` are not used for visitor
+  attribution (server secrets are ignored when the flag is on).
+- Credential-less attribution returns **`400 byok_required`** before any run is
+  dispatched (verified live 2026-07-18).
+
+BYOK credentials are request-scoped: they are not written into investigation
+rows, evidence packets, or R2 artifacts. Prefer headers over query strings for
+tokens and keys. Optional "remember" in the web UI stores credentials in
+**browser localStorage** on the visitor's device only, not on the host.
 
 ### 4. Operational logs
 
@@ -136,27 +134,42 @@ methodology's intended contexts.
 
 ## Retention and deletion
 
-**Current implementation behavior:**
+### What the code does today
 
-- Seed accounts are **soft-deleted** (`removed_at`), not hard-deleted, so the
-  investigation record and its audit trail stay intact.
-- Investigations can be **sealed** (`status = sealed`), making them read-only.
-- The R2 archive is **append-only and immutable** by design (section 3.1);
-  artifacts are content-addressed and are not mutated in place.
+| Action | Effect |
+|--------|--------|
+| Soft-remove a seed | Sets `removed_at` on that seed; investigation stays |
+| Seal an investigation | Status `sealed`: write path closed; data retained |
+| **`DELETE /investigations/:id`** (active only, with capability token) | Purges investigation-scoped MySQL tables (seeds, features, runs, jobs, manifests sidecars, etc.) and deletes investigation-scoped archive keys under the investigation prefix |
+| Content-addressed blobs | Objects under R2 **`sha256/...`** are **global and deduplicated**. They are **not** deleted on investigation DELETE. A second investigation that ingested the same bytes still needs them for hash re-verify |
 
-**OPEN for Conrad (policy, not code):**
+This is intentional for reproducibility (paper section 3.1): the same content
+hash always maps to the same stored bytes. Deleting an investigation removes
+**your graph and your pointers**, not necessarily every byte that ever appeared
+in your ingest if those bytes are shared by content address.
 
-1. How long the hosted instance retains investigation data (indefinite vs a
-   defined window).
-2. Whether a visitor can request **deletion** of an investigation and its
-   archived artifacts, and by what channel; today the code path is
-   soft-delete/seal, not erasure.
-3. How deletion interacts with the immutability/reproducibility commitment
-   (section 3.1, section 3.4) -- these are in tension and the resolution is a
-   project decision, not a technical default.
+There is **no automatic time-based purge**. Until you call DELETE (or the host
+retires the instance), investigation rows and associated non-deduplicated
+objects remain.
 
-Until these are decided, visitors should treat hosted-instance data as
-**retained** and should not ingest anything they are not prepared to have stored.
+### What visitors should assume
+
+1. **Default retention is indefinite** on the hosted instance for investigation
+   metadata and non-deduplicated data, subject to host operational needs and
+   abuse response (see [ACCEPTABLE-USE.md](ACCEPTABLE-USE.md) and
+   [contact.md](contact.md)).
+2. **You can delete an active investigation** via the API (`DELETE
+   /investigations/:id` with the capability token) or ask the host via
+   `common-thread@skyphusion.org` if you lost the token (recovery is not
+   guaranteed; the host stores only the token hash).
+3. **After DELETE, `sha256/` blobs may still exist** on the host. Do not ingest
+   material you require to be erasable to zero on the host.
+4. **Sealed investigations** are read-only and are not removed by soft-delete of
+   seeds; use hard DELETE while still active if you need removal.
+
+**OPEN (policy, optional counsel):** a fixed calendar retention window (e.g. N
+days after last access) is not implemented. If the host later adds one, this
+section will be updated.
 
 ## Security and abuse contact
 
@@ -175,5 +188,7 @@ during a bounded window and may be reduced or retired with notice.
 
 ---
 
-**Status:** DRAFT (Ernst, #187). Open questions flagged **OPEN** above are for
-Conrad and, where noted, licensed counsel to resolve.
+**Status:** Active disclosure for the hosted instance (updated Sprint A / #187).
+Not a statute certification. Controller/processor framing and any fixed
+retention calendar remain **OPEN** for Conrad (and counsel if the instance is
+offered at scale).
