@@ -221,7 +221,8 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  handoff.encryptionKeyMaterial = undefined;
+  // processJob reads encryptionKeyMaterial first then clears it; do not strip here
+  // (same #246 live miss as ingest-worker).
   const jobId = handoff.jobId;
   processJob(handoff).catch(async (err) => {
     const message = err instanceof Error ? err.message : String(err);
