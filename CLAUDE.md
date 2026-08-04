@@ -247,3 +247,30 @@ R2 and assert feature rows.
 Conventional Commits (`feat(scope):` / `fix(scope):` / `docs:` / `ci:`); the body explains the why.
 When a change is governed by a paper section, cite it (`§N.N`) in the commit body as well as the
 code. SemVer-style `0.MINOR.PATCH` while pre-1.0.
+
+## Release / tagging
+
+**TAG-GATED deploy.** `.github/workflows/deploy.yml` runs on pushed `v*` tags (prod backend + web
+Workers). A bare merge to `main` does **not** redeploy production.
+
+Operator instance (`--env operator`) is **manual only**: `workflow_dispatch` with
+`deploy_operator=true`. Never auto-fires on push. See private
+`fleet-chezmoi/system/common-thread/RUNBOOK-ops-instance.md`.
+
+Image workflows (attribution/pdf/ingest) push GHCR on `v*` or `workflow_dispatch`, not on bare main
+push.
+
+npm verify package (if used): tag pattern `verify-v*` via `publish-verify-npm.yml`.
+
+### Cut a prod release
+
+1. **Release PR on `main`:** bump root `package.json` version when shipping a versioned cut; land PR.
+2. **Tag:**
+
+```bash
+git fetch origin main && git checkout main && git pull --ff-only
+git tag -a vX.Y.Z -m "vX.Y.Z"
+git push origin vX.Y.Z
+```
+
+3. Confirm `deploy.yml` green. Tag must be on `origin/main`.
