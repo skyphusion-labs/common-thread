@@ -1202,8 +1202,15 @@ function renderHtml(env) {
 
 // The public-mode flag is projected into the EXTERNAL app.js (not the HTML), so
 // the served script is byte-stable per deploy and the strict CSP needs no inline.
+// Match backend isTruthyFlag (implementation/workers/index.ts): "1" or "true"
+// (case-insensitive). #201 — a value of "1" on both workers must gate the UI too.
+function isTruthyFlag(value) {
+  const flag = String(value ?? '').trim().toLowerCase();
+  return flag === 'true' || flag === '1';
+}
+
 function renderAppJs(env) {
-  const byokOnly = String(env.PUBLIC_BYOK_ONLY || '').toLowerCase() === 'true';
+  const byokOnly = isTruthyFlag(env.PUBLIC_BYOK_ONLY);
   return APP_JS.replace('__PUBLIC_BYOK_ONLY__', byokOnly ? 'true' : 'false');
 }
 

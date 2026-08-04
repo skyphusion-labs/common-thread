@@ -158,6 +158,32 @@ describe('callLLM', () => {
     ).rejects.toThrow(LlmTransportError);
   });
 
+  it('does not retry non-retryable HTTP 400 (single interceptor is enough)', async () => {
+    // Regression for #96 isolation flake: LlmTransportError from a 4xx used to
+    // re-enter the outer retry loop (sleep + extra fetch), exhausting queued
+    // interceptors and hanging the per-pair isolation test under coverage.
+    fetchMock
+      .get('https://gateway.test')
+      .intercept({ path: '/anthropic/v1/messages', method: 'POST' })
+      .reply(400, 'simulated non-retryable gateway failure')
+      .times(1);
+
+    await expect(
+      callLLM({
+        apiKey: 'sk-test',
+        gatewayUrl: 'https://gateway.test/anthropic',
+        model: 'claude-haiku-4-5',
+        systemPrompt: 'sys',
+        userPrompt: 'usr',
+        maxTokens: 256,
+        maxRetries: 3,
+      })
+    ).rejects.toThrow(/HTTP 400/);
+
+    // afterEach assertNoPendingInterceptors: if we had retried, times(1) would
+    // leave nothing and a second fetch would fail as MockNotMatchedError.
+  });
+
   it('retries once on HTTP 429 then succeeds', async () => {
     fetchMock
       .get('https://gateway.test')
