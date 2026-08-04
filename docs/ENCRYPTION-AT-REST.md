@@ -87,8 +87,12 @@ Pack/read seam: `implementation/crypto/feature-cells.ts`.
   investigations.** The detached VPC containers have no request-scoped key, so
   dispatching there would write plaintext features/conclusions. `handleAttribute`
   and `ingestApifyTwitter` run encrypted investigations inline instead.
-  Key-on-dispatch for VPC is a remaining follow-up if container path must
-  return for encrypted work.
+  **Fail closed:** if `crypto_version` is set and the request-scoped key is
+  missing, ingest throws `EncryptedIngestKeyRequiredError` (HTTP 400
+  `encryption_key_required`) rather than VPC-dispatching and writing plaintext.
+  Encrypted-cell reads throw on missing/wrong key (never return `enc:1:` ciphertext
+  to callers or the LLM). Key-on-dispatch for VPC is a remaining follow-up if the
+  container path must return for encrypted work.
 
 ## Backward compatibility
 

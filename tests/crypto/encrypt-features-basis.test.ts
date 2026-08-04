@@ -83,4 +83,31 @@ describe('encrypt features + basis (#228)', () => {
     expect(packed.feature_value_numeric).toBe(42);
     expect(await readFeatureCell(packed, ctx)).toEqual({ kind: 'numeric', value: 42 });
   });
+
+  it('readTextCell fails closed: never returns enc:1 ciphertext without a key', async () => {
+    const key = await deriveInvestigationKey('ct_fail_closed', 'inv-fc');
+    const cell = await packTextCell('secret basis', {
+      key,
+      investigationId: 'inv-fc',
+      column: 'seed_accounts.basis_statement',
+    });
+    expect(isEncryptedCell(cell)).toBe(true);
+
+    await expect(
+      readTextCell(cell, {
+        key: null,
+        investigationId: 'inv-fc',
+        column: 'seed_accounts.basis_statement',
+      })
+    ).rejects.toThrow(/no investigation key/);
+
+    const otherKey = await deriveInvestigationKey('ct_other_token', 'inv-fc');
+    await expect(
+      readTextCell(cell, {
+        key: otherKey,
+        investigationId: 'inv-fc',
+        column: 'seed_accounts.basis_statement',
+      })
+    ).rejects.toThrow();
+  });
 });

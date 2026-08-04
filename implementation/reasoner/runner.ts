@@ -1011,8 +1011,9 @@ async function loadBasisStatements(
     column: 'seed_accounts.basis_statement',
   };
   for (const r of res.results ?? []) {
-    const statement =
-      (await readTextCell(r.basis_statement, cellCtx)) ?? r.basis_statement;
+    // Fail closed on decrypt (readTextCell throws); never pass ciphertext to
+    // the LLM. Null/empty basis becomes '' for the prompt.
+    const statement = (await readTextCell(r.basis_statement, cellCtx)) ?? '';
     out.push({
       account: r.account_identifier,
       platform: r.platform,
@@ -1032,13 +1033,14 @@ async function loadTimeBounds(
     .bind(investigationId)
     .first<{ metadata_json: string | null }>();
   if (!res || !res.metadata_json) return undefined;
+  // Decrypt failures throw (fail closed). Only JSON-parse issues are soft.
+  const plain = await readTextCell(res.metadata_json, {
+    key: encKey,
+    investigationId,
+    column: 'investigations.metadata_json',
+  });
+  if (!plain) return undefined;
   try {
-    const plain =
-      (await readTextCell(res.metadata_json, {
-        key: encKey,
-        investigationId,
-        column: 'investigations.metadata_json',
-      })) ?? res.metadata_json;
     const parsed = JSON.parse(plain) as Record<string, unknown>;
     const tb = parsed.time_bounds as Record<string, unknown> | undefined;
     if (tb && typeof tb.start === 'string' && typeof tb.end === 'string') {

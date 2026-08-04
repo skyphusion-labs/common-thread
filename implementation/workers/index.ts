@@ -65,6 +65,7 @@ import { authorizeIngestSecret } from '../archive/manifest-remote';
 import type { ManifestEntry } from '../archive/types';
 import { manifestStoreFor } from '../ingest/manifest-env';
 import {
+  EncryptedIngestKeyRequiredError,
   ingestApifyTwitter,
   TWITTER_ACCOUNT_EXTRACTORS,
   TWITTER_PAIR_EXTRACTORS,
@@ -266,7 +267,16 @@ async function resolveEncKey(
 ): Promise<CryptoKey | null> {
   if (!row.crypto_version) return null;
   const token = extractAccessToken(request, url);
-  return token ? deriveInvestigationKey(token, investigationId) : null;
+  // Fail closed: encrypted investigation without a token must not proceed with
+  // encKey=null (would write/read plaintext into enc:1 columns). Auth funnel
+  // already required a token; this guards self-authorize handlers and regressions.
+  if (!token) {
+    throw new InvestigationAccessError(
+      'missing_token',
+      'Encrypted investigation requires an access token to derive the encryption key'
+    );
+  }
+  return deriveInvestigationKey(token, investigationId);
 }
 
 async function handle(request: Request, env: Env): Promise<Response> {
@@ -1312,12 +1322,24 @@ async function handleIngestApify(ctx: RouteContext): Promise<Response> {
     return jsonResponse(ingestCapExceeded(caps.maxIngestItems, allItems.length), 400);
   }
 
-  const result = await ingestApifyTwitter(env, investigationId, allItems, {
-    encKey: ctx.encKey ?? null,
-  });
-
-  const status = result.delegatedToContainer ? 202 : 200;
-  return jsonResponse(result, status);
+  try {
+    const result = await ingestApifyTwitter(env, investigationId, allItems, {
+      encKey: ctx.encKey ?? null,
+    });
+    const status = result.delegatedToContainer ? 202 : 200;
+    return jsonResponse(result, status);
+  } catch (err) {
+    if (err instanceof EncryptedIngestKeyRequiredError) {
+      return jsonResponse(
+        {
+          error: 'encryption_key_required',
+          message: err.message,
+        },
+        400
+      );
+    }
+    throw err;
+  }
 }
 
 async function handleIngestJobStatus(ctx: RouteContext): Promise<Response> {
