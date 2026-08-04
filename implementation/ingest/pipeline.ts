@@ -54,6 +54,7 @@ import {
   buildPriorTimelineByAccount,
   runTimelineRecollection,
 } from './recollection';
+import { packTextCell, readTextCell } from '../crypto/feature-cells';
 
 export interface IngestPipelineEnv {
   db: DatabaseClient;
@@ -72,6 +73,8 @@ export interface RunTwitterIngestPipelineContext {
   parsedTweets?: ParsedTweet[];
   handles?: string[];
   now?: string;
+  /** Per-investigation encryption key (§3.5 / #228). */
+  encKey?: CryptoKey | null;
 }
 
 export interface TwitterIngestPipelineResult {
@@ -128,8 +131,12 @@ export async function runTwitterIngestPipeline(
     .prepare('SELECT metadata_json FROM investigations WHERE id = ?')
     .bind(ctx.investigationId)
     .first<{ metadata_json: string | null }>();
-  const timeBounds = parseInvestigationMetadata(metaRow?.metadata_json ?? null)
-    .time_bounds;
+  const metadataPlain = await readTextCell(metaRow?.metadata_json ?? null, {
+    key: ctx.encKey ?? null,
+    investigationId: ctx.investigationId,
+    column: 'investigations.metadata_json',
+  });
+  const timeBounds = parseInvestigationMetadata(metadataPlain).time_bounds;
 
   let timelines = aggregateParsedTweetsByAccount(parsedTweets);
   let tweetCountRawByAccount: Record<string, number> | undefined;
@@ -227,13 +234,18 @@ export async function runTwitterIngestPipeline(
   let seedsRegistered = 0;
   for (const handle of handles) {
     try {
+      const basis = await packTextCell('Uploaded via Apify Twitter ingest', {
+        key: ctx.encKey ?? null,
+        investigationId: ctx.investigationId,
+        column: 'seed_accounts.basis_statement',
+      });
       await env.db
         .prepare(
           `INSERT IGNORE INTO seed_accounts
            (investigation_id, platform, account_identifier, basis_statement, added_at)
-           VALUES (?, 'twitter', ?, 'Uploaded via Apify Twitter ingest', ?)`
+           VALUES (?, 'twitter', ?, ?, ?)`
         )
-        .bind(ctx.investigationId, handle, now)
+        .bind(ctx.investigationId, handle, basis, now)
         .run();
       seedsRegistered++;
     } catch {
@@ -252,23 +264,27 @@ export async function runTwitterIngestPipeline(
   );
 
   const runnerEnv = { DB: env.db, ARCHIVE: env.archive as R2Bucket };
+  const encKey = ctx.encKey ?? null;
 
   const accountRuns = await runAccountExtractors(runnerEnv, {
     investigationId: ctx.investigationId,
     extractors: accountExtractors,
     accountFilter: handles.length > 0 ? handles : undefined,
+    encKey,
   });
 
   await runResponseLatencyExtraction(runnerEnv, {
     // §4.2.2: no-op when metadata_json.triggering_events is empty (§6.4.6)
     investigationId: ctx.investigationId,
     accountFilter: handles.length > 0 ? handles : undefined,
+    encKey,
   });
 
   const eventRuns = await runEventExtractors(runnerEnv, {
     investigationId: ctx.investigationId,
     extractors: TWITTER_EVENT_EXTRACTORS,
     accountFilter: handles.length > 0 ? handles : undefined,
+    encKey,
   });
 
   let pairRuns: unknown[] = [];
@@ -281,11 +297,13 @@ export async function runTwitterIngestPipeline(
       investigationId: ctx.investigationId,
       extractors: TWITTER_PAIR_EXTRACTORS,
       accountFilter: handles.length > 0 ? handles : undefined,
+      encKey,
     });
     engagementPairRuns = await runEngagementPairExtractors(runnerEnv, {
       investigationId: ctx.investigationId,
       extractors: TWITTER_ENGAGEMENT_PAIR_EXTRACTORS,
       accountFilter: handles.length > 0 ? handles : undefined,
+      encKey,
     });
   } else {
     pairExtractorsSkipped = true;

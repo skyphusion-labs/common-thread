@@ -113,6 +113,12 @@ export async function packTextCell(
 /**
  * Decrypt a payload string produced by packTextCell. Legacy plaintext (not an
  * encrypted cell) is returned as-is, so mixed-vintage rows read cleanly.
+ *
+ * Fail-closed contract (adversarial audit #228 / PR #244):
+ * - Encrypted cell + missing key → **throws** (never returns ciphertext).
+ * - Encrypted cell + wrong key / bad AAD / tamper → **throws** (decryptCell).
+ * - Callers must not fall back to the raw DB string on null/error; that would
+ *   feed `enc:1:...` into JSON.parse or the LLM as if it were plaintext.
  */
 export async function readTextCell(
   stored: string | null,

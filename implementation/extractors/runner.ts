@@ -14,7 +14,7 @@
 import { ArchiveStore } from '../archive/store';
 import { ManifestStore } from '../archive/manifest';
 import type { DatabaseClient } from '../db';
-import { packFeatureValue } from '../schema/db-types';
+import { packFeatureCell } from '../crypto/feature-cells';
 import { inferPlatform } from './platform';
 import type { AccountFeatureExtractor, ExtractedFeature } from './types';
 import { deriveStoredConfidence } from './confidence';
@@ -43,6 +43,12 @@ export interface RunAccountExtractorsOptions {
    * before writing. Default false (prior versions remain).
    */
   replacePriorVersions?: boolean;
+
+  /**
+   * Per-investigation encryption key (§3.5 / #228). When set, feature values
+   * are packed as encrypted cells. Null/omitted = legacy plaintext write.
+   */
+  encKey?: CryptoKey | null;
 }
 
 export interface ExtractorRunResult {
@@ -170,6 +176,7 @@ export async function runAccountExtractors(
             artifactHash: entry.hash,
             manifestEntryHash: entry.hash,
             replacePriorVersions: options.replacePriorVersions,
+            encKey: options.encKey ?? null,
           });
           outputCount++;
         }
@@ -240,6 +247,7 @@ async function writeAccountFeature(
     extractorRunId: number;
     artifactHash: string;
     manifestEntryHash?: string;
+    encKey?: CryptoKey | null;
   } & FeatureWritePolicyOptions
 ): Promise<void> {
   await prepareAccountFeatureWrite(
@@ -256,7 +264,11 @@ async function writeAccountFeature(
     { replacePriorVersions: params.replacePriorVersions }
   );
 
-  const packed = packFeatureValue(params.feature.value);
+  const packed = await packFeatureCell(params.feature.value, {
+    key: params.encKey ?? null,
+    investigationId: params.investigationId,
+    column: 'account_features.value',
+  });
   const extractedAt = new Date().toISOString();
   const confidenceFlag =
     params.feature.confidence ??

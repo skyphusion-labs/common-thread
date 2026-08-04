@@ -27,9 +27,8 @@
 
 import {
   canonicalPlatformedPair,
-  packFeatureValue,
-  readFeatureValue,
 } from '../schema/db-types';
+import { packFeatureCell, readFeatureCell } from '../crypto/feature-cells';
 import { ManifestStore } from '../archive/manifest';
 import type { DatabaseClient } from '../db';
 import type { PairFeatureExtractor, AccountFeatureMap } from './pair-types';
@@ -57,6 +56,9 @@ export interface RunPairExtractorsOptions {
 
   /** §6.1.2 explicit cross-version replace. Default false. */
   replacePriorVersions?: boolean;
+
+  /** Per-investigation encryption key (§3.5 / #228). */
+  encKey?: CryptoKey | null;
 }
 
 export interface PairExtractorRunResult {
@@ -164,17 +166,25 @@ export async function runPairExtractors(
       // Group by platform+account: key → Map<feature_name, FeatureValue>
       const accountFeatures = new Map<string, AccountFeatureMap>();
       const accountFeatureIds = new Map<string, Map<string, number>>();
+      const cellCtx = {
+        key: options.encKey ?? null,
+        investigationId: options.investigationId,
+        column: 'account_features.value',
+      };
 
       for (const row of featureRows) {
         const key = candidateKey({
           platform: row.platform,
           account: row.account_identifier,
         });
-        const fv = readFeatureValue({
-          feature_value_text: row.feature_value_text,
-          feature_value_numeric: row.feature_value_numeric,
-          feature_value_json: row.feature_value_json,
-        });
+        const fv = await readFeatureCell(
+          {
+            feature_value_text: row.feature_value_text,
+            feature_value_numeric: row.feature_value_numeric,
+            feature_value_json: row.feature_value_json,
+          },
+          cellCtx
+        );
 
         let acctMap = accountFeatures.get(key);
         if (!acctMap) {
@@ -285,6 +295,7 @@ export async function runPairExtractors(
               extractorRunId,
               artifactHashes,
               replacePriorVersions: options.replacePriorVersions,
+              encKey: options.encKey ?? null,
             });
             outputCount++;
           }
@@ -512,6 +523,7 @@ async function writePairFeature(
     extractorVersion: string;
     extractorRunId: number;
     artifactHashes: Array<{ artifact_hash: string; manifest_entry_hash: string | null }>;
+    encKey?: CryptoKey | null;
   } & FeatureWritePolicyOptions
 ): Promise<void> {
   await preparePairFeatureWrite(
@@ -530,7 +542,11 @@ async function writePairFeature(
     { replacePriorVersions: params.replacePriorVersions }
   );
 
-  const packed = packFeatureValue(params.feature.value);
+  const packed = await packFeatureCell(params.feature.value, {
+    key: params.encKey ?? null,
+    investigationId: params.investigationId,
+    column: 'pair_features.value',
+  });
   const extractedAt = new Date().toISOString();
   const confidenceFlag =
     params.feature.confidence ??

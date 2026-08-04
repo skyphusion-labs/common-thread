@@ -1,7 +1,7 @@
 // implementation/ingest/apify-ingest.ts
 
 import { ArchiveStore } from '../archive/store';
-import { execute, resolveDatabase } from '../db';
+import { execute, queryOne, resolveDatabase } from '../db';
 import { dispatchIngestJob } from './dispatch';
 import {
   parseApifyTwitterItems,
@@ -23,22 +23,56 @@ function vpcIngestEnabled(env: Env): boolean {
 }
 
 /**
+ * Thrown when an encrypted investigation would have been ingested without a
+ * request-scoped key (would write plaintext features / basis). Callers map
+ * this to HTTP 400/503 as appropriate.
+ */
+export class EncryptedIngestKeyRequiredError extends Error {
+  override name = 'EncryptedIngestKeyRequiredError';
+  constructor(investigationId: string) {
+    super(
+      `Investigation ${investigationId} is encrypted at rest; ingest requires the request-scoped encryption key and cannot be delegated to the VPC container without key-on-dispatch.`
+    );
+  }
+}
+
+/**
  * Ingest an Apify Twitter export.
  *
- * Production (VPC_INGEST configured): archive raw JSON once, enqueue job,
- * dispatch to the self-hosted extraction container, return immediately.
+ * Production (VPC_INGEST configured, **plaintext** investigations only):
+ * archive raw JSON once, enqueue job, dispatch to the self-hosted extraction
+ * container, return immediately.
  *
- * Local dev fallback: runs the full archive + extraction pipeline inline.
+ * Encrypted investigations (#228 / §3.5): always run extractors **inline** with
+ * the request-scoped key. VPC dispatch is refused when crypto_version is set
+ * and no key is present (fail closed -- never write plaintext into an
+ * encrypted investigation).
+ *
+ * Local dev / no VPC: full pipeline inline.
  */
 export async function ingestApifyTwitter(
   env: Env,
   investigationId: string,
-  payload: unknown
+  payload: unknown,
+  options?: { encKey?: CryptoKey | null }
 ): Promise<ApifyIngestResult> {
+  const encKey = options?.encKey ?? null;
   const parsedTweets = parseApifyTwitterItems(payload);
   const handles = extractAllHandlesFromApifyTwitter(payload);
   const now = new Date().toISOString();
   const jobId = `job_${crypto.randomUUID()}`;
+
+  // crypto_version is the durable encryption flag; do not use "encKey present"
+  // alone -- a missing key on an encrypted inv must fail closed, not VPC.
+  const inv = await queryOne<{ crypto_version: string | null }>(
+    env.DB,
+    'SELECT crypto_version FROM investigations WHERE id = ?',
+    [investigationId]
+  );
+  const isEncrypted = Boolean(inv?.crypto_version);
+  if (isEncrypted && !encKey) {
+    throw new EncryptedIngestKeyRequiredError(investigationId);
+  }
 
   const archive = new ArchiveStore({ bucket: env.ARCHIVE });
   const rawBytes = new TextEncoder().encode(JSON.stringify(payload, null, 2));
@@ -46,6 +80,9 @@ export async function ingestApifyTwitter(
     mimeType: 'application/json',
     extension: 'json',
   });
+
+  // VPC only for legacy plaintext investigations. Encrypted always inline.
+  const useVpc = vpcIngestEnabled(env) && !isEncrypted;
 
   await execute(
     env.DB,
@@ -55,7 +92,7 @@ export async function ingestApifyTwitter(
     [
       jobId,
       investigationId,
-      vpcIngestEnabled(env) ? 'queued' : 'running',
+      useVpc ? 'queued' : 'running',
       parsedTweets.length,
       JSON.stringify([]),
       JSON.stringify([rawHash]),
@@ -63,7 +100,7 @@ export async function ingestApifyTwitter(
     ]
   );
 
-  if (vpcIngestEnabled(env)) {
+  if (useVpc) {
     const dispatchResponse = await dispatchIngestJob(env, {
       jobId,
       investigationId,
@@ -110,6 +147,7 @@ export async function ingestApifyTwitter(
       parsedTweets,
       handles,
       now,
+      encKey,
     }
   );
 

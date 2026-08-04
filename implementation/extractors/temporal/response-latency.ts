@@ -14,7 +14,7 @@
 import { ArchiveStore } from '../../archive/store';
 import { ManifestStore } from '../../archive/manifest';
 import type { DatabaseClient } from '../../db';
-import { packFeatureValue } from '../../schema/db-types';
+import { packFeatureCell, readTextCell } from '../../crypto/feature-cells';
 import {
   parseTriggeringEvents,
   type TriggerResponseRecord,
@@ -37,6 +37,8 @@ export interface RunResponseLatencyOptions {
   accountFilter?: string[];
   /** §6.1.2 explicit cross-version replace. Default false. */
   replacePriorVersions?: boolean;
+  /** Per-investigation encryption key (§3.5 / #228). */
+  encKey?: CryptoKey | null;
 }
 
 /**
@@ -53,7 +55,12 @@ export async function runResponseLatencyExtraction(
     .bind(options.investigationId)
     .first<{ metadata_json: string | null }>();
 
-  const triggers = parseTriggeringEvents(meta?.metadata_json ?? null);
+  const metadataPlain = await readTextCell(meta?.metadata_json ?? null, {
+    key: options.encKey ?? null,
+    investigationId: options.investigationId,
+    column: 'investigations.metadata_json',
+  });
+  const triggers = parseTriggeringEvents(metadataPlain);
   if (triggers.length === 0) {
     return { featuresWritten: 0, extractorRunId: 0 };
   }
@@ -104,10 +111,17 @@ export async function runResponseLatencyExtraction(
       const latencies = computeLatenciesForAccount(tweets, triggers);
       const platform = inferPlatform(entry);
 
-      const packed = packFeatureValue({
-        kind: 'json',
-        value: latencies,
-      });
+      const packed = await packFeatureCell(
+        {
+          kind: 'json',
+          value: latencies,
+        },
+        {
+          key: options.encKey ?? null,
+          investigationId: options.investigationId,
+          column: 'account_features.value',
+        }
+      );
       const extractedAt = new Date().toISOString();
       const confidence = latencies.length === 0 ? 'insufficient' : 'sufficient';
 

@@ -10,9 +10,9 @@ Adverse-security pass complete (no open CRITICAL/HIGH); BYOK fail-closed active.
 **workers_dev second door closed** 2026-08-04 (common-thread#234 + crew-secrets
 escrow + operator redeploy; `*.workers.dev` 404 / disabled for prod and ops).
 Remaining before public *announce*: positive BYOK round-trip (throwaway key),
-WAF/rate-limit **apply** (IaC already in fleet-chezmoi), npm publish (#188),
 and any further legal wording Conrad wants after the retention/DELETE update
-in `PRIVACY.md`. Detail below.
+in `PRIVACY.md`. **WAF applied** 2026-08-04; **npm**
+`@skyphusion/common-thread-verify@0.1.0` published (`verify-v0.1.0`). Detail below.
 
 > Product contract: Skyphusion hosts Workers / Hyperdrive / R2 / MySQL / VPC
 > containers. The §7 triage + attribution LLM calls are **visitor BYOK**
@@ -30,7 +30,7 @@ in `PRIVACY.md`. Detail below.
 | Attribution reasoner (§7) | GO | Citation-required, declines rather than guesses; BYOK SSRF guard verified. |
 | Archive / R2 | GO | Content-addressed, hash re-verified on read; BYOK keys never persisted. |
 | VPC ingest / PDF / attribution | **GO** | Executor confirmed internal-only both sides (code: `[[vpc_services]]` binding, no public route to :8082; infra: no public ingress). BYOK runs inline, never dispatches; only the no-BYOK path reaches the executor and it fails closed once the flag is set / secrets stripped. wkhtmltopdf SSRF locked. |
-| Offline verifier package | **GO → publish pending** | Parity verified end-to-end; A2 test suite + clean-room import lint merged (#193, #198). npm publish (#188 B1) awaits Conrad's go. |
+| Offline verifier package | **GO** | Published `@skyphusion/common-thread-verify@0.1.0` (`verify-v0.1.0`, 2026-08-04). |
 | CORS / origin | GO | Prod `CORS_ALLOWED_ORIGINS=""` (browser API blocked); never `*`-with-credentials. |
 | Legal / policy docs | **UPDATED** (retention/DELETE/R2 + BYOK verified) | `PRIVACY.md` / `ACCEPTABLE-USE.md` are active disclosures. Controller/processor and calendar retention still OPEN. UI-vs-API: Option 1 (UI public; API not third-party open) remains the default. |
 
@@ -81,20 +81,18 @@ unhandled error; container bearer auth + 32MB body cap.
 
 ## Conrad decisions outstanding (release-gate batch)
 1. ~~**Activate prod fail-closed**~~ — **DONE** 2026-07-18 (`PUBLIC_BYOK_ONLY` + host AI stripped; negative smoke PASS).
-2. **npm publish** `@skyphusion/common-thread-verify` (`verify-v*` tag) — #188; awaiting go.
+2. ~~**npm publish** `@skyphusion/common-thread-verify`~~ — **DONE** `0.1.0` via `verify-v0.1.0` (2026-08-04).
 3. **UI-public vs API-public** — default remains Option 1 (UI public; CORS empty on API). Confirm if changing.
 4. ~~**Retention / deletion policy (code truth)**~~ — documented in `PRIVACY.md` (DELETE graph + investigation archive keys; retain global `sha256/` blobs; default indefinite). Optional: fixed calendar purge later.
 5. **Controller vs processor** framing for ingested third-party public data (counsel if scaled).
-6. **WAF apply** — fleet-chezmoi `system/cloudflare/waf-ratelimit/` (see Infra above).
+6. ~~**WAF apply**~~ — **DONE** 2026-08-04 (2 rate-limit rules + managed WAF on CT hosts; fleet-chezmoi CR APPLIED).
 7. **Positive BYOK E2E** — throwaway Anthropic key: create → ingest fixture → attribute → packet on prod; record result here.
 
-## Infra (not code) — pending apply
-- **WAF / rate-limit:** CF Pro active on skyphusion.org. **IaC lives in fleet-chezmoi**
-  (`system/cloudflare/waf-ratelimit/`: `rules.json` + `apply-waf-ratelimit.sh`), not in
-  this repo and not in a retired `ops/` tree. Merge of that IaC is done; **apply is
-  still gated** (CR-2026-07-18): needs a Zone WAF Edit + Dynamic Rate Limiting Edit
-  token on skyphusion.org and Conrad's go. Singleton-safe apply preserves non-CT rules.
-  Runbook: `fleet-chezmoi/docs/cr/CR-2026-07-18-common-thread-waf-ratelimit.md`.
+## Infra
+- **WAF / rate-limit:** **APPLIED** 2026-08-04. IaC in fleet-chezmoi
+  `system/cloudflare/waf-ratelimit/`. Live: 2 CT rate rules (30/60s expensive paths,
+  300/60s backend host) + Cloudflare Managed Ruleset execute scoped to CT hosts.
+  Re-apply: `apply-waf-ratelimit.sh` (merge-preserving). CR-2026-07-18.
 
 ## Acceptance criteria (#187) status
 - [x] Readiness evaluation written (this doc)
@@ -104,8 +102,9 @@ unhandled error; container bearer auth + 32MB body cap.
 - [x] Prod BYOK smoke — negative (fail-closed) PASS 8/0 + web/CSP PASS
 - [ ] Prod BYOK smoke — **positive** round-trip (throwaway key; pre-announce)
 - [x] workers_dev closed for prod + ops (2026-08-04)
-- [ ] WAF/rate-limit applied (fleet-chezmoi script; not auto-merged apply)
-- [x] Follow-up issues filed (#189)
+- [x] WAF/rate-limit applied (2026-08-04)
+- [x] Follow-up issues filed (#189); hard caps shipped (#243)
+- [x] npm `@skyphusion/common-thread-verify@0.1.0` published (`verify-v0.1.0`)
 
 ## Positive BYOK pre-announce smoke (manual)
 

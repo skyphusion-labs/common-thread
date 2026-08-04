@@ -53,26 +53,21 @@ enc:1:<base64url( nonce[12] || AES-256-GCM ciphertext || tag[16] )>
 
 ## What is encrypted (this release)
 
-Scoped to the **analytic conclusion**, the most sensitive product:
+- **Attribution conclusion:** `attribution_runs.output_json` and
+  `attribution_runs.output_summary` (#227).
+- **Evidence table + basis (#228):** `account_features` / `pair_features` value
+  columns (via typed envelope in `feature_value_text`),
+  `event_features.event_data_json`, `seed_accounts.basis_statement` and
+  `removed_reason`, `investigations.metadata_json`.
 
-- `attribution_runs.output_json` and `attribution_runs.output_summary`.
-
-Everything else, including the `*_features` value columns, `basis_statement`,
-`event_data_json`, and `metadata_json`, remains plaintext **for now**. Because
-the feature values (the evidence/signal table) are still plaintext, a database
-dump still permits partial reconstruction of the reasoning inputs; only the
-written conclusion is protected. Widening encryption to those columns is a
-tracked follow-up (see below); the paper's §3.5 boundary is written to match
-what actually ships.
+A database dump no longer yields reconstructable reasoning inputs or the written
+conclusion without the investigation access token.
 
 Structural columns stay plaintext by design and remain indexed/queryable:
 account identifiers (public handles), platforms, `confidence_band`, timestamps,
 counts, model/extractor names, manifest hashes.
 
-The seam that packs/reads encrypted values (including the typed envelope that
-lets numeric/JSON feature values be encrypted into the text column while keeping
-the one-of-three CHECK satisfied) is `implementation/crypto/feature-cells.ts`,
-ready for the follow-up.
+Pack/read seam: `implementation/crypto/feature-cells.ts`.
 
 ## Lifecycle
 
@@ -88,12 +83,16 @@ ready for the follow-up.
 - **Reads:** `getAttributionRun` / `listAttributionRuns` and the evidence-packet
   builders decrypt with the key; the PDF path renders already-decrypted HTML in
   the container, so the key never leaves the Worker.
-- **Async attribution is forced inline for encrypted investigations.** The
-  detached VPC executor has no way to derive the request-scoped key, so
-  dispatching there would silently write a plaintext conclusion into an
-  investigation the caller was told is encrypted. `handleAttribute` runs such
-  investigations inline instead (both live deployments already attribute
-  inline). Key-on-dispatch for the executor is a follow-up.
+- **Async attribution and VPC ingest are forced inline for encrypted
+  investigations.** The detached VPC containers have no request-scoped key, so
+  dispatching there would write plaintext features/conclusions. `handleAttribute`
+  and `ingestApifyTwitter` run encrypted investigations inline instead.
+  **Fail closed:** if `crypto_version` is set and the request-scoped key is
+  missing, ingest throws `EncryptedIngestKeyRequiredError` (HTTP 400
+  `encryption_key_required`) rather than VPC-dispatching and writing plaintext.
+  Encrypted-cell reads throw on missing/wrong key (never return `enc:1:` ciphertext
+  to callers or the LLM). Key-on-dispatch for VPC is a remaining follow-up if the
+  container path must return for encrypted work.
 
 ## Backward compatibility
 
@@ -121,10 +120,6 @@ runbook) by piping the migration SQL through `docker exec` into the
 
 ## Follow-up
 
-Extend encryption to the evidence table and basis statements (`*_features`
-value columns, `seed_accounts.basis_statement`/`removed_reason`,
-`event_features.event_data_json`, `investigations.metadata_json`) via the
-`feature-cells.ts` seam, threading `encKey` through the extractor runners and
-the VPC ingest container (key-on-dispatch). Tracked as
-[#228](https://github.com/skyphusion-labs/common-thread/issues/228); update
-§3.5's boundary when it lands.
+- Key-on-dispatch for VPC ingest / attribution containers (encrypted
+  investigations currently force the inline Worker path).
+- Paper §3.5 wording sync if still scoped to conclusion-only in the PDF.

@@ -7,7 +7,7 @@
 
 import type { DatabaseClient } from '../db';
 import type { FeatureValue } from '../schema/db-types';
-import { readFeatureValue } from '../schema/db-types';
+import { readFeatureCell } from '../crypto/feature-cells';
 
 export interface InvestigationLanguageProfile {
   primary_language: string;
@@ -61,7 +61,8 @@ function primaryLanguageFromCounts(counts: Record<string, number>): string {
 
 export async function determineInvestigationLanguage(
   db: DatabaseClient,
-  investigationId: string
+  investigationId: string,
+  encKey: CryptoKey | null = null
 ): Promise<InvestigationLanguageProfile> {
   const res = await db
     .prepare(
@@ -80,9 +81,14 @@ export async function determineInvestigationLanguage(
 
   const langCounts: Record<string, number> = {};
   const profileLangs: string[] = [];
+  const cellCtx = {
+    key: encKey,
+    investigationId,
+    column: 'account_features.value',
+  };
 
   for (const row of res.results ?? []) {
-    const value = readFeatureValue(row);
+    const value = await readFeatureCell(row, cellCtx);
     if (row.feature_name === 'tweet_language_distribution') {
       mergeDistributions(langCounts, parseLanguageDistribution(value));
     } else if (row.feature_name === 'profile_lang' && value.kind === 'text') {

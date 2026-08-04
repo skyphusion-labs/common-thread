@@ -8,8 +8,8 @@
 
 import {
   canonicalPlatformedPair,
-  packFeatureValue,
 } from '../schema/db-types';
+import { packFeatureCell, readTextCell } from '../crypto/feature-cells';
 import { ManifestStore } from '../archive/manifest';
 import type { DatabaseClient } from '../db';
 import type {
@@ -34,6 +34,8 @@ export interface RunEngagementPairExtractorsOptions {
   extractors: EngagementPairFeatureExtractor[];
   /** §6.1.2 explicit cross-version replace. Default false. */
   replacePriorVersions?: boolean;
+  /** Per-investigation encryption key (§3.5 / #228). */
+  encKey?: CryptoKey | null;
 }
 
 export interface EngagementPairExtractorRunResult {
@@ -122,8 +124,15 @@ export async function runEngagementPairExtractors(
       const eventsByAccount = new Map<string, EngagementEventRecord[]>();
       const eventIdsByAccount = new Map<string, number[]>();
 
+      const eventCellCtx = {
+        key: options.encKey ?? null,
+        investigationId: options.investigationId,
+        column: 'event_features.event_data_json',
+      };
+
       for (const row of eventRows) {
-        const parsed = parseEngagementEventData(row.event_type, row.event_data_json);
+        const eventData = await readTextCell(row.event_data_json, eventCellCtx);
+        const parsed = parseEngagementEventData(row.event_type, eventData);
         if (!parsed) continue;
 
         const tsMs = Date.parse(row.event_timestamp);
@@ -234,6 +243,7 @@ export async function runEngagementPairExtractors(
               extractorRunId,
               artifactHashes,
               replacePriorVersions: options.replacePriorVersions,
+              encKey: options.encKey ?? null,
             });
             outputCount++;
           }
@@ -410,6 +420,7 @@ async function writePairFeature(
     extractorVersion: string;
     extractorRunId: number;
     artifactHashes: Array<{ artifact_hash: string; manifest_entry_hash: string | null }>;
+    encKey?: CryptoKey | null;
   } & FeatureWritePolicyOptions
 ): Promise<void> {
   await preparePairFeatureWrite(
@@ -428,7 +439,11 @@ async function writePairFeature(
     { replacePriorVersions: params.replacePriorVersions }
   );
 
-  const packed = packFeatureValue(params.feature.value);
+  const packed = await packFeatureCell(params.feature.value, {
+    key: params.encKey ?? null,
+    investigationId: params.investigationId,
+    column: 'pair_features.value',
+  });
   const extractedAt = new Date().toISOString();
 
   const result = await db
