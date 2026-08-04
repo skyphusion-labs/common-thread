@@ -24,8 +24,8 @@ in `PRIVACY.md`. **WAF applied** 2026-08-04; **npm**
 | Subsystem | Verdict | Notes |
 |---|---|---|
 | Backend auth / authZ | **GO** | Constant-time token compare; no route missing authorize; IDOR closed — all three GET packet/run reads self-authorize in-handler, scoped to path investigation_id, integer runId (no hash-unguessability reliance). Confirmed. |
-| Fail-closed BYOK (prod) | **LIVE** | Code fix merged (#192); activated on prod 2026-07-18 (`PUBLIC_BYOK_ONLY` set both workers, host AI secrets stripped). Smoke-verified: no-BYOK → `400 byok_required`, 0 runs dispatched (Rollins 8/0); web gate + CSP clean (Joan). Host key cannot be ridden. |
-| Web UI | **GO** | Parse-break (dead since #69) + BYOK fail-closed gate + headers (#197); de-CDN (self-hosted Tailwind + inline SVG) + strict CSP + branded BYOK error page (#199). Verified in a real browser under enforced CSP, zero violations, both modes. |
+| Fail-closed BYOK (prod) | **LIVE** | Code fix merged (#192); activated on prod 2026-07-18. **Re-verified 2026-08-04** after v0.2.0: `PUBLIC_BYOK_ONLY=1` on both workers (escrow had dropped the var; restored + redeployed); no-BYOK → **400 `byok_required`**; web `app.js` projects the gate. Host AI secrets remain stripped. Deploy CI now asserts the var is present in wrangler escrow before tag deploy. |
+| Web UI | **GO** | Parse-break (dead since #69) + BYOK fail-closed gate + headers (#197); de-CDN (self-hosted Tailwind + inline SVG) + strict CSP + branded BYOK error page (#199). Verified in a real browser under enforced CSP, zero violations, both modes. Hard-refresh after 2026-08-04 redeploy if you still see "server-side" copy. |
 | Deterministic extractors | GO | Resource caps in Worker (#189): seeds / ingest items / attribution pairs. WAF still front-line. |
 | Attribution reasoner (§7) | GO | Citation-required, declines rather than guesses; BYOK SSRF guard verified. |
 | Archive / R2 | GO | Content-addressed, hash re-verified on read; BYOK keys never persisted. |
@@ -100,12 +100,13 @@ unhandled error; container bearer auth + 32MB body cap.
 - [x] Adverse security analysis — complete; no open critical/high
 - [x] Public instance runs with no worker-level AI secrets (activated + verified 2026-07-18)
 - [~] Documented stranger happy-path (`docs/PUBLIC-USAGE.md`, #197)
-- [x] Prod BYOK smoke — negative (fail-closed) PASS 8/0 + web/CSP PASS
+- [x] Prod BYOK smoke — negative (fail-closed) PASS 8/0 + web/CSP PASS; re-checked 2026-08-04 (`400 byok_required` + UI gate)
 - [ ] Prod BYOK smoke — **positive** round-trip (throwaway key; pre-announce)
 - [x] workers_dev closed for prod + ops (2026-08-04)
 - [x] WAF/rate-limit applied (2026-08-04)
-- [x] Follow-up issues filed (#189); hard caps shipped (#243)
+- [x] Follow-up issues filed (#189); hard caps shipped (#243); encryption expansion (#244); VPC key-on-dispatch deferred (#246)
 - [x] npm `@skyphusion/common-thread-verify@0.1.0` published (`verify-v0.1.0`)
+- [x] Prod `PUBLIC_BYOK_ONLY` durable in wrangler escrow + deploy assert (2026-08-04)
 
 ## Positive BYOK pre-announce smoke (manual)
 
