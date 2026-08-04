@@ -133,5 +133,5 @@ runbook) by piping the migration SQL through `docker exec` into the
 
 ## Follow-up
 
-- Container image rebuild + fleet roll of ingest/attribution workers to pick up
-  #246 key-on-dispatch handlers (code is in-repo; live containers need a bake).
+- v0.3.0 ships #246/#250/#251 on Workers + GHCR images (tag-gated roll). Re-verify
+  fleet pin after the release tag if a node still carries a temporary local image.
