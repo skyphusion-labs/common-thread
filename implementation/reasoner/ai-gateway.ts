@@ -156,12 +156,12 @@ export async function callLLM(opts: LLMCallOptions): Promise<LLMCallResult> {
 
       return parseLlmResponse(json, opts.model);
     } catch (err) {
+      // LlmTransportError thrown above already decided retry vs fail (HTTP status
+      // path and non-JSON body). Re-throwing without another sleep/retry is
+      // load-bearing: a prior bug re-entered the loop on non-retryable 4xx,
+      // stacking backoff and consuming mock interceptors (#96 isolation test
+      // and any real 400 from the gateway).
       if (err instanceof LlmTransportError) {
-        if (attempt < maxRetries - 1) {
-          lastError = err;
-          await sleep(retryDelayMs(attempt));
-          continue;
-        }
         throw err;
       }
 
