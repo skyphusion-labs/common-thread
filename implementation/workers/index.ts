@@ -47,6 +47,13 @@ import {
 import { deleteInvestigationData } from '../investigations/purge';
 import { purgeInvestigationArchive } from '../investigations/archive-purge';
 import {
+  canonicalPairCount,
+  ingestCapExceeded,
+  pairCapExceeded,
+  resolveResourceCaps,
+  seedCapExceeded,
+} from './resource-caps';
+import {
   mergeInvestigationMetadata,
   publicMetadataView,
   serializeInvestigationMetadata,
@@ -153,6 +160,13 @@ export interface Env {
   ATTRIBUTION_WORKER_URL?: string;
   /** Required when delegating attribution to the VPC executor (wrangler secret put ATTRIBUTION_SECRET). */
   ATTRIBUTION_SECRET?: string;
+  /**
+   * Hard caps for host-funded resource surfaces (#189). Positive integers as
+   * wrangler string vars; unset → public-safe defaults in resource-caps.ts.
+   */
+  MAX_SEED_ACCOUNTS?: string;
+  MAX_INGEST_ITEMS?: string;
+  MAX_ATTRIBUTION_PAIRS?: string;
 }
 
 export default {
@@ -767,6 +781,31 @@ async function handleAddSeed(ctx: RouteContext): Promise<Response> {
     return jsonResponse({ error: 'platform and account are required' }, 400);
   }
 
+  const caps = resolveResourceCaps(env);
+  const activeCount = await queryOne<{ count: number }>(
+    env.DB,
+    `SELECT COUNT(*) AS count FROM seed_accounts
+     WHERE investigation_id = ? AND removed_at IS NULL`,
+    [investigationId]
+  );
+  const current = Number(activeCount?.count ?? 0);
+  if (current >= caps.maxSeedAccounts) {
+    // Idempotent re-add of an existing active seed is not a new row; allow
+    // insertSeedIfActive to no-op. Only block net-new accounts past the cap.
+    const existing = await queryOne<{ count: number }>(
+      env.DB,
+      `SELECT COUNT(*) AS count FROM seed_accounts
+       WHERE investigation_id = ?
+         AND platform = ?
+         AND account_identifier = ?
+         AND removed_at IS NULL`,
+      [investigationId, body.platform, body.account]
+    );
+    if (!existing?.count) {
+      return jsonResponse(seedCapExceeded(caps.maxSeedAccounts, current), 400);
+    }
+  }
+
   const now = new Date().toISOString();
   const basis = body.basis_statement ?? body.basisStatement ?? 'Added via API';
   const isControl = body.is_control ? 1 : 0;
@@ -784,6 +823,20 @@ async function handleAddSeed(ctx: RouteContext): Promise<Response> {
     isControl,
   });
   if (!inserted) {
+    // Existing active seed under a full cap: treat as success (no new row).
+    if (current >= caps.maxSeedAccounts) {
+      return jsonResponse(
+        {
+          investigationId,
+          platform: body.platform,
+          account: body.account,
+          is_control: Boolean(isControl),
+          added_at: now,
+          already_present: true,
+        },
+        200
+      );
+    }
     return readOnlyResponse();
   }
 
@@ -897,6 +950,24 @@ async function handleAttribute(ctx: RouteContext): Promise<Response> {
     }
   }
 
+  const accountFilterParam = url.searchParams.get('accountFilter');
+  const accountFilter =
+    (Array.isArray(body.account_filter) ? (body.account_filter as string[]) : undefined) ??
+    (Array.isArray(body.accountFilter) ? (body.accountFilter as string[]) : undefined) ??
+    (accountFilterParam ? accountFilterParam.split(',').map(s => s.trim()).filter(Boolean) : undefined);
+
+  // Pair fan-out ceiling before credential work or LLM spend (#189).
+  const caps = resolveResourceCaps(env);
+  const accountCount = await countAttributionAccounts(
+    env,
+    investigationId,
+    accountFilter
+  );
+  const pairs = canonicalPairCount(accountCount);
+  if (pairs > caps.maxAttributionPairs) {
+    return jsonResponse(pairCapExceeded(caps.maxAttributionPairs, pairs), 400);
+  }
+
   const credentials = resolveAttributionCredentials({
     envAiGatewayUrl: env.AI_GATEWAY_URL,
     envAnthropicApiKey: env.ANTHROPIC_API_KEY,
@@ -916,12 +987,6 @@ async function handleAttribute(ctx: RouteContext): Promise<Response> {
     }
     return jsonResponse({ error: credentials.error }, 503);
   }
-
-  const accountFilterParam = url.searchParams.get('accountFilter');
-  const accountFilter =
-    (Array.isArray(body.account_filter) ? (body.account_filter as string[]) : undefined) ??
-    (Array.isArray(body.accountFilter) ? (body.accountFilter as string[]) : undefined) ??
-    (accountFilterParam ? accountFilterParam.split(',').map(s => s.trim()).filter(Boolean) : undefined);
 
   const skipTriage =
     url.searchParams.get('skipTriage') === 'true' || body.skipTriage === true;
@@ -1190,6 +1255,11 @@ async function handleIngestApify(ctx: RouteContext): Promise<Response> {
     allItems = Array.isArray(body) ? body : Array.isArray(body?.items) ? body.items : Array.isArray(body?.data) ? body.data : [body];
   }
 
+  const caps = resolveResourceCaps(env);
+  if (allItems.length > caps.maxIngestItems) {
+    return jsonResponse(ingestCapExceeded(caps.maxIngestItems, allItems.length), 400);
+  }
+
   const result = await ingestApifyTwitter(
     env,
     investigationId,
@@ -1318,6 +1388,41 @@ async function parseJsonBody<T>(request: Request): Promise<T | Response> {
 function isTruthyFlag(value: string | undefined): boolean {
   const flag = (value ?? '').trim().toLowerCase();
   return flag === 'true' || flag === '1';
+}
+
+/**
+ * Count accounts that would enter the attribution pair loop (#189).
+ * With accountFilter: distinct active seeds whose account_identifier is in
+ * the filter. Without: all active seeds. Matches loadSeedAccounts /
+ * resolveAccountPlatforms cardinality for the pair-ceiling check.
+ */
+async function countAttributionAccounts(
+  env: Env,
+  investigationId: string,
+  accountFilter: string[] | undefined
+): Promise<number> {
+  if (accountFilter && accountFilter.length > 0) {
+    const unique = [...new Set(accountFilter.map((s) => s.trim()).filter(Boolean))];
+    if (unique.length === 0) return 0;
+    const placeholders = unique.map(() => '?').join(', ');
+    const row = await queryOne<{ count: number }>(
+      env.DB,
+      `SELECT COUNT(*) AS count FROM seed_accounts
+       WHERE investigation_id = ?
+         AND removed_at IS NULL
+         AND account_identifier IN (${placeholders})`,
+      [investigationId, ...unique]
+    );
+    return Number(row?.count ?? 0);
+  }
+
+  const row = await queryOne<{ count: number }>(
+    env.DB,
+    `SELECT COUNT(*) AS count FROM seed_accounts
+     WHERE investigation_id = ? AND removed_at IS NULL`,
+    [investigationId]
+  );
+  return Number(row?.count ?? 0);
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
