@@ -40,3 +40,5 @@ cloudflared/credentials.json
 cloudflared/cert.pem
 cloudflared/config.yml
 tmp/
+wrangler.ci.toml
+web/wrangler.ci.toml
