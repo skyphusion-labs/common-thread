@@ -246,10 +246,20 @@ DEFAULT_BACKEND_URL = "http://127.0.0.1:8787"
 - `service = "..."` in `web/wrangler.toml` must exactly match backend `name`.
 - Redeploy web after changing bindings.
 
-**Attribution 503**
+**Attribution 400 `byok_required` / 503**
 
-- Web BYOK: set AI Gateway URL + Anthropic key in Setup tab.
-- API: pass `X-AI-Gateway-Url` and `X-Anthropic-Api-Key`, or set server secrets.
+- Public prod (`PUBLIC_BYOK_ONLY=1`): set AI Gateway URL + Anthropic key **or**
+  AI Gateway Run token in Setup (or API headers `X-AI-Gateway-Url` +
+  `X-Anthropic-Api-Key` / `X-CF-AIG-Token`).
+- Self-host without the flag: set server secrets `AI_GATEWAY_URL` + `CF_AIG_TOKEN`
+  or `ANTHROPIC_API_KEY`.
+
+**Tag-gated production deploy**
+
+- Pushing a SemVer tag `v[0-9]*` (e.g. `v0.3.0`) runs `deploy.yml` (Workers)
+  and image workflows (ingest / attribution / pdf + fleet roll). Bare merges to
+  `main` do not redeploy prod. Tag deploy fails closed if wrangler escrow lacks
+  `PUBLIC_BYOK_ONLY=1` (#248).
 
 **PDF 503**
 

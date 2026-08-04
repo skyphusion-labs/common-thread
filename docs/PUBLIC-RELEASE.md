@@ -5,18 +5,19 @@ Go / no-go evaluation for opening the hosted instance to unsolicited public use
 Companion: `docs/COMPONENTS.md` (distribution), `docs/PUBLIC-USAGE.md` (stranger
 happy-path), `docs/PRIVACY.md` / `docs/ACCEPTABLE-USE.md` (policy).
 
-**Status: LIVE — prod fail-closed activated and smoke-verified (2026-07-18).**
-Adverse-security pass complete (no open CRITICAL/HIGH); BYOK fail-closed active.
-**workers_dev second door closed** 2026-08-04 (common-thread#234 + crew-secrets
-escrow + operator redeploy; `*.workers.dev` 404 / disabled for prod and ops).
-Remaining before public *announce*: any further legal wording Conrad wants after
-the retention/DELETE update in `PRIVACY.md`. **Positive BYOK E2E PASS** 2026-08-04. **WAF applied** 2026-08-04; **npm**
-`@skyphusion/common-thread-verify@0.1.0` published (`verify-v0.1.0`). Detail below.
+**Status: LIVE at v0.3.0 (2026-08-04).** Prod fail-closed BYOK; adverse-security
+pass complete (no open CRITICAL/HIGH); **#187 closed** as completed. Tag-gated
+deploy of Workers + fleet container images. **workers_dev closed** for prod/ops.
+**WAF + rate limits applied.** **npm** `@skyphusion/common-thread-verify@0.1.0`.
+Positive BYOK E2E (CF AIG Run token) and encrypted VPC ingest smoke PASS.
+Optional later: legal controller/processor wording if scaled; UI-vs-API stays
+Option 1 (UI public; API contact-gated). Detail below.
 
 > Product contract: Skyphusion hosts Workers / Hyperdrive / R2 / MySQL / VPC
 > containers. The §7 triage + attribution LLM calls are **visitor BYOK**
-> (Anthropic key + AI Gateway). The public Worker must hold **no** shared AI
-> credential a visitor can ride, and must **fail closed** when BYOK is missing.
+> (Anthropic API key **or** AI Gateway Run token + gateway URL ending in
+> `/anthropic`). The public Worker must hold **no** shared AI credential a
+> visitor can ride, and must **fail closed** when BYOK is missing.
 
 ## Go / no-go by subsystem
 
@@ -28,7 +29,7 @@ the retention/DELETE update in `PRIVACY.md`. **Positive BYOK E2E PASS** 2026-08-
 | Deterministic extractors | GO | Resource caps in Worker (#189): seeds / ingest items / attribution pairs. WAF still front-line. |
 | Attribution reasoner (§7) | GO | Citation-required, declines rather than guesses; BYOK SSRF guard verified. |
 | Archive / R2 | GO | Content-addressed, hash re-verified on read; BYOK keys never persisted. |
-| VPC ingest / PDF / attribution | **GO** | Executor confirmed internal-only both sides (code: `[[vpc_services]]` binding, no public route to :8082; infra: no public ingress). BYOK runs inline, never dispatches; only the no-BYOK path reaches the executor and it fails closed once the flag is set / secrets stripped. wkhtmltopdf SSRF locked. |
+| VPC ingest / PDF / attribution | **GO** | Containers internal-only (`[[vpc_services]]`, no public :8080/:8081/:8082). Encrypted inv ingest uses **key-on-dispatch** (#246/#250/#251): Worker seals key under `INGEST_SECRET`, containers unseal for job lifetime. Visitor BYOK attribution stays Worker-sync (no host AI secrets). wkhtmltopdf SSRF locked. |
 | Offline verifier package | **GO** | Published `@skyphusion/common-thread-verify@0.1.0` (`verify-v0.1.0`, 2026-08-04). |
 | Encryption at rest (§3.5) | **GO** | Conclusion + features/basis/events/metadata (#228 / #244). VPC key-on-dispatch (#246) for encrypted inv when request holds key. |
 | CORS / origin | GO | Prod `CORS_ALLOWED_ORIGINS=""` (browser API blocked); never `*`-with-credentials. |
@@ -86,7 +87,7 @@ unhandled error; container bearer auth + 32MB body cap.
 4. ~~**Retention / deletion policy (code truth)**~~ — documented in `PRIVACY.md` (DELETE graph + investigation archive keys; retain global `sha256/` blobs; default indefinite). Optional: fixed calendar purge later.
 5. **Controller vs processor** framing for ingested third-party public data (counsel if scaled).
 6. ~~**WAF apply**~~ — **DONE** 2026-08-04 (2 rate-limit rules + managed WAF on CT hosts; fleet-chezmoi CR APPLIED).
-7. **Positive BYOK E2E** — throwaway Anthropic key: create → ingest fixture → attribute → packet on prod; record result here.
+7. ~~**Positive BYOK E2E**~~ — **DONE** 2026-08-04 (CF AIG Run token path; optional Anthropic-key smoke is same client contract).
 
 ## Infra
 - **WAF / rate-limit:** **APPLIED** 2026-08-04. IaC in fleet-chezmoi

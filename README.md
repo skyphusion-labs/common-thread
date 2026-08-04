@@ -17,6 +17,9 @@ researchers who need documented methodology without platform-internal data or
 commercial OSINT tooling. Read the paper's audience exclusions (§1.2) before
 applying the methodology.
 
+**Hosted public UI (BYOK):** https://common-thread.skyphusion.org  
+**Current release:** v0.3.0 (see [CHANGELOG.md](CHANGELOG.md)).
+
 ## Repository layout
 
 | Path | Purpose |
@@ -57,16 +60,20 @@ npm run dev:web
 
 Open the web UI, create an investigation (save the access token), upload Apify
 Twitter JSON, run extractors via ingest, then run attribution with **your own**
-Anthropic / AI Gateway keys (BYOK). See `docs/SETUP.md` and the Setup tab in
-the web UI.
+credentials (BYOK): Anthropic API key **or** Cloudflare AI Gateway Run token,
+plus a gateway URL ending in `/anthropic`. See `docs/SETUP.md`,
+`docs/PUBLIC-USAGE.md`, and the Setup tab in the web UI.
 
 ## Documentation
 
 | Doc | Contents |
 |-----|----------|
+| [docs/PUBLIC-USAGE.md](docs/PUBLIC-USAGE.md) | Stranger happy path on the hosted UI |
+| [docs/PUBLIC-RELEASE.md](docs/PUBLIC-RELEASE.md) | Public readiness / go-no-go record |
 | [docs/SETUP.md](docs/SETUP.md) | First-time install, MySQL, secrets, local dev |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Deploy backend + web, bindings, VPC containers |
 | [docs/API.md](docs/API.md) | HTTP routes and typical workflow |
+| [docs/ENCRYPTION-AT-REST.md](docs/ENCRYPTION-AT-REST.md) | §3.5 encryption + VPC key-on-dispatch |
 | [docs/TESTING_SETUP.md](docs/TESTING_SETUP.md) | Vitest, MySQL test DB, LLM mocking |
 | [docs/contact.md](docs/contact.md) | Public and private contact channels |
 
@@ -91,9 +98,15 @@ server. Investigation tokens may be saved in `localStorage` on the user's device
 ## Bring-your-own-key (BYOK)
 
 The host does not need to pay for everyone's LLM usage. Attribution accepts
-credentials per request (web UI or API headers). Server-side
-`AI_GATEWAY_URL` / `ANTHROPIC_API_KEY` secrets are optional when all users
-BYOK. See `docs/API.md` and the web Setup tab.
+credentials per request (web UI or API headers):
+
+- **Headers:** `X-AI-Gateway-Url` plus either `X-Anthropic-Api-Key` or
+  `X-CF-AIG-Token` (AI Gateway Run token for keyless Unified Billing)
+- **Body fields:** `aiGatewayUrl` + `anthropicApiKey` or `cfAigToken`
+
+Public hosted prod sets `PUBLIC_BYOK_ONLY=1` (fail closed without visitor
+credentials). Self-host may set server `AI_GATEWAY_URL` + `CF_AIG_TOKEN` or
+`ANTHROPIC_API_KEY` instead. See `docs/API.md` and the web Setup tab.
 
 ## Licensing
 
