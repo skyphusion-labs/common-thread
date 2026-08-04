@@ -121,5 +121,5 @@ runbook) by piping the migration SQL through `docker exec` into the
 ## Follow-up
 
 - Key-on-dispatch for VPC ingest / attribution containers (encrypted
-  investigations currently force the inline Worker path).
-- Paper §3.5 wording sync if still scoped to conclusion-only in the PDF.
+  investigations currently force the inline Worker path). Tracked as a
+  separate issue when the container path must resume for encrypted work.
