@@ -2,6 +2,7 @@
 
 import { ArchiveStore } from '../archive/store';
 import { execute, queryOne, resolveDatabase } from '../db';
+import { exportInvestigationKeyMaterial } from '../crypto/investigation-key';
 import { dispatchIngestJob } from './dispatch';
 import {
   parseApifyTwitterItems,
@@ -31,7 +32,7 @@ export class EncryptedIngestKeyRequiredError extends Error {
   override name = 'EncryptedIngestKeyRequiredError';
   constructor(investigationId: string) {
     super(
-      `Investigation ${investigationId} is encrypted at rest; ingest requires the request-scoped encryption key and cannot be delegated to the VPC container without key-on-dispatch.`
+      `Investigation ${investigationId} is encrypted at rest; ingest requires the request-scoped encryption key (key-on-dispatch or inline).`
     );
   }
 }
@@ -39,14 +40,13 @@ export class EncryptedIngestKeyRequiredError extends Error {
 /**
  * Ingest an Apify Twitter export.
  *
- * Production (VPC_INGEST configured, **plaintext** investigations only):
- * archive raw JSON once, enqueue job, dispatch to the self-hosted extraction
- * container, return immediately.
+ * Production (VPC_INGEST configured): archive raw JSON once, enqueue job,
+ * dispatch to the self-hosted extraction container, return immediately.
  *
- * Encrypted investigations (#228 / §3.5): always run extractors **inline** with
- * the request-scoped key. VPC dispatch is refused when crypto_version is set
- * and no key is present (fail closed -- never write plaintext into an
- * encrypted investigation).
+ * Encrypted investigations (#246 / §3.5): VPC dispatch is allowed when the
+ * request-scoped key is present; raw key material is sent only in the VPC
+ * handoff body (never written to ingest_jobs). Missing key on crypto_version
+ * investigations fails closed.
  *
  * Local dev / no VPC: full pipeline inline.
  */
@@ -81,8 +81,8 @@ export async function ingestApifyTwitter(
     extension: 'json',
   });
 
-  // VPC only for legacy plaintext investigations. Encrypted always inline.
-  const useVpc = vpcIngestEnabled(env) && !isEncrypted;
+  // VPC when bound. Encrypted jobs carry key material in the handoff (#246).
+  const useVpc = vpcIngestEnabled(env);
 
   await execute(
     env.DB,
@@ -101,6 +101,9 @@ export async function ingestApifyTwitter(
   );
 
   if (useVpc) {
+    const encryptionKeyMaterial = encKey
+      ? await exportInvestigationKeyMaterial(encKey)
+      : undefined;
     const dispatchResponse = await dispatchIngestJob(env, {
       jobId,
       investigationId,
@@ -111,6 +114,7 @@ export async function ingestApifyTwitter(
       manifestAppendBaseUrl: env.PUBLIC_API_BASE_URL
         ? `${env.PUBLIC_API_BASE_URL.replace(/\/$/, '')}/internal/manifest`
         : undefined,
+      encryptionKeyMaterial,
     });
 
     if (!dispatchResponse.ok) {

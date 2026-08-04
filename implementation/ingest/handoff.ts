@@ -11,4 +11,11 @@ export interface IngestJobHandoff {
    * Example: https://common-thread-backend.skyphusion.org/internal/manifest
    */
   manifestAppendBaseUrl?: string;
+  /**
+   * Transient AES-256 key material for encrypted investigations (#246).
+   * Format: `inv-enc-key:v1:<base64url>`. Sent only over bearer-authenticated
+   * VPC; NEVER written to ingest_jobs or any durable store. Omit for legacy
+   * plaintext investigations.
+   */
+  encryptionKeyMaterial?: string;
 }

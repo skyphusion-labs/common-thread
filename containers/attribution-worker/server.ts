@@ -3,13 +3,12 @@
  *
  * Receives async attribution jobs from the Cloudflare Worker via Workers VPC
  * HTTP, runs the reasoner pipeline (runAttribution) against MySQL + R2 using its
- * OWN server-side credentials, and records the terminal job status.
+ * OWN server-side AI credentials, and records the terminal job status.
  *
  * Mirrors containers/ingest-worker/server.ts. Per Conrad's 2026-07-11 decision,
- * this executor only ever runs server-credential jobs: the handoff carries no
- * credential, and the container uses its own AI_GATEWAY_URL / ANTHROPIC_API_KEY.
- * BYOK attribution stays synchronous inline in the Worker and never reaches
- * here.
+ * AI credentials are NEVER in the handoff (BYOK stays Worker-inline). Optional
+ * encryptionKeyMaterial (#246) is accepted for encrypted investigations so
+ * conclusions write as ciphertext; it is never AI credentials.
  *
  * Contract: POST /trigger -- see implementation/attribution/handoff.ts
  */
@@ -22,6 +21,7 @@ import {
   r2S3ConfigFromEnv,
 } from '../ingest-worker/r2-bucket';
 import { createDatabaseClient, parseMysqlUrl } from '../../implementation/db';
+import { importInvestigationKeyMaterial } from '../../implementation/crypto/investigation-key';
 import { runAttribution } from '../../implementation/reasoner/runner';
 import {
   claimAttributionJob,
@@ -111,36 +111,59 @@ async function processJob(handoff: AttributionJobHandoff): Promise<void> {
 
   await claimAttributionJob(db, handoff.jobId, CONTAINER_NAME);
 
-  const summaries = await runAttribution(
-    {
-      DB: db,
-      ARCHIVE: archive as unknown as R2Bucket,
-      AI_GATEWAY_URL,
-      ANTHROPIC_API_KEY,
-      CF_AIG_TOKEN: CF_AIG_TOKEN || undefined,
-      TRIAGE_MODEL,
-      REASONING_MODEL,
-    },
-    {
-      investigationId: handoff.investigationId,
-      accountFilter: handoff.options?.accountFilter,
-      skipTriage: handoff.options?.skipTriage,
-      maxRetries: handoff.options?.maxRetries,
-      randomizationSeed: handoff.options?.randomizationSeed,
-    }
-  );
+  const inv = await db
+    .prepare('SELECT crypto_version FROM investigations WHERE id = ?')
+    .bind(handoff.investigationId)
+    .first<{ crypto_version: string | null }>();
+  const isEncrypted = Boolean(inv?.crypto_version);
+  if (isEncrypted && !handoff.encryptionKeyMaterial) {
+    throw new Error(
+      `Encrypted investigation ${handoff.investigationId} requires encryptionKeyMaterial on the VPC handoff (#246)`
+    );
+  }
 
-  await completeAttributionJob(db, handoff.jobId, summaries.length);
+  let encKey: CryptoKey | null = null;
+  if (handoff.encryptionKeyMaterial) {
+    encKey = await importInvestigationKeyMaterial(handoff.encryptionKeyMaterial);
+    handoff.encryptionKeyMaterial = undefined;
+  }
 
-  // Pass the user-controlled ids as args, not inside the format string, so a
-  // crafted jobId cannot inject console format directives (CodeQL
-  // js/tainted-format-string).
-  console.log(
-    '[attribution] completed job %s investigation=%s pairs=%d',
-    handoff.jobId,
-    handoff.investigationId,
-    summaries.length
-  );
+  try {
+    const summaries = await runAttribution(
+      {
+        DB: db,
+        ARCHIVE: archive as unknown as R2Bucket,
+        AI_GATEWAY_URL,
+        ANTHROPIC_API_KEY,
+        CF_AIG_TOKEN: CF_AIG_TOKEN || undefined,
+        TRIAGE_MODEL,
+        REASONING_MODEL,
+      },
+      {
+        investigationId: handoff.investigationId,
+        accountFilter: handoff.options?.accountFilter,
+        skipTriage: handoff.options?.skipTriage,
+        maxRetries: handoff.options?.maxRetries,
+        randomizationSeed: handoff.options?.randomizationSeed,
+        encKey,
+      }
+    );
+
+    await completeAttributionJob(db, handoff.jobId, summaries.length);
+
+    // Pass the user-controlled ids as args, not inside the format string, so a
+    // crafted jobId cannot inject console format directives (CodeQL
+    // js/tainted-format-string).
+    console.log(
+      '[attribution] completed job %s investigation=%s pairs=%d encrypted=%s',
+      handoff.jobId,
+      handoff.investigationId,
+      summaries.length,
+      isEncrypted
+    );
+  } finally {
+    encKey = null;
+  }
 }
 
 const server = http.createServer(async (req, res) => {

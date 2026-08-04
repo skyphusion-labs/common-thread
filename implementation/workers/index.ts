@@ -37,6 +37,7 @@ import {
   CRYPTO_VERSION,
   computeKeyCheck,
   deriveInvestigationKey,
+  exportInvestigationKeyMaterial,
 } from '../crypto/investigation-key';
 import {
   assertInvestigationActiveForWrite,
@@ -1066,23 +1067,37 @@ async function handleAttribute(ctx: RouteContext): Promise<Response> {
 
   // Async path (#69): server-credentials-only runs delegate to the VPC
   // executor and return 202 + a job id. BYOK requests (credential source
-  // 'request') and environments without the executor bound fall through to
-  // the synchronous inline path below, unchanged. No credential is persisted
-  // or handed to the executor: options carries only non-secret run parameters.
-  //
-  // Encryption at rest (§3.5): an encrypted investigation MUST run inline. The
-  // in-memory key lives only in this request; the detached VPC executor has no
-  // way to derive it, so dispatching there would silently write the plaintext
-  // conclusion into an investigation the caller was told is encrypted. Forcing
-  // inline keeps the invariant intact (key-on-dispatch for the executor is a
-  // tracked follow-up, not shipped here).
-  if (!ctx.encKey && shouldRunAttributionAsync(env, credentials.source)) {
-    const { jobId, status } = await enqueueAttributionJob(env, investigationId, {
-      accountFilter,
-      skipTriage,
-      maxRetries,
-      randomizationSeed,
-    });
+  // 'request') stay synchronous so a user AI key never reaches the executor.
+  // Encrypted investigations (#246) may async when the request-scoped
+  // encryption key is present: raw key material is sent only in the VPC
+  // handoff body (never options_json / jobs table). Missing key on an
+  // encrypted inv would write plaintext conclusions -- refuse that path.
+  if (shouldRunAttributionAsync(env, credentials.source)) {
+    if (ctx.auth?.crypto_version && !ctx.encKey) {
+      return jsonResponse(
+        {
+          error: 'encryption_key_required',
+          message:
+            'Encrypted investigation requires the access token to derive the encryption key for async attribution.',
+        },
+        400
+      );
+    }
+    let encryptionKeyMaterial: string | undefined;
+    if (ctx.encKey) {
+      encryptionKeyMaterial = await exportInvestigationKeyMaterial(ctx.encKey);
+    }
+    const { jobId, status } = await enqueueAttributionJob(
+      env,
+      investigationId,
+      {
+        accountFilter,
+        skipTriage,
+        maxRetries,
+        randomizationSeed,
+      },
+      encryptionKeyMaterial
+    );
     return jsonResponse({ investigationId, jobId, status, mode: 'async' }, 202);
   }
 

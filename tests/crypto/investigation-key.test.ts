@@ -11,6 +11,8 @@ import {
   decryptCell,
   deriveInvestigationKey,
   encryptCell,
+  exportInvestigationKeyMaterial,
+  importInvestigationKeyMaterial,
   isEncryptedCell,
   verifyKeyCheck,
 } from '../../implementation/crypto/investigation-key';
@@ -111,5 +113,23 @@ describe('key check', () => {
 describe('CRYPTO_VERSION', () => {
   it('is the stable v1 tag', () => {
     expect(CRYPTO_VERSION).toBe('v1');
+  });
+});
+
+describe('export / import key material (#246 VPC handoff)', () => {
+  it('round-trips encrypt/decrypt after export→import', async () => {
+    const key = await deriveInvestigationKey(TOKEN, INV);
+    const material = await exportInvestigationKeyMaterial(key);
+    expect(material.startsWith('inv-enc-key:v1:')).toBe(true);
+
+    const imported = await importInvestigationKeyMaterial(material);
+    const cell = await encryptCell(key, 'handoff-payload', AAD);
+    expect(await decryptCell(imported, cell, AAD)).toBe('handoff-payload');
+  });
+
+  it('rejects unknown wire prefixes', async () => {
+    await expect(importInvestigationKeyMaterial('not-a-key')).rejects.toThrow(
+      /unknown key material format/
+    );
   });
 });

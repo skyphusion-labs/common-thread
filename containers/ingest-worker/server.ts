@@ -5,6 +5,11 @@
  * fetches the raw export from R2, runs the shared ingest pipeline, and
  * writes results to MySQL.
  *
+ * Encrypted investigations (#246): optional encryptionKeyMaterial on the
+ * handoff is imported for the duration of processJob and never logged or
+ * written to MySQL. Missing key material on a crypto_version investigation
+ * fails the job (fail closed).
+ *
  * Contract: POST /trigger -- see implementation/ingest/handoff.ts
  */
 
@@ -17,6 +22,7 @@ import {
   r2S3ConfigFromEnv,
 } from './r2-bucket';
 import { createDatabaseClient, parseMysqlUrl } from '../../implementation/db';
+import { importInvestigationKeyMaterial } from '../../implementation/crypto/investigation-key';
 import type { IngestJobHandoff } from '../../implementation/ingest/handoff';
 import { claimIngestJob, failIngestJob } from '../../implementation/ingest/jobs';
 import { buildManifestRemoteAppend } from '../../implementation/ingest/manifest-env';
@@ -92,6 +98,25 @@ async function processJob(handoff: IngestJobHandoff): Promise<void> {
 
   await claimIngestJob(db, handoff.jobId, CONTAINER_NAME);
 
+  // Fail closed: encrypted inv without key-on-dispatch would write plaintext.
+  const inv = await db
+    .prepare('SELECT crypto_version FROM investigations WHERE id = ?')
+    .bind(handoff.investigationId)
+    .first<{ crypto_version: string | null }>();
+  const isEncrypted = Boolean(inv?.crypto_version);
+  if (isEncrypted && !handoff.encryptionKeyMaterial) {
+    throw new Error(
+      `Encrypted investigation ${handoff.investigationId} requires encryptionKeyMaterial on the VPC handoff (#246)`
+    );
+  }
+
+  let encKey: CryptoKey | null = null;
+  if (handoff.encryptionKeyMaterial) {
+    encKey = await importInvestigationKeyMaterial(handoff.encryptionKeyMaterial);
+    // Drop the wire string ASAP; only the CryptoKey remains for the job.
+    handoff.encryptionKeyMaterial = undefined;
+  }
+
   const store = new ArchiveStore({ bucket: archive });
   const raw = await store.get(handoff.rawFileHash, 'json');
   if (!raw) {
@@ -106,23 +131,30 @@ async function processJob(handoff: IngestJobHandoff): Promise<void> {
     handoff.investigationId
   );
 
-  await runTwitterIngestPipeline(
-    { db, archive, manifestRemoteAppend },
-    {
-      investigationId: handoff.investigationId,
-      payload,
-      rawHash: handoff.rawFileHash,
-      jobId: handoff.jobId,
-    }
-  );
+  try {
+    await runTwitterIngestPipeline(
+      { db, archive, manifestRemoteAppend },
+      {
+        investigationId: handoff.investigationId,
+        payload,
+        rawHash: handoff.rawFileHash,
+        jobId: handoff.jobId,
+        encKey,
+      }
+    );
+  } finally {
+    // Best-effort: drop the in-memory key reference when the job ends.
+    encKey = null;
+  }
 
   // Pass the user-controlled ids as args, not inside the format string, so a
   // crafted jobId cannot inject console format directives (CodeQL
   // js/tainted-format-string).
   console.log(
-    '[ingest] completed job %s investigation=%s',
+    '[ingest] completed job %s investigation=%s encrypted=%s',
     handoff.jobId,
-    handoff.investigationId
+    handoff.investigationId,
+    isEncrypted
   );
 }
 

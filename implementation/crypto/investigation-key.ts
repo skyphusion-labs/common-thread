@@ -60,6 +60,10 @@ export async function deriveInvestigationKey(
     false,
     ['deriveKey']
   );
+  // extractable:true so the Worker can export raw key material for VPC
+  // key-on-dispatch (#246). The key is never written to MySQL/R2/logs; the
+  // only intentional leave of Worker memory is a bearer-authenticated VPC
+  // handoff body, discarded when the container job ends.
   return crypto.subtle.deriveKey(
     {
       name: 'HKDF',
@@ -69,9 +73,53 @@ export async function deriveInvestigationKey(
     },
     ikm,
     { name: 'AES-GCM', length: 256 },
-    false,
+    true,
     ['encrypt', 'decrypt']
   );
+}
+
+/** Wire prefix for exported key material (VPC handoff only). */
+const KEY_MATERIAL_PREFIX = 'inv-enc-key:v1:';
+
+/**
+ * Export raw AES-256 key bytes as a self-describing string for transient VPC
+ * handoff (#246). NEVER log, persist to MySQL/R2, or return to HTTP clients.
+ */
+export async function exportInvestigationKeyMaterial(
+  key: CryptoKey
+): Promise<string> {
+  const exported = await crypto.subtle.exportKey('raw', key);
+  const raw = new Uint8Array(exported as ArrayBuffer);
+  if (raw.byteLength !== 32) {
+    throw new Error(
+      `exportInvestigationKeyMaterial: expected 32-byte AES-256 key, got ${raw.byteLength}`
+    );
+  }
+  return KEY_MATERIAL_PREFIX + toBase64Url(raw);
+}
+
+/**
+ * Import key material produced by {@link exportInvestigationKeyMaterial}.
+ * Used by VPC containers to reconstruct the request-scoped investigation key.
+ */
+export async function importInvestigationKeyMaterial(
+  material: string
+): Promise<CryptoKey> {
+  if (!material.startsWith(KEY_MATERIAL_PREFIX)) {
+    throw new Error(
+      'importInvestigationKeyMaterial: unknown key material format'
+    );
+  }
+  const raw = fromBase64Url(material.slice(KEY_MATERIAL_PREFIX.length));
+  if (raw.byteLength !== 32) {
+    throw new Error(
+      `importInvestigationKeyMaterial: expected 32-byte key, got ${raw.byteLength}`
+    );
+  }
+  return crypto.subtle.importKey('raw', raw, { name: 'AES-GCM', length: 256 }, false, [
+    'encrypt',
+    'decrypt',
+  ]);
 }
 
 /** True if a stored string is an encrypted cell (vs legacy plaintext). */
