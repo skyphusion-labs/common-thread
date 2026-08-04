@@ -16,9 +16,11 @@ export interface AttributionCredentials {
   aiGatewayUrl: string;
   anthropicApiKey: string;
   /**
-   * Keyless Unified Billing token (#111), set only from server env and only
-   * when the request did not supply its own (BYOK) credentials. When present
-   * it takes precedence over anthropicApiKey at the transport layer.
+   * Keyless Unified Billing token (#111). From server env (operator path) or
+   * from the request (visitor BYOK with their own AI Gateway Run token). When
+   * present it takes precedence over anthropicApiKey at the transport layer.
+   * A request never receives the *server's* token -- only a token the caller
+   * supplied (or the env token when the call is fully server-sourced).
    */
   cfAigToken?: string;
   source: 'request' | 'environment';
@@ -27,7 +29,7 @@ export interface AttributionCredentials {
 export interface ResolveAttributionCredentialsInput {
   envAiGatewayUrl?: string;
   envAnthropicApiKey?: string;
-  /** Server-only keyless Unified Billing token (#111). Never sourced from a request. */
+  /** Server keyless Unified Billing token (#111). Not mixed into request-BYOK. */
   envCfAigToken?: string;
   requestHeaders: Headers;
   body?: Record<string, unknown>;
@@ -44,6 +46,8 @@ export interface ResolveAttributionCredentialsInput {
 
 const HEADER_AI_GATEWAY_URL = 'x-ai-gateway-url';
 const HEADER_ANTHROPIC_API_KEY = 'x-anthropic-api-key';
+/** Visitor-supplied AI Gateway Run token (keyless Unified Billing BYOK). */
+const HEADER_CF_AIG_TOKEN = 'x-cf-aig-token';
 
 function readBodyString(
   body: Record<string, unknown> | undefined,
@@ -167,6 +171,7 @@ export function resolveAttributionCredentials(
 ): AttributionCredentials | { error: string; code?: 'byok_required' } {
   const fromHeaderGateway = input.requestHeaders.get(HEADER_AI_GATEWAY_URL)?.trim();
   const fromHeaderKey = input.requestHeaders.get(HEADER_ANTHROPIC_API_KEY)?.trim();
+  const fromHeaderCfAig = input.requestHeaders.get(HEADER_CF_AIG_TOKEN)?.trim();
   const fromBodyGateway = readBodyString(
     input.body,
     'aiGatewayUrl',
@@ -177,10 +182,13 @@ export function resolveAttributionCredentials(
     'anthropicApiKey',
     'anthropic_api_key'
   );
+  const fromBodyCfAig = readBodyString(input.body, 'cfAigToken', 'cf_aig_token');
 
   const requestGateway = fromHeaderGateway || fromBodyGateway;
   const requestKey = fromHeaderKey || fromBodyKey;
-  const usedRequest = Boolean(requestGateway || requestKey);
+  const requestCfAig = fromHeaderCfAig || fromBodyCfAig;
+  // Any request-supplied auth material puts the call on the request path.
+  const usedRequest = Boolean(requestGateway || requestKey || requestCfAig);
 
   // #187 non-negotiable: when the deployment is BYOK-only (the public hosted
   // Worker sets PUBLIC_BYOK_ONLY), server-side AI credentials are ignored
@@ -193,19 +201,15 @@ export function resolveAttributionCredentials(
   const envCfAigToken = byokOnly ? '' : input.envCfAigToken?.trim() || '';
 
   // Same-source BYOK (confused-deputy hardening, #187): when the caller supplies
-  // ANY credential, BOTH the gateway URL and the x-api-key must come from the
-  // request. Server-side credentials are never backfilled into a request-driven
-  // call, so a server-held ANTHROPIC_API_KEY can never be sent as x-api-key to a
-  // caller-chosen (allowlisted) gateway that the caller controls and can log.
+  // ANY credential, gateway + auth must come from the request. Server-side
+  // credentials are never backfilled into a request-driven call, so a
+  // server-held ANTHROPIC_API_KEY / CF_AIG_TOKEN can never be sent to a
+  // caller-chosen gateway that the caller controls and can log.
   const aiGatewayUrl = usedRequest ? requestGateway || '' : envAiGatewayUrl;
   const anthropicApiKey = usedRequest ? requestKey || '' : envAnthropicApiKey;
-
-  // Keyless Unified Billing token (#111) is a server-only secret. It is used
-  // only when the request did not supply its own credentials, so BYOK stays
-  // on the x-api-key path and a user request can never present the house
-  // token. When configured it satisfies the auth requirement on its own and
-  // takes precedence over a server x-api-key at the transport layer.
-  const cfAigToken = usedRequest ? undefined : envCfAigToken || undefined;
+  const cfAigToken = usedRequest
+    ? requestCfAig || undefined
+    : envCfAigToken || undefined;
 
   if (!aiGatewayUrl || !(cfAigToken || anthropicApiKey)) {
     // Under BYOK-only, a caller who supplied no credentials at all gets a
@@ -215,13 +219,13 @@ export function resolveAttributionCredentials(
     if (byokOnly && !usedRequest) {
       return {
         error:
-          'This hosted instance runs attribution with your own credentials. Supply an AI Gateway URL and Anthropic API key via the X-AI-Gateway-Url and X-Anthropic-Api-Key headers, or aiGatewayUrl and anthropicApiKey in the request body.',
+          'This hosted instance runs attribution with your own credentials. Supply an AI Gateway URL plus either an Anthropic API key (X-Anthropic-Api-Key / anthropicApiKey) or an AI Gateway Run token (X-CF-AIG-Token / cfAigToken).',
         code: 'byok_required',
       };
     }
     return {
       error: usedRequest
-        ? 'Attribution requires both AI Gateway URL and Anthropic API key. Provide X-AI-Gateway-Url and X-Anthropic-Api-Key headers, or aiGatewayUrl and anthropicApiKey in the request body.'
+        ? 'Attribution requires an AI Gateway URL and either an Anthropic API key or an AI Gateway Run token (cfAigToken), all from the same source (request). Provide X-AI-Gateway-Url plus X-Anthropic-Api-Key or X-CF-AIG-Token (or the matching body fields).'
         : 'Attribution requires an AI Gateway URL and server credentials. Configure AI_GATEWAY_URL plus either CF_AIG_TOKEN (keyless Unified Billing) or ANTHROPIC_API_KEY, or supply credentials with the request (BYOK).',
     };
   }
