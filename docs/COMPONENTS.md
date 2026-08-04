@@ -36,9 +36,15 @@ canonical-JSON encoding and one signed-payload shape. Verified end-to-end
 three negative cases (tampered / unsigned / bad-signature); fixtures live in
 `packages/common-thread-verify/test/fixtures/`.
 
-**Registry status (2026-07-17):** `@skyphusion/common-thread-verify` is prepared
-(`package.json` `publishConfig`, workflow `publish-verify-npm.yml` on `verify-v*`
-tags) but **not yet on npm** (`npm view` → 404). Publishing is #188 workstream B1.
+**Registry status (2026-08-04):** **published**
+[`@skyphusion/common-thread-verify@0.1.0`](https://www.npmjs.com/package/@skyphusion/common-thread-verify)
+via tag `verify-v0.1.0` (provenance-attested). Third-party path:
+
+```bash
+npx @skyphusion/common-thread-verify packet.json
+```
+
+Further package bumps use the same `verify-v*` tag workflow.
 
 ## Reference implementation (self-host / adopt the service)
 
