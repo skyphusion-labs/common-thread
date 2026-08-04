@@ -1,7 +1,7 @@
 // implementation/ingest/apify-ingest.ts
 
 import { ArchiveStore } from '../archive/store';
-import { execute, queryOne, resolveDatabase } from '../db';
+import { execute, readCommittedRow, resolveDatabase } from '../db';
 import { sealInvestigationKeyForVpcHandoff } from '../crypto/investigation-key';
 import { dispatchIngestJob } from './dispatch';
 import {
@@ -67,14 +67,18 @@ export async function ingestApifyTwitter(
   const now = new Date().toISOString();
   const jobId = `job_${crypto.randomUUID()}`;
 
-  // crypto_version is the durable encryption flag; do not use "encKey present"
-  // alone -- a missing key on an encrypted inv must fail closed, not VPC.
-  const inv = await queryOne<{ crypto_version: string | null }>(
+  // crypto_version is the durable encryption flag. Read COMMITTED (not the
+  // Hyperdrive query cache): the container talks to MySQL primary and will
+  // fail closed if we skip key material because a cached read said "plaintext"
+  // while the row is already encrypted (#246 live miss 2026-08-04).
+  const inv = await readCommittedRow<{ crypto_version: string | null }>(
     env.DB,
     'SELECT crypto_version FROM investigations WHERE id = ?',
     [investigationId]
   );
-  const isEncrypted = Boolean(inv?.crypto_version);
+  // Also treat a present request-scoped key as encrypted (create always encrypts
+  // now; belt against any remaining replica lag on crypto_version).
+  const isEncrypted = Boolean(inv?.crypto_version) || Boolean(encKey);
   if (isEncrypted && !encKey) {
     throw new EncryptedIngestKeyRequiredError(investigationId);
   }
@@ -107,16 +111,17 @@ export async function ingestApifyTwitter(
 
   if (useVpc) {
     let encryptionKeyMaterial: string | undefined;
-    if (isEncrypted) {
-      if (!accessToken || !env.INGEST_SECRET) {
-        throw new EncryptedIngestKeyRequiredError(investigationId);
-      }
-      // Envelope under INGEST_SECRET so cleartext AES never rides the VPC body.
+    // Prefer sealing whenever the capability token is present: container
+    // ignores material on legacy plaintext rows, and Hyperdrive lag must not
+    // strip material from an encrypted inv (container fail-closed message).
+    if (accessToken && env.INGEST_SECRET) {
       encryptionKeyMaterial = await sealInvestigationKeyForVpcHandoff(
         accessToken,
         investigationId,
         env.INGEST_SECRET
       );
+    } else if (isEncrypted) {
+      throw new EncryptedIngestKeyRequiredError(investigationId);
     }
     const dispatchResponse = await dispatchIngestJob(env, {
       jobId,
