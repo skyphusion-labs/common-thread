@@ -75,3 +75,15 @@ Worker path runs the pipeline without them for small exports.
 If multiple CLIs come to need shared types (packet schema, canonical hash), the
 right move is a small `@skyphusion/common-thread-packet` MIT library rather than
 publishing the `implementation/` tree.
+
+## #188 status
+
+| Workstream | Status |
+|---|---|
+| A1 inventory (`docs/COMPONENTS.md`) | **done** |
+| A2 verifier tests + clean-room lint + parity | **done** (package suite; CI `verify-package`) |
+| B1 publish `@skyphusion/common-thread-verify` | **done** `0.1.0` / `verify-v0.1.0` |
+| B2 keygen / sign-packet npm packages | **parked** (git-only CLIs remain; open a new issue if adopters need `npx` for sign) |
+
+B1 closes the original "publish the offline verifier" goal. B2 is optional product
+expansion, not a public-announce blocker for #187.

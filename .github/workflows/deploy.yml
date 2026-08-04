@@ -1,7 +1,9 @@
 name: deploy
 
-# Deploy backend + web Workers to production on a pushed version tag (v*).
-# A bare merge to main NEVER redeploys prod; cut a SemVer tag to ship
+# Deploy backend + web Workers to production on a pushed SemVer tag (v0.1.2, v1.0.0).
+# Pattern is v[0-9]* so npm-only tags like verify-v* do NOT redeploy prod
+# (verify-v0.1.0 accidentally matched the old v* glob). A bare merge to main
+# NEVER redeploys prod; cut a SemVer tag to ship
 # (git tag -a vX.Y.Z && git push origin vX.Y.Z). This re-runs typecheck + tests
 # on the exact commit being shipped (same pattern as postern deploy.yml).
 #
@@ -30,7 +32,8 @@ name: deploy
 
 on:
   push:
-    tags: ["v*"]
+    # SemVer only (v0.2.0, v1.0.0). Excludes verify-v*, test-v*, etc.
+    tags: ["v[0-9]*"]
   workflow_dispatch:
     inputs:
       deploy_operator:
@@ -108,6 +111,14 @@ jobs:
             exit 1
           }
           printf '%s' "$COMMON_THREAD_BACKEND_WRANGLER" > wrangler.ci.toml
+          # Fail closed if the public BYOK gate is missing from escrow (#187).
+          # A silent omit of PUBLIC_BYOK_ONLY re-opens host-credential fallback
+          # messaging (503 + "server-side" UI) on the next tag deploy.
+          if ! grep -E '^\s*PUBLIC_BYOK_ONLY\s*=' wrangler.ci.toml | grep -Eq '["'\'']?(1|true)["'\'']?'; then
+            echo "::error::COMMON_THREAD_BACKEND_WRANGLER must set PUBLIC_BYOK_ONLY=1 (or true) under [env.production.vars]"
+            rm -f wrangler.ci.toml
+            exit 1
+          fi
           npx wrangler deploy --env production -c wrangler.ci.toml
           rm -f wrangler.ci.toml
 
@@ -122,6 +133,11 @@ jobs:
             exit 1
           }
           printf '%s' "$COMMON_THREAD_WEB_WRANGLER" > web/wrangler.ci.toml
+          if ! grep -E '^\s*PUBLIC_BYOK_ONLY\s*=' web/wrangler.ci.toml | grep -Eq '["'\'']?(1|true)["'\'']?'; then
+            echo "::error::COMMON_THREAD_WEB_WRANGLER must set PUBLIC_BYOK_ONLY=1 (or true) under [env.production.vars]"
+            rm -f web/wrangler.ci.toml
+            exit 1
+          fi
           npx wrangler deploy --env production -c web/wrangler.ci.toml
           rm -f web/wrangler.ci.toml
 
