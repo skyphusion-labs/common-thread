@@ -70,7 +70,7 @@ PUBLIC_URL = "https://common-thread.skyphusion.org"
 # their own AI Gateway URL + Anthropic key, and never advertises a host-funded
 # path. Set to "true" for the hosted deploy. Leave unset for self-host, where the
 # backend may supply AI_GATEWAY_URL + CF_AIG_TOKEN/ANTHROPIC_API_KEY as secrets.
-PUBLIC_BYOK_ONLY = "true"
+PUBLIC_BYOK_ONLY = "1"   # "1" or "true"; same truthiness as backend (#201)
 # DEFAULT_BACKEND_URL only if BACKEND service binding is unavailable
 
 [[env.production.routes]]
@@ -85,7 +85,7 @@ service = "common-thread-prod"
 # Operator (env.operator) -- Access-gated hosted UI for the account owner
 # =============================================================================
 # Serves the SAME browser UI as prod with NO code change. PUBLIC_BYOK_ONLY is
-# UNSET here, so the BYOK gate is dormant (worker.js reads a STRICT === "true");
+# UNSET here, so the BYOK gate is dormant (worker.js accepts "1" or "true", #201);
 # the operator leaves the key field blank and the ops backend resolves the
 # keyless server path. Cloudflare Access (Zero Trust) gates the hostname to the
 # account owner only; IaC lives in fleet-chezmoi:
