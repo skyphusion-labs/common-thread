@@ -23,51 +23,60 @@ host never fronts that cost or your usage.
 
 ## What you need before attribution
 
-1. An **Anthropic API key** (starts with `sk-ant-`).
-2. Either a **Cloudflare AI Gateway URL** (recommended) or the direct Anthropic
-   API base `https://api.anthropic.com`.
+Pick **one** BYOK path (Setup tab or API headers):
 
-You do not need either of these just to create an investigation, upload data, or
-view extracted features. They are required only for the attribution step.
+| Path | Gateway URL | Credential |
+|------|-------------|------------|
+| **A. Anthropic key** | Cloudflare AI Gateway base ending in `/anthropic`, **or** `https://api.anthropic.com` | Anthropic API key (`sk-ant-…`) |
+| **B. AI Gateway Run token** (keyless Unified Billing) | Same gateway base ending in `/anthropic` | AI Gateway **Run** token (`X-CF-AIG-Token` / Setup field) |
 
-### Get an Anthropic API key
+You do not need these just to create an investigation, upload data, or view
+extracted features. They are required only for attribution.
+
+### Path A: Anthropic API key
 
 1. Create an account at https://console.anthropic.com/.
 2. Open **API keys** and create a key (it starts with `sk-ant-`).
 3. Add billing or credits in the Anthropic console before running attribution.
 
-### Get a Cloudflare AI Gateway URL (recommended)
+### Path B: Cloudflare AI Gateway Run token (recommended for Cloudflare accounts)
 
 1. In the Cloudflare dashboard (https://dash.cloudflare.com/), go to
    **AI -> AI Gateway**.
-2. Create a gateway (or reuse one) and select the **Anthropic** provider.
+2. Create a gateway (or reuse one) with the **Anthropic** provider and Unified
+   Billing (or provider keys held by the gateway).
 3. Copy the gateway base URL ending in `/anthropic`, for example:
    `https://gateway.ai.cloudflare.com/v1/<account_id>/<gateway_name>/anthropic`
+4. Create a **Run token** for that gateway and paste it in Setup (or send
+   `X-CF-AIG-Token`). Do not use a Workers deploy token here.
 
-AI Gateway adds caching, rate limits, and usage visibility without changing the
-methodology. If you would rather not set one up, use `https://api.anthropic.com`
-as the gateway URL instead; the backend appends `/v1/messages` automatically.
+AI Gateway adds caching, rate limits, and usage visibility. Path A with
+`https://api.anthropic.com` as the gateway URL works if you prefer direct
+Anthropic billing; the backend appends `/v1/messages`.
 
-Your key and gateway URL stay in your browser. They are sent to the backend
-only when you run attribution, are never stored server-side, and never appear in
-evidence packets or archived artifacts. If you tick "Remember credentials in
-this browser," they are saved in this device local storage only (unencrypted);
-leave it unticked on a shared machine.
+Credentials stay in your browser. They are sent only when you run attribution,
+are never stored server-side, and never appear in evidence packets or archived
+artifacts. If you tick "Remember credentials in this browser," they are saved
+in this device local storage only (unencrypted); leave it unticked on a shared
+machine.
 
 ## The happy path
 
 1. **Open** https://common-thread.skyphusion.org. The header shows a backend
    status badge; leave the Setup "API base URL" field empty (the hosted UI is
    wired to its backend directly).
-2. **Setup -> AI credentials (BYOK).** Paste your AI Gateway URL and Anthropic
-   API key, then **Save settings**.
+2. **Setup -> AI credentials (BYOK).** Paste your AI Gateway URL (ending in
+   `/anthropic`) and either an Anthropic API key **or** an AI Gateway Run
+   token, then **Save settings**.
 3. **Investigation -> Create new.** Give it an id and a display name. You receive
    a one-time **access token** (`ct_...`). Copy and store it now; the server
    cannot recover it, and anyone with the token can read (and, while active,
    modify) the investigation. It is a capability secret, not a password.
+   New investigations are encrypted at rest under that token (§3.5).
 4. **Upload Data.** Drop your Apify Twitter JSON exports (profiles, timelines,
    follower / following lists). The backend archives the raw data by content
-   hash and runs the deterministic extractors. Watch the ingest job to
+   hash and runs extractors (VPC containers when configured, including
+   key-on-dispatch for encrypted investigations). Watch the ingest job to
    completion.
 5. **Features.** Review the extracted account-level and pair-level signals. No
    LLM or credentials are involved here.
@@ -107,4 +116,4 @@ your own backend and set `AI_GATEWAY_URL` plus either `CF_AIG_TOKEN` or
 `ANTHROPIC_API_KEY` as Worker secrets, and leave the web worker `PUBLIC_BYOK_ONLY`
 flag unset. See docs/SETUP.md and docs/DEPLOYMENT.md.
 
-> Note: ACCEPTABLE-USE.md and PRIVACY.md land with the hosted-legal-docs PR (#190); until it merges these links resolve on that branch.
+Policy: [ACCEPTABLE-USE.md](ACCEPTABLE-USE.md), [PRIVACY.md](PRIVACY.md).

@@ -131,7 +131,8 @@ Apply on the shared DB (reachable only on-box on `damaged`; see the operator
 runbook) by piping the migration SQL through `docker exec` into the
 `common-thread-db_mysql` container.
 
-## Follow-up
+## Release status
 
-- v0.3.0 ships #246/#250/#251 on Workers + GHCR images (tag-gated roll). Re-verify
-  fleet pin after the release tag if a node still carries a temporary local image.
+- **v0.3.0** ships #246/#250/#251 on Workers + GHCR images (tag-gated roll;
+  fleet pin `:e420661` at cut). Live smoke: encrypted inv → VPC ingest 202 →
+  completed on `json-ingest` → BYOK attribute → packet.

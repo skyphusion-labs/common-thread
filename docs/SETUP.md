@@ -189,7 +189,9 @@ Open the web Worker URL (Wrangler prints it). In **Setup**:
 
 1. Leave backend URL empty if the `BACKEND` service binding points at `npm run dev`.
 2. Or set backend URL to `http://127.0.0.1:8787` and uncomment `DEFAULT_BACKEND_URL` in `web/wrangler.toml`.
-3. Add **Anthropic API key** and **AI Gateway URL** (or `https://api.anthropic.com`) for attribution,  see the "How to get API keys" section in the UI.
+3. Add **AI Gateway URL** (base ending in `/anthropic`, or `https://api.anthropic.com`)
+   plus either an **Anthropic API key** or an **AI Gateway Run token** for attribution.
+   See the "How to get API keys" section in the UI and [PUBLIC-USAGE.md](PUBLIC-USAGE.md).
 
 Attribution credentials stay in your browser (BYOK); they are not stored on the server.
 
