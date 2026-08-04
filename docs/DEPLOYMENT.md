@@ -158,8 +158,10 @@ Cloudflare account as the Workers):
 pattern = "common-thread-backend.skyphusion.org"
 custom_domain = true
 
-# Optional: disable the *.workers.dev URL when using a custom domain
-# workers_dev = false
+# Required when using a custom domain (or CF Access on that hostname).
+# Access and zone WAF bind a HOSTNAME; *.workers.dev is a second front door
+# outside the zone. See common-thread#234.
+workers_dev = false
 ```
 
 Deploy with `npm run deploy:backend:prod`. The first deploy creates the custom
@@ -172,8 +174,7 @@ domain and SSL certificate.
 pattern = "common-thread.skyphusion.org"
 custom_domain = true
 
-# Optional: disable the *.workers.dev URL when using a custom domain
-# workers_dev = false
+workers_dev = false
 ```
 
 Deploy with `npm run deploy:web:prod`.
@@ -185,10 +186,10 @@ Worker-to-Worker path and does not depend on the backend custom domain. API clie
 [API.md](API.md#using-the-hosted-api)). The `GET /` health response includes
 `hosted_api_notice` and `contact` (`common-thread@skyphusion.org`) in production.
 
-The example `wrangler.toml.example` files leave `workers.dev` enabled so a
-first deploy works without a custom domain. For production on custom domains,
-set `workers_dev = false` under `[env.production]` in your local (gitignored)
-`wrangler.toml` and `web/wrangler.toml` to disable the `*.workers.dev` URLs.
+**`workers_dev = false` is load-bearing security** for any Worker reached via a
+custom domain (and for the operator env, which must not re-open on
+`*.workers.dev`). Local first deploys without a custom domain may omit it;
+production and operator configs in GH secrets / crew-secrets escrow set it.
 
 ## 6. Workers VPC (optional)
 
@@ -205,7 +206,7 @@ See `containers/ingest-worker/README.md` and `containers/pdf-worker/README.md`.
 
 - [ ] `GET /` on backend returns `"status": "ok"` at https://common-thread-backend.skyphusion.org (production also returns `contact`: `common-thread@skyphusion.org`)
 - [ ] Web UI loads at https://common-thread.skyphusion.org
-- [ ] (Optional) Neither production Worker is reachable at `*.workers.dev` if you set `workers_dev = false`
+- [ ] Neither production (nor operator) Worker serves on `*.workers.dev` when custom domains / Access are in use (`workers_dev = false`)
 - [ ] Create investigation → save `access_token` → reopen with token or share link
 - [ ] Upload Apify JSON → ingest completes (requires token on API calls)
 - [ ] Attribution works with BYOK keys in web Setup tab

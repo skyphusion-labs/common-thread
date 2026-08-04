@@ -2,7 +2,7 @@
 
 ## v0.1.2
 
-PATCH: dependency and security/CI updates on main since v0.1.1. **Deploy reminder:** live wrangler secrets still need `workers_dev = false` (see #234 and crew-secrets#263) before/with redeploy. Tag-gated prod deploy.
+PATCH: dependency and security/CI updates on main since v0.1.1. Tag-gated prod deploy. **workers_dev:** closed 2026-08-04 (#234 + crew-secrets escrow + redeploy); no longer a deploy blocker.
 
 ## v0.1.1
 

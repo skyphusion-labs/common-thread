@@ -5,11 +5,14 @@ Go / no-go evaluation for opening the hosted instance to unsolicited public use
 Companion: `docs/COMPONENTS.md` (distribution), `docs/PUBLIC-USAGE.md` (stranger
 happy-path), `docs/PRIVACY.md` / `docs/ACCEPTABLE-USE.md` (policy).
 
-**Status: LIVE — prod fail-closed activated and smoke-verified (2026-07-18).** The
-adverse-security pass is complete with no open CRITICAL/HIGH; every code fix is
-merged; prod fail-closed BYOK is active and proven live. Remaining before public
-*announce*: npm publish, legal-doc sign-off, the pre-announce positive BYOK
-round-trip, and the WAF apply. Detail below.
+**Status: LIVE — prod fail-closed activated and smoke-verified (2026-07-18).**
+Adverse-security pass complete (no open CRITICAL/HIGH); BYOK fail-closed active.
+**workers_dev second door closed** 2026-08-04 (common-thread#234 + crew-secrets
+escrow + operator redeploy; `*.workers.dev` 404 / disabled for prod and ops).
+Remaining before public *announce*: positive BYOK round-trip (throwaway key),
+WAF/rate-limit **apply** (IaC already in fleet-chezmoi), npm publish (#188),
+and any further legal wording Conrad wants after the retention/DELETE update
+in `PRIVACY.md`. Detail below.
 
 > Product contract: Skyphusion hosts Workers / Hyperdrive / R2 / MySQL / VPC
 > containers. The §7 triage + attribution LLM calls are **visitor BYOK**
@@ -29,7 +32,7 @@ round-trip, and the WAF apply. Detail below.
 | VPC ingest / PDF / attribution | **GO** | Executor confirmed internal-only both sides (code: `[[vpc_services]]` binding, no public route to :8082; infra: no public ingress). BYOK runs inline, never dispatches; only the no-BYOK path reaches the executor and it fails closed once the flag is set / secrets stripped. wkhtmltopdf SSRF locked. |
 | Offline verifier package | **GO → publish pending** | Parity verified end-to-end; A2 test suite + clean-room import lint merged (#193, #198). npm publish (#188 B1) awaits Conrad's go. |
 | CORS / origin | GO | Prod `CORS_ALLOWED_ORIGINS=""` (browser API blocked); never `*`-with-credentials. |
-| Legal / policy docs | DRAFTED → Conrad sign-off | PR #190 (draft): PRIVACY, ACCEPTABLE-USE, LICENSE-POSTURE, API-OPENNESS-DECISION, contact abuse section. UI-vs-API openness + 4 open questions are Conrad decisions. |
+| Legal / policy docs | **UPDATED** (retention/DELETE/R2 + BYOK verified) | `PRIVACY.md` / `ACCEPTABLE-USE.md` are active disclosures. Controller/processor and calendar retention still OPEN. UI-vs-API: Option 1 (UI public; API not third-party open) remains the default. |
 
 ## CRITICAL / HIGH findings — all resolved in code
 
@@ -76,25 +79,45 @@ wkhtmltopdf SSRF locked (`--disable-local-file-access/-javascript/-external-link
 BYOK keys never persisted to DB / packets / R2; no secrets logged; generic 500 on
 unhandled error; container bearer auth + 32MB body cap.
 
-## Conrad decisions outstanding (release-gate batch — can wait until board is ready)
-1. **Activate prod fail-closed** — set `PUBLIC_BYOK_ONLY=1` + strip the two host AI
-   secrets. Final flip step.
-2. **npm publish** `verify-v0.1.0` — tests + clean-room lint green; awaiting go.
-3. **UI-public vs API-public** — README/MAINTENANCE say the API is not open; #187
-   opens the UI. Draw the line.
-4. **Retention / deletion policy** — code does soft-delete + seal only; policy
-   numbers + deletion-on-request path undefined.
-5. **Controller vs processor** framing for ingested third-party public data.
+## Conrad decisions outstanding (release-gate batch)
+1. ~~**Activate prod fail-closed**~~ — **DONE** 2026-07-18 (`PUBLIC_BYOK_ONLY` + host AI stripped; negative smoke PASS).
+2. **npm publish** `@skyphusion/common-thread-verify` (`verify-v*` tag) — #188; awaiting go.
+3. **UI-public vs API-public** — default remains Option 1 (UI public; CORS empty on API). Confirm if changing.
+4. ~~**Retention / deletion policy (code truth)**~~ — documented in `PRIVACY.md` (DELETE graph + investigation archive keys; retain global `sha256/` blobs; default indefinite). Optional: fixed calendar purge later.
+5. **Controller vs processor** framing for ingested third-party public data (counsel if scaled).
+6. **WAF apply** — fleet-chezmoi `system/cloudflare/waf-ratelimit/` (see Infra above).
+7. **Positive BYOK E2E** — throwaway Anthropic key: create → ingest fixture → attribute → packet on prod; record result here.
 
-## Infra (not code) — pending
-- **WAF / rate-limit:** CF Pro active on skyphusion.org; Terraform ruleset (6→2
-  rate-limit consolidation + managed WAF ruleset) authored in `ops/`. Apply gated on
-  go-live + a Zone-WAF-Edit token.
+## Infra (not code) — pending apply
+- **WAF / rate-limit:** CF Pro active on skyphusion.org. **IaC lives in fleet-chezmoi**
+  (`system/cloudflare/waf-ratelimit/`: `rules.json` + `apply-waf-ratelimit.sh`), not in
+  this repo and not in a retired `ops/` tree. Merge of that IaC is done; **apply is
+  still gated** (CR-2026-07-18): needs a Zone WAF Edit + Dynamic Rate Limiting Edit
+  token on skyphusion.org and Conrad's go. Singleton-safe apply preserves non-CT rules.
+  Runbook: `fleet-chezmoi/docs/cr/CR-2026-07-18-common-thread-waf-ratelimit.md`.
 
 ## Acceptance criteria (#187) status
 - [x] Readiness evaluation written (this doc)
 - [x] Adverse security analysis — complete; no open critical/high
 - [x] Public instance runs with no worker-level AI secrets (activated + verified 2026-07-18)
 - [~] Documented stranger happy-path (`docs/PUBLIC-USAGE.md`, #197)
-- [x] Prod BYOK smoke — negative (fail-closed) PASS 8/0 + web/CSP PASS; positive BYOK round-trip deferred to pre-announce (needs throwaway key)
+- [x] Prod BYOK smoke — negative (fail-closed) PASS 8/0 + web/CSP PASS
+- [ ] Prod BYOK smoke — **positive** round-trip (throwaway key; pre-announce)
+- [x] workers_dev closed for prod + ops (2026-08-04)
+- [ ] WAF/rate-limit applied (fleet-chezmoi script; not auto-merged apply)
 - [x] Follow-up issues filed (#189)
+
+## Positive BYOK pre-announce smoke (manual)
+
+Negative fail-closed is proven. Before public *announce*, run once with a
+**throwaway** Anthropic key (and AI Gateway URL if required by your path):
+
+1. Open `https://common-thread.skyphusion.org` (or create via API).
+2. Create investigation; store `access_token` offline.
+3. Upload a small Apify Twitter JSON fixture (synthetic or public sample).
+4. Run extractors / wait for ingest job success.
+5. Attribute with BYOK only (no host key). Expect 2xx and a run id.
+6. Export packet JSON (and PDF if VPC PDF is up).
+7. Record date, operator, and pass/fail on this page or on #187.
+
+Do **not** use a personal long-lived key in shared logs.

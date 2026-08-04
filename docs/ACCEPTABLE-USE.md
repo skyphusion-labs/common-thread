@@ -1,8 +1,9 @@
 # Acceptable use (hosted instance)
 
-**DRAFT for Conrad's review. Not legal advice.** This document restates, in
-operational terms, the audience and use limits the methodology paper already
-sets (paper section 1.2 and section 10). It applies to the hosted instance at
+**Active policy for the hosted instance (v0.1.2+). Not legal advice.** This
+document restates, in operational terms, the audience and use limits the
+methodology paper already sets (paper section 1.2 and section 10). It applies to
+the hosted instance at
 [common-thread.skyphusion.org](https://common-thread.skyphusion.org). Self-hosted
 deployments are governed by the AGPL-3.0 license and by the operator's own
 conscience; the methodology's commitments still describe what it means to run
@@ -134,5 +135,5 @@ Report misuse of the hosted instance, or an acceptable-use violation, to
 
 ---
 
-**Status:** DRAFT (Ernst, #187). This restates the paper's commitments for the
-hosted instance; where it and the paper differ, the paper governs.
+**Status:** Active policy for the hosted instance (v0.1.2+ / #187). Where this
+document and the paper differ, the paper governs.
