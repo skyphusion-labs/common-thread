@@ -116,7 +116,7 @@ describe('resolveAttributionCredentials dual-mode (#111)', () => {
     expect(c.source).toBe('environment');
   });
 
-  it('BYOK request stays x-api-key; the server token is never used for a request', () => {
+  it('BYOK anthropic request: x-api-key path; server token is never mixed in', () => {
     const req = new Headers({
       'x-anthropic-api-key': 'sk-byok',
       'x-ai-gateway-url': gw,
@@ -130,6 +130,26 @@ describe('resolveAttributionCredentials dual-mode (#111)', () => {
     expect(c.source).toBe('request');
     expect(c.anthropicApiKey).toBe('sk-byok');
     expect(c.cfAigToken).toBeUndefined();
+  });
+
+  it('BYOK keyless request: visitor CF_AIG_TOKEN + gateway; house token never mixed', () => {
+    const req = new Headers({
+      'x-ai-gateway-url': gw,
+      'x-cf-aig-token': 'visitor-aig-tok',
+    });
+    const c = resolveAttributionCredentials({
+      envCfAigToken: 'house-aig-tok',
+      envAnthropicApiKey: 'house-sk',
+      requestHeaders: req,
+      allowedGatewayHosts: allowed,
+      publicByokOnly: true,
+    });
+    if ('error' in c) throw new Error(c.error);
+    expect(c.source).toBe('request');
+    expect(c.cfAigToken).toBe('visitor-aig-tok');
+    expect(c.anthropicApiKey).toBe('');
+    expect(JSON.stringify(c)).not.toContain('house-aig-tok');
+    expect(JSON.stringify(c)).not.toContain('house-sk');
   });
 
   it('errors when neither a token nor a key is configured', () => {

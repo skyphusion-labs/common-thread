@@ -9,9 +9,8 @@ happy-path), `docs/PRIVACY.md` / `docs/ACCEPTABLE-USE.md` (policy).
 Adverse-security pass complete (no open CRITICAL/HIGH); BYOK fail-closed active.
 **workers_dev second door closed** 2026-08-04 (common-thread#234 + crew-secrets
 escrow + operator redeploy; `*.workers.dev` 404 / disabled for prod and ops).
-Remaining before public *announce*: positive BYOK round-trip (throwaway key),
-and any further legal wording Conrad wants after the retention/DELETE update
-in `PRIVACY.md`. **WAF applied** 2026-08-04; **npm**
+Remaining before public *announce*: any further legal wording Conrad wants after
+the retention/DELETE update in `PRIVACY.md`. **Positive BYOK E2E PASS** 2026-08-04. **WAF applied** 2026-08-04; **npm**
 `@skyphusion/common-thread-verify@0.1.0` published (`verify-v0.1.0`). Detail below.
 
 > Product contract: Skyphusion hosts Workers / Hyperdrive / R2 / MySQL / VPC
@@ -101,7 +100,7 @@ unhandled error; container bearer auth + 32MB body cap.
 - [x] Public instance runs with no worker-level AI secrets (activated + verified 2026-07-18)
 - [~] Documented stranger happy-path (`docs/PUBLIC-USAGE.md`, #197)
 - [x] Prod BYOK smoke — negative (fail-closed) PASS 8/0 + web/CSP PASS; re-checked 2026-08-04 (`400 byok_required` + UI gate)
-- [ ] Prod BYOK smoke — **positive** round-trip (throwaway key; pre-announce)
+- [x] Prod BYOK smoke — **positive** round-trip PASS 2026-08-04 (ops AI Gateway Run token as visitor `X-CF-AIG-Token` + gateway URL; inv `e2e187-55af59cb8f15`; create → inline ingest 2 accts → attribute request-source sync → packet JSON)
 - [x] workers_dev closed for prod + ops (2026-08-04)
 - [x] WAF/rate-limit applied (2026-08-04)
 - [x] Follow-up issues filed (#189); hard caps shipped (#243); encryption expansion (#244); VPC key-on-dispatch deferred (#246)

@@ -139,7 +139,9 @@ describe('resolveAttributionCredentials', () => {
       requestHeaders: new Headers({ 'x-anthropic-api-key': 'only-key' }),
     });
 
-    expect(result).toMatchObject({ error: expect.stringContaining('both') });
+    expect(result).toMatchObject({
+      error: expect.stringContaining('same source'),
+    });
   });
 
   it('rejects invalid AI Gateway URLs before returning credentials', () => {
@@ -220,6 +222,28 @@ describe('resolveAttributionCredentials', () => {
       });
     });
 
+    it('honors visitor keyless BYOK (gateway + CF_AIG_TOKEN) under the flag', () => {
+      const result = resolveAttributionCredentials(
+        withAllowedHosts({
+          envAiGatewayUrl: 'https://gateway.example/anthropic',
+          envCfAigToken: 'house-cf-aig-token',
+          requestHeaders: new Headers({
+            'x-ai-gateway-url': 'https://gateway.example/anthropic',
+            'x-cf-aig-token': 'visitor-cf-aig-token',
+          }),
+          publicByokOnly: true,
+        })
+      );
+
+      expect(result).toEqual({
+        aiGatewayUrl: 'https://gateway.example/anthropic',
+        anthropicApiKey: '',
+        cfAigToken: 'visitor-cf-aig-token',
+        source: 'request',
+      });
+      expect(JSON.stringify(result)).not.toContain('house-cf-aig-token');
+    });
+
     it('CONTROL: without the flag, server creds are used (env source)', () => {
       const result = resolveAttributionCredentials(
         withAllowedHosts({
@@ -255,7 +279,9 @@ describe('resolveAttributionCredentials', () => {
 
       // Must refuse (both required from the request), and the house key must
       // never appear in the result -- it is NOT sent to the caller gateway.
-      expect(result).toMatchObject({ error: expect.stringContaining('both') });
+      expect(result).toMatchObject({
+        error: expect.stringContaining('same source'),
+      });
       expect(JSON.stringify(result)).not.toContain('house-key');
     });
 
@@ -269,7 +295,9 @@ describe('resolveAttributionCredentials', () => {
 
       // Request supplied a key but no gateway: refuse rather than backfill the
       // env gateway. (Existing "incomplete credentials" invariant, restated.)
-      expect(result).toMatchObject({ error: expect.stringContaining('both') });
+      expect(result).toMatchObject({
+        error: expect.stringContaining('same source'),
+      });
     });
 
     it('keeps the keyless Unified Billing (env cf-aig) path green', () => {

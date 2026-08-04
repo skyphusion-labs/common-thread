@@ -26,6 +26,7 @@ const APP_JS = `var state = {
     backendUrl: '',
     aiGatewayUrl: '',
     anthropicApiKey: '',
+    cfAigToken: '',
     rememberKeys: false,
   },
 };
@@ -46,6 +47,7 @@ function loadSettingsFromStorage() {
     state.settings.rememberKeys = Boolean(parsed.rememberKeys);
     if (parsed.rememberKeys) {
       state.settings.anthropicApiKey = parsed.anthropicApiKey || '';
+      state.settings.cfAigToken = parsed.cfAigToken || '';
     }
   } catch (e) {
     console.warn('Failed to load settings', e);
@@ -56,6 +58,8 @@ function applySettingsToForm() {
   document.getElementById('backend-url').value = state.settings.backendUrl;
   document.getElementById('ai-gateway-url').value = state.settings.aiGatewayUrl;
   document.getElementById('anthropic-api-key').value = state.settings.anthropicApiKey;
+  var cfEl = document.getElementById('cf-aig-token');
+  if (cfEl) cfEl.value = state.settings.cfAigToken || '';
   document.getElementById('remember-keys').checked = state.settings.rememberKeys;
   updateCredentialHint();
 }
@@ -64,6 +68,8 @@ function saveSettings() {
   state.settings.backendUrl = document.getElementById('backend-url').value.trim();
   state.settings.aiGatewayUrl = document.getElementById('ai-gateway-url').value.trim();
   state.settings.anthropicApiKey = document.getElementById('anthropic-api-key').value.trim();
+  var cfEl = document.getElementById('cf-aig-token');
+  state.settings.cfAigToken = cfEl ? cfEl.value.trim() : '';
   state.settings.rememberKeys = document.getElementById('remember-keys').checked;
   var toStore = {
     backendUrl: state.settings.backendUrl,
@@ -72,6 +78,7 @@ function saveSettings() {
   };
   if (state.settings.rememberKeys) {
     toStore.anthropicApiKey = state.settings.anthropicApiKey;
+    toStore.cfAigToken = state.settings.cfAigToken;
   }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
   showAlert('Settings saved.', 'success');
@@ -79,7 +86,11 @@ function saveSettings() {
 }
 
 function hasByokCredentials() {
-  return Boolean(state.settings.aiGatewayUrl && state.settings.anthropicApiKey);
+  // Gateway URL plus either Anthropic API key or AI Gateway Run token.
+  return Boolean(
+    state.settings.aiGatewayUrl &&
+      (state.settings.anthropicApiKey || state.settings.cfAigToken)
+  );
 }
 
 function updateAttributeButtonLabel() {
@@ -101,7 +112,7 @@ function updateCredentialHint() {
   if (!hasByokCredentials()) {
     el.classList.remove('hidden');
     el.textContent = PUBLIC_BYOK_ONLY
-      ? 'This public instance provides no AI credentials. Add your AI Gateway URL and Anthropic API key in Setup to run attribution; the host will not run it for you.'
+      ? 'This public instance provides no AI credentials. Add your AI Gateway URL plus an Anthropic API key or AI Gateway Run token in Setup; the host will not run attribution for you.'
       : 'No AI key set. Attribution will run server-side on the deployment credentials (if configured) and may be queued; add a key in Setup to run immediately with your own.';
   } else {
     el.classList.add('hidden');
@@ -238,6 +249,7 @@ async function api(method, path, options) {
   if (options.withCredentials) {
     if (state.settings.aiGatewayUrl) headers.set('X-AI-Gateway-Url', state.settings.aiGatewayUrl);
     if (state.settings.anthropicApiKey) headers.set('X-Anthropic-Api-Key', state.settings.anthropicApiKey);
+    if (state.settings.cfAigToken) headers.set('X-CF-AIG-Token', state.settings.cfAigToken);
   }
   if (options.json !== undefined) {
     headers.set('Content-Type', 'application/json');
@@ -566,7 +578,7 @@ async function loadFeatures() {
 async function runAttribution() {
   if (!requireWritableInvestigation()) return;
   if (PUBLIC_BYOK_ONLY && !hasByokCredentials()) {
-    showAlert('Add your AI Gateway URL and Anthropic API key in Setup. This public instance does not run attribution on host credentials.', 'error');
+    showAlert('Add your AI Gateway URL plus an Anthropic API key or AI Gateway Run token in Setup. This public instance does not run attribution on host credentials.', 'error');
     showTab('setup');
     return;
   }
@@ -620,7 +632,7 @@ async function runAttribution() {
     // Match the structured backend code (byok_required, HTTP 400) first;
     // keep the legacy 503 English match for the pre-contract transition window.
     if (PUBLIC_BYOK_ONLY && (/byok_required/i.test(errMsg) || /Attribution requires/i.test(errMsg))) {
-      errMsg = 'Attribution needs your own AI credentials. Add your AI Gateway URL and Anthropic API key in Setup, then run again.';
+      errMsg = 'Attribution needs your own AI credentials. Add your AI Gateway URL plus an Anthropic API key or AI Gateway Run token in Setup, then run again.';
     }
     body.textContent = errMsg;
     showAlert(errMsg, 'error');
@@ -920,8 +932,11 @@ const HTML = `<!DOCTYPE html>
             <label class="block text-xs text-slate-500">AI Gateway URL</label>
             <input id="ai-gateway-url" class="w-full border rounded-xl px-3 py-2 text-sm font-mono" placeholder="https://gateway.ai.cloudflare.com/v1/ACCOUNT/GATEWAY/anthropic">
             <p class="text-[11px] text-slate-500">Or use direct Anthropic API: <code class="bg-slate-100 px-1 rounded">https://api.anthropic.com</code></p>
-            <label class="block text-xs text-slate-500">Anthropic API key</label>
+            <label class="block text-xs text-slate-500">Anthropic API key (option A)</label>
             <input id="anthropic-api-key" type="password" class="w-full border rounded-xl px-3 py-2 text-sm font-mono" placeholder="sk-ant-…" autocomplete="off">
+            <label class="block text-xs text-slate-500">AI Gateway Run token (option B — keyless Unified Billing)</label>
+            <input id="cf-aig-token" type="password" class="w-full border rounded-xl px-3 py-2 text-sm font-mono" placeholder="CF AI Gateway token" autocomplete="off">
+            <p class="text-[11px] text-slate-500">Provide the gateway URL plus either an Anthropic key or a CF AI Gateway Run token (not both required).</p>
             <label class="flex items-center gap-2 text-xs text-slate-600">
               <input id="remember-keys" type="checkbox" class="rounded">
               Remember credentials in this browser (localStorage)
@@ -1076,8 +1091,8 @@ const HTML = `<!DOCTYPE html>
             <div class="w-11 h-11 shrink-0 bg-violet-600 rounded-2xl flex items-center justify-center"><svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></div>
             <div class="space-y-3">
               <div>
-                <h3 class="font-semibold text-lg text-slate-900">This public instance runs on your own API key</h3>
-                <p class="text-sm text-slate-600 mt-1">Common Thread never charges you for attribution and never uses a shared key. Bring your own Anthropic API key (optionally via a Cloudflare AI Gateway) to run the reasoning step. Your key stays in your browser and is sent only when you run attribution.</p>
+                <h3 class="font-semibold text-lg text-slate-900">This public instance runs on your own credentials</h3>
+                <p class="text-sm text-slate-600 mt-1">Common Thread never charges you for attribution and never uses a shared key. Bring an AI Gateway URL plus either an Anthropic API key or a Cloudflare AI Gateway Run token. Credentials stay in your browser and are sent only when you run attribution.</p>
               </div>
               <ol class="text-sm text-slate-700 space-y-1 list-decimal list-inside">
                 <li>Create an Anthropic API key at <a class="text-blue-700 underline" href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a>.</li>
@@ -1156,6 +1171,7 @@ const PROXY_FORWARD_HEADERS = [
 const PROXY_SENSITIVE_HEADERS = [
   'authorization',
   'x-anthropic-api-key',
+  'x-cf-aig-token',
   'x-investigation-token',
 ];
 

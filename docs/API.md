@@ -419,15 +419,18 @@ Requires Anthropic credentials via **server secrets** or **request BYOK**
 before credential resolution / LLM work. Narrow the filter or raise the var.
 
 **Bring-your-own-key (BYOK)**:  for public deployments where the host
-does not supply API keys:
+does not supply API keys (`PUBLIC_BYOK_ONLY`):
 
 | Source | Fields |
 |--------|--------|
-| Headers | `X-AI-Gateway-Url`, `X-Anthropic-Api-Key` |
-| JSON body | `aiGatewayUrl` / `ai_gateway_url`, `anthropicApiKey` / `anthropic_api_key` |
+| Headers | `X-AI-Gateway-Url`, plus either `X-Anthropic-Api-Key` **or** `X-CF-AIG-Token` |
+| JSON body | `aiGatewayUrl` / `ai_gateway_url`, plus either `anthropicApiKey` / `anthropic_api_key` **or** `cfAigToken` / `cf_aig_token` |
 
 Use `https://api.anthropic.com` as the gateway URL for direct Anthropic API
-access, or a Cloudflare AI Gateway base URL ending in `/anthropic`.
+access (with an Anthropic API key), or a Cloudflare AI Gateway base URL ending
+in `/anthropic` (with either an Anthropic key or an AI Gateway Run token for
+keyless Unified Billing). All request-supplied credentials must come from the
+same source (no env backfill).
 
 Request credentials override server secrets when provided. Keys are used
 only for the attribution call and are not persisted.
