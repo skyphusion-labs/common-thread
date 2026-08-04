@@ -60,11 +60,83 @@ export async function deriveInvestigationKey(
     false,
     ['deriveKey']
   );
-  // extractable:true so the Worker can export raw key material for VPC
-  // key-on-dispatch (#246). The key is never written to MySQL/R2/logs; the
-  // only intentional leave of Worker memory is a bearer-authenticated VPC
-  // handoff body, discarded when the container job ends.
+  // extractable:false for the request-scoped key held in Worker/container
+  // memory. VPC handoff uses a *separate* extractable derivation only inside
+  // sealInvestigationKeyForVpcHandoff (#246 audit: do not leave every key
+  // extractable for the whole request).
   return crypto.subtle.deriveKey(
+    {
+      name: 'HKDF',
+      hash: 'SHA-256',
+      salt: encoder.encode(investigationId),
+      info: encoder.encode(HKDF_INFO),
+    },
+    ikm,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+/**
+ * Wire prefix for VPC handoff payloads. The investigation key is envelope-
+ * encrypted under a key derived from the container shared secret
+ * (INGEST_SECRET / ATTRIBUTION_SECRET) so cleartext AES material never rides
+ * the VPC body (#246 adversarial audit critical).
+ */
+const HANDOFF_PREFIX = 'inv-enc-handoff:v1:';
+const HANDOFF_WRAP_INFO = 'ct/vpc-handoff-wrap/v1';
+
+async function deriveHandoffWrappingKey(
+  wrappingSecret: string,
+  investigationId: string
+): Promise<CryptoKey> {
+  const ikm = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(wrappingSecret),
+    'HKDF',
+    false,
+    ['deriveKey']
+  );
+  return crypto.subtle.deriveKey(
+    {
+      name: 'HKDF',
+      hash: 'SHA-256',
+      salt: encoder.encode(investigationId),
+      info: encoder.encode(HANDOFF_WRAP_INFO),
+    },
+    ikm,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+/**
+ * Seal the investigation encryption key for a one-shot VPC handoff (#246).
+ *
+ * Re-derives an extractable copy from the access token (request-scoped
+ * CryptoKey stays non-extractable), then envelope-encrypts the raw AES-256
+ * bytes under a key derived from `wrappingSecret` (the container bearer
+ * secret). NEVER log, persist, or return the sealed blob to public HTTP.
+ */
+export async function sealInvestigationKeyForVpcHandoff(
+  accessToken: string,
+  investigationId: string,
+  wrappingSecret: string
+): Promise<string> {
+  if (!wrappingSecret) {
+    throw new Error('sealInvestigationKeyForVpcHandoff: wrappingSecret required');
+  }
+  // Temporary extractable derivation solely for export; not the request key.
+  const ikm = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(accessToken),
+    'HKDF',
+    false,
+    ['deriveKey']
+  );
+  const extractable = await crypto.subtle.deriveKey(
     {
       name: 'HKDF',
       hash: 'SHA-256',
@@ -76,50 +148,84 @@ export async function deriveInvestigationKey(
     true,
     ['encrypt', 'decrypt']
   );
-}
-
-/** Wire prefix for exported key material (VPC handoff only). */
-const KEY_MATERIAL_PREFIX = 'inv-enc-key:v1:';
-
-/**
- * Export raw AES-256 key bytes as a self-describing string for transient VPC
- * handoff (#246). NEVER log, persist to MySQL/R2, or return to HTTP clients.
- */
-export async function exportInvestigationKeyMaterial(
-  key: CryptoKey
-): Promise<string> {
-  const exported = await crypto.subtle.exportKey('raw', key);
-  const raw = new Uint8Array(exported as ArrayBuffer);
+  const raw = new Uint8Array(
+    (await crypto.subtle.exportKey('raw', extractable)) as ArrayBuffer
+  );
   if (raw.byteLength !== 32) {
     throw new Error(
-      `exportInvestigationKeyMaterial: expected 32-byte AES-256 key, got ${raw.byteLength}`
+      `sealInvestigationKeyForVpcHandoff: expected 32-byte key, got ${raw.byteLength}`
     );
   }
-  return KEY_MATERIAL_PREFIX + toBase64Url(raw);
+
+  const wrapKey = await deriveHandoffWrappingKey(wrappingSecret, investigationId);
+  const nonce = new Uint8Array(12);
+  crypto.getRandomValues(nonce);
+  const ct = new Uint8Array(
+    await crypto.subtle.encrypt(
+      {
+        name: 'AES-GCM',
+        iv: nonce,
+        additionalData: encoder.encode(`${investigationId}|vpc-handoff`),
+      },
+      wrapKey,
+      raw
+    )
+  );
+  const packed = new Uint8Array(nonce.length + ct.length);
+  packed.set(nonce, 0);
+  packed.set(ct, nonce.length);
+  // Zero the temporary raw buffer best-effort.
+  raw.fill(0);
+  return HANDOFF_PREFIX + toBase64Url(packed);
 }
 
 /**
- * Import key material produced by {@link exportInvestigationKeyMaterial}.
- * Used by VPC containers to reconstruct the request-scoped investigation key.
+ * Unseal a VPC handoff blob produced by {@link sealInvestigationKeyForVpcHandoff}.
+ * Used by containers that share the wrapping secret (INGEST_SECRET /
+ * ATTRIBUTION_SECRET). Returns a non-extractable CryptoKey for pack/write.
  */
-export async function importInvestigationKeyMaterial(
-  material: string
+export async function unsealInvestigationKeyFromVpcHandoff(
+  sealed: string,
+  wrappingSecret: string,
+  investigationId: string
 ): Promise<CryptoKey> {
-  if (!material.startsWith(KEY_MATERIAL_PREFIX)) {
+  if (!sealed.startsWith(HANDOFF_PREFIX)) {
     throw new Error(
-      'importInvestigationKeyMaterial: unknown key material format'
+      'unsealInvestigationKeyFromVpcHandoff: unknown handoff format (expected inv-enc-handoff:v1:)'
     );
   }
-  const raw = fromBase64Url(material.slice(KEY_MATERIAL_PREFIX.length));
+  if (!wrappingSecret) {
+    throw new Error('unsealInvestigationKeyFromVpcHandoff: wrappingSecret required');
+  }
+  const packed = fromBase64Url(sealed.slice(HANDOFF_PREFIX.length));
+  const nonce = packed.subarray(0, 12);
+  const body = packed.subarray(12);
+  const wrapKey = await deriveHandoffWrappingKey(wrappingSecret, investigationId);
+  const raw = new Uint8Array(
+    await crypto.subtle.decrypt(
+      {
+        name: 'AES-GCM',
+        iv: nonce,
+        additionalData: encoder.encode(`${investigationId}|vpc-handoff`),
+      },
+      wrapKey,
+      body
+    )
+  );
   if (raw.byteLength !== 32) {
     throw new Error(
-      `importInvestigationKeyMaterial: expected 32-byte key, got ${raw.byteLength}`
+      `unsealInvestigationKeyFromVpcHandoff: expected 32-byte key, got ${raw.byteLength}`
     );
   }
-  return crypto.subtle.importKey('raw', raw, { name: 'AES-GCM', length: 256 }, false, [
-    'encrypt',
-    'decrypt',
-  ]);
+  const key = await crypto.subtle.importKey(
+    'raw',
+    raw,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+  raw.fill(0);
+  return key;
 }
 
 /** True if a stored string is an encrypted cell (vs legacy plaintext). */

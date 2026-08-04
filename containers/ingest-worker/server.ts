@@ -22,7 +22,10 @@ import {
   r2S3ConfigFromEnv,
 } from './r2-bucket';
 import { createDatabaseClient, parseMysqlUrl } from '../../implementation/db';
-import { importInvestigationKeyMaterial } from '../../implementation/crypto/investigation-key';
+import {
+  unsealInvestigationKeyFromVpcHandoff,
+  verifyKeyCheck,
+} from '../../implementation/crypto/investigation-key';
 import type { IngestJobHandoff } from '../../implementation/ingest/handoff';
 import { claimIngestJob, failIngestJob } from '../../implementation/ingest/jobs';
 import { buildManifestRemoteAppend } from '../../implementation/ingest/manifest-env';
@@ -100,21 +103,38 @@ async function processJob(handoff: IngestJobHandoff): Promise<void> {
 
   // Fail closed: encrypted inv without key-on-dispatch would write plaintext.
   const inv = await db
-    .prepare('SELECT crypto_version FROM investigations WHERE id = ?')
+    .prepare(
+      'SELECT crypto_version, key_check FROM investigations WHERE id = ?'
+    )
     .bind(handoff.investigationId)
-    .first<{ crypto_version: string | null }>();
+    .first<{ crypto_version: string | null; key_check: string | null }>();
   const isEncrypted = Boolean(inv?.crypto_version);
-  if (isEncrypted && !handoff.encryptionKeyMaterial) {
+  // Pull sealed material off the handoff object before any work/logging path
+  // can see it (#246 audit: never log the handoff with key material).
+  const sealedMaterial = handoff.encryptionKeyMaterial;
+  handoff.encryptionKeyMaterial = undefined;
+
+  if (isEncrypted && !sealedMaterial) {
     throw new Error(
       `Encrypted investigation ${handoff.investigationId} requires encryptionKeyMaterial on the VPC handoff (#246)`
     );
   }
 
   let encKey: CryptoKey | null = null;
-  if (handoff.encryptionKeyMaterial) {
-    encKey = await importInvestigationKeyMaterial(handoff.encryptionKeyMaterial);
-    // Drop the wire string ASAP; only the CryptoKey remains for the job.
-    handoff.encryptionKeyMaterial = undefined;
+  if (sealedMaterial) {
+    encKey = await unsealInvestigationKeyFromVpcHandoff(
+      sealedMaterial,
+      INGEST_SECRET,
+      handoff.investigationId
+    );
+    if (inv?.key_check) {
+      const ok = await verifyKeyCheck(encKey, inv.key_check);
+      if (!ok) {
+        throw new Error(
+          `Encrypted investigation ${handoff.investigationId}: handoff key failed key_check`
+        );
+      }
+    }
   }
 
   const store = new ArchiveStore({ bucket: archive });
@@ -194,21 +214,25 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // Strip any residual key field before handing off to async work / logs.
+  handoff.encryptionKeyMaterial = undefined;
+  const jobId = handoff.jobId;
   processJob(handoff).catch(async (err) => {
+    // Log message only — never the Error object or handoff (could retain key).
     const message = err instanceof Error ? err.message : String(err);
-    console.error('[ingest] job %s failed:', handoff.jobId, err);
+    console.error('[ingest] job %s failed: %s', jobId, message);
     try {
       if (MYSQL_URL) {
         const db = createDatabaseClient(parseMysqlUrl(MYSQL_URL));
-        await failIngestJob(db, handoff.jobId, message);
+        await failIngestJob(db, jobId, message);
       }
-    } catch (dbErr) {
-      console.error('[ingest] failed to record job failure for %s:', handoff.jobId, dbErr);
+    } catch {
+      console.error('[ingest] failed to record job failure for %s', jobId);
     }
   });
 
   res.writeHead(202, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ accepted: true, jobId: handoff.jobId }) + '\n');
+  res.end(JSON.stringify({ accepted: true, jobId }) + '\n');
 });
 
 server.listen(PORT, () => {

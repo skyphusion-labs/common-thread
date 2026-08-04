@@ -83,17 +83,29 @@ Pack/read seam: `implementation/crypto/feature-cells.ts`.
 - **Reads:** `getAttributionRun` / `listAttributionRuns` and the evidence-packet
   builders decrypt with the key; the PDF path renders already-decrypted HTML in
   the container, so the key never leaves the Worker.
-- **VPC key-on-dispatch (#246):** when the request holds `encKey`, the Worker
-  may still hand work to VPC ingest / attribution. Raw AES-256 key material is
-  exported as `inv-enc-key:v1:<base64url>` and sent **only** in the bearer-
-  authenticated VPC handoff body. It is **never** written to `ingest_jobs` /
-  `attribution_jobs`, R2, logs, or HTTP client responses. Containers import the
-  material for the job duration, pass it to the same pack/write paths as the
-  Worker, then drop the reference. **Fail closed:** `crypto_version` set with
-  no key material (Worker or container) refuses the job rather than writing
-  plaintext. BYOK AI credentials still never leave the Worker (async attribute
-  only for server-side AI creds). Encrypted-cell reads throw on missing/wrong
-  key (never return `enc:1:` ciphertext to callers or the LLM).
+- **VPC key-on-dispatch (#246):** when the request holds a valid access token
+  for an encrypted investigation, the Worker may hand work to VPC ingest /
+  attribution. The investigation AES key is **envelope-sealed** under a key
+  derived from the container shared secret (`INGEST_SECRET` /
+  `ATTRIBUTION_SECRET`) + investigation id: wire format
+  `inv-enc-handoff:v1:<base64url>`. Cleartext AES bytes never ride the VPC body.
+  The request-scoped `CryptoKey` in the Worker stays **non-extractable**; only
+  a temporary extractable derivation exists inside the seal helper.
+  Sealed material is sent **only** in the bearer-authenticated VPC handoff
+  body — **never** `ingest_jobs` / `attribution_jobs`, R2, logs, or HTTP client
+  responses. Containers unseal, optional `key_check` verify, pack/write, then
+  drop the key. Error logs record `jobId` + message only (no Error object /
+  handoff dump). **Fail closed:** `crypto_version` set with no sealed material
+  refuses the job. BYOK AI credentials still never leave the Worker.
+  Encrypted-cell reads throw on missing/wrong key (never return `enc:1:`
+  ciphertext to callers or the LLM).
+
+  **Trust boundary (accepted, pre-existing):** containers authorize with a
+  static bearer shared secret on the private Workers VPC network (no public
+  route). Compromising `INGEST_SECRET` / `ATTRIBUTION_SECRET` or a fleet
+  container is already full data-plane compromise for that path; key-on-dispatch
+  does not add a new public attack surface. mTLS / per-investigation MFA for
+  container entry is out of scope for this change.
 
 ## Backward compatibility
 

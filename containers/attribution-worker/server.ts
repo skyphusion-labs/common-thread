@@ -21,7 +21,10 @@ import {
   r2S3ConfigFromEnv,
 } from '../ingest-worker/r2-bucket';
 import { createDatabaseClient, parseMysqlUrl } from '../../implementation/db';
-import { importInvestigationKeyMaterial } from '../../implementation/crypto/investigation-key';
+import {
+  unsealInvestigationKeyFromVpcHandoff,
+  verifyKeyCheck,
+} from '../../implementation/crypto/investigation-key';
 import { runAttribution } from '../../implementation/reasoner/runner';
 import {
   claimAttributionJob,
@@ -112,20 +115,36 @@ async function processJob(handoff: AttributionJobHandoff): Promise<void> {
   await claimAttributionJob(db, handoff.jobId, CONTAINER_NAME);
 
   const inv = await db
-    .prepare('SELECT crypto_version FROM investigations WHERE id = ?')
+    .prepare(
+      'SELECT crypto_version, key_check FROM investigations WHERE id = ?'
+    )
     .bind(handoff.investigationId)
-    .first<{ crypto_version: string | null }>();
+    .first<{ crypto_version: string | null; key_check: string | null }>();
   const isEncrypted = Boolean(inv?.crypto_version);
-  if (isEncrypted && !handoff.encryptionKeyMaterial) {
+  const sealedMaterial = handoff.encryptionKeyMaterial;
+  handoff.encryptionKeyMaterial = undefined;
+
+  if (isEncrypted && !sealedMaterial) {
     throw new Error(
       `Encrypted investigation ${handoff.investigationId} requires encryptionKeyMaterial on the VPC handoff (#246)`
     );
   }
 
   let encKey: CryptoKey | null = null;
-  if (handoff.encryptionKeyMaterial) {
-    encKey = await importInvestigationKeyMaterial(handoff.encryptionKeyMaterial);
-    handoff.encryptionKeyMaterial = undefined;
+  if (sealedMaterial) {
+    encKey = await unsealInvestigationKeyFromVpcHandoff(
+      sealedMaterial,
+      ATTRIBUTION_SECRET,
+      handoff.investigationId
+    );
+    if (inv?.key_check) {
+      const ok = await verifyKeyCheck(encKey, inv.key_check);
+      if (!ok) {
+        throw new Error(
+          `Encrypted investigation ${handoff.investigationId}: handoff key failed key_check`
+        );
+      }
+    }
   }
 
   try {
@@ -202,21 +221,23 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  handoff.encryptionKeyMaterial = undefined;
+  const jobId = handoff.jobId;
   processJob(handoff).catch(async (err) => {
     const message = err instanceof Error ? err.message : String(err);
-    console.error('[attribution] job %s failed:', handoff.jobId, err);
+    console.error('[attribution] job %s failed: %s', jobId, message);
     try {
       if (MYSQL_URL) {
         const db = createDatabaseClient(parseMysqlUrl(MYSQL_URL));
-        await failAttributionJob(db, handoff.jobId, message);
+        await failAttributionJob(db, jobId, message);
       }
-    } catch (dbErr) {
-      console.error('[attribution] failed to record job failure for %s:', handoff.jobId, dbErr);
+    } catch {
+      console.error('[attribution] failed to record job failure for %s', jobId);
     }
   });
 
   res.writeHead(202, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ accepted: true, jobId: handoff.jobId }) + '\n');
+  res.end(JSON.stringify({ accepted: true, jobId }) + '\n');
 });
 
 server.listen(PORT, () => {

@@ -37,7 +37,7 @@ import {
   CRYPTO_VERSION,
   computeKeyCheck,
   deriveInvestigationKey,
-  exportInvestigationKeyMaterial,
+  sealInvestigationKeyForVpcHandoff,
 } from '../crypto/investigation-key';
 import {
   assertInvestigationActiveForWrite,
@@ -1068,9 +1068,9 @@ async function handleAttribute(ctx: RouteContext): Promise<Response> {
   // Async path (#69): server-credentials-only runs delegate to the VPC
   // executor and return 202 + a job id. BYOK requests (credential source
   // 'request') stay synchronous so a user AI key never reaches the executor.
-  // Encrypted investigations (#246) may async when the request-scoped
-  // encryption key is present: raw key material is sent only in the VPC
-  // handoff body (never options_json / jobs table). Missing key on an
+  // Encrypted investigations (#246) may async when the access token is present:
+  // investigation key is envelope-sealed under ATTRIBUTION_SECRET into the VPC
+  // handoff only (never options_json / jobs table). Missing token/key on an
   // encrypted inv would write plaintext conclusions -- refuse that path.
   if (shouldRunAttributionAsync(env, credentials.source)) {
     if (ctx.auth?.crypto_version && !ctx.encKey) {
@@ -1084,8 +1084,23 @@ async function handleAttribute(ctx: RouteContext): Promise<Response> {
       );
     }
     let encryptionKeyMaterial: string | undefined;
-    if (ctx.encKey) {
-      encryptionKeyMaterial = await exportInvestigationKeyMaterial(ctx.encKey);
+    if (ctx.auth?.crypto_version) {
+      const token = extractAccessToken(request, url);
+      if (!token || !env.ATTRIBUTION_SECRET) {
+        return jsonResponse(
+          {
+            error: 'encryption_key_required',
+            message:
+              'Encrypted async attribution requires access token and ATTRIBUTION_SECRET for key-on-dispatch sealing.',
+          },
+          400
+        );
+      }
+      encryptionKeyMaterial = await sealInvestigationKeyForVpcHandoff(
+        token,
+        investigationId,
+        env.ATTRIBUTION_SECRET
+      );
     }
     const { jobId, status } = await enqueueAttributionJob(
       env,
@@ -1340,6 +1355,7 @@ async function handleIngestApify(ctx: RouteContext): Promise<Response> {
   try {
     const result = await ingestApifyTwitter(env, investigationId, allItems, {
       encKey: ctx.encKey ?? null,
+      accessToken: extractAccessToken(ctx.request, ctx.url) ?? undefined,
     });
     const status = result.delegatedToContainer ? 202 : 200;
     return jsonResponse(result, status);

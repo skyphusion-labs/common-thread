@@ -2,7 +2,7 @@
 
 import { ArchiveStore } from '../archive/store';
 import { execute, queryOne, resolveDatabase } from '../db';
-import { exportInvestigationKeyMaterial } from '../crypto/investigation-key';
+import { sealInvestigationKeyForVpcHandoff } from '../crypto/investigation-key';
 import { dispatchIngestJob } from './dispatch';
 import {
   parseApifyTwitterItems,
@@ -54,9 +54,14 @@ export async function ingestApifyTwitter(
   env: Env,
   investigationId: string,
   payload: unknown,
-  options?: { encKey?: CryptoKey | null }
+  options?: {
+    encKey?: CryptoKey | null;
+    /** Access token for sealing VPC handoff material (#246). Required when encrypted + VPC. */
+    accessToken?: string;
+  }
 ): Promise<ApifyIngestResult> {
   const encKey = options?.encKey ?? null;
+  const accessToken = options?.accessToken;
   const parsedTweets = parseApifyTwitterItems(payload);
   const handles = extractAllHandlesFromApifyTwitter(payload);
   const now = new Date().toISOString();
@@ -101,9 +106,18 @@ export async function ingestApifyTwitter(
   );
 
   if (useVpc) {
-    const encryptionKeyMaterial = encKey
-      ? await exportInvestigationKeyMaterial(encKey)
-      : undefined;
+    let encryptionKeyMaterial: string | undefined;
+    if (isEncrypted) {
+      if (!accessToken || !env.INGEST_SECRET) {
+        throw new EncryptedIngestKeyRequiredError(investigationId);
+      }
+      // Envelope under INGEST_SECRET so cleartext AES never rides the VPC body.
+      encryptionKeyMaterial = await sealInvestigationKeyForVpcHandoff(
+        accessToken,
+        investigationId,
+        env.INGEST_SECRET
+      );
+    }
     const dispatchResponse = await dispatchIngestJob(env, {
       jobId,
       investigationId,

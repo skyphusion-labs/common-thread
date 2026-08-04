@@ -28,8 +28,9 @@ export interface AttributionJobHandoff {
   investigationId: string;
   options: AttributionJobOptions;
   /**
-   * Transient AES-256 key material for encrypted investigations (#246).
-   * Format: `inv-enc-key:v1:<base64url>`. Never written to attribution_jobs.
+   * Envelope-sealed investigation encryption key for encrypted invs (#246).
+   * Format: `inv-enc-handoff:v1:<base64url>` (AES-GCM under a key derived from
+   * ATTRIBUTION_SECRET + investigationId). Never written to attribution_jobs.
    * Omit for legacy plaintext investigations.
    */
   encryptionKeyMaterial?: string;

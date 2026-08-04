@@ -11,9 +11,9 @@ import {
   decryptCell,
   deriveInvestigationKey,
   encryptCell,
-  exportInvestigationKeyMaterial,
-  importInvestigationKeyMaterial,
   isEncryptedCell,
+  sealInvestigationKeyForVpcHandoff,
+  unsealInvestigationKeyFromVpcHandoff,
   verifyKeyCheck,
 } from '../../implementation/crypto/investigation-key';
 
@@ -116,20 +116,39 @@ describe('CRYPTO_VERSION', () => {
   });
 });
 
-describe('export / import key material (#246 VPC handoff)', () => {
-  it('round-trips encrypt/decrypt after export→import', async () => {
-    const key = await deriveInvestigationKey(TOKEN, INV);
-    const material = await exportInvestigationKeyMaterial(key);
-    expect(material.startsWith('inv-enc-key:v1:')).toBe(true);
+describe('VPC handoff seal / unseal (#246)', () => {
+  const WRAP = 'test-ingest-or-attribution-secret';
 
-    const imported = await importInvestigationKeyMaterial(material);
+  it('round-trips: sealed handoff unseals to a key that matches derive', async () => {
+    const key = await deriveInvestigationKey(TOKEN, INV);
+    const sealed = await sealInvestigationKeyForVpcHandoff(TOKEN, INV, WRAP);
+    expect(sealed.startsWith('inv-enc-handoff:v1:')).toBe(true);
+    // Cleartext AES material must not appear in the wire blob.
+    expect(sealed.includes('inv-enc-key:')).toBe(false);
+
+    const unsealed = await unsealInvestigationKeyFromVpcHandoff(sealed, WRAP, INV);
     const cell = await encryptCell(key, 'handoff-payload', AAD);
-    expect(await decryptCell(imported, cell, AAD)).toBe('handoff-payload');
+    expect(await decryptCell(unsealed, cell, AAD)).toBe('handoff-payload');
+    expect(await verifyKeyCheck(unsealed, await computeKeyCheck(key))).toBe(true);
+  });
+
+  it('rejects wrong wrapping secret', async () => {
+    const sealed = await sealInvestigationKeyForVpcHandoff(TOKEN, INV, WRAP);
+    await expect(
+      unsealInvestigationKeyFromVpcHandoff(sealed, 'wrong-secret', INV)
+    ).rejects.toThrow();
+  });
+
+  it('rejects wrong investigation id (AAD)', async () => {
+    const sealed = await sealInvestigationKeyForVpcHandoff(TOKEN, INV, WRAP);
+    await expect(
+      unsealInvestigationKeyFromVpcHandoff(sealed, WRAP, 'other-inv')
+    ).rejects.toThrow();
   });
 
   it('rejects unknown wire prefixes', async () => {
-    await expect(importInvestigationKeyMaterial('not-a-key')).rejects.toThrow(
-      /unknown key material format/
-    );
+    await expect(
+      unsealInvestigationKeyFromVpcHandoff('not-a-key', WRAP, INV)
+    ).rejects.toThrow(/unknown handoff format/);
   });
 });
