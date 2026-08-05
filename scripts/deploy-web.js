@@ -8,7 +8,7 @@ const args = process.argv.slice(2);
 const envArg = args.find(a => a.startsWith('--env=')) || '--env=dev';
 const rawEnv = envArg.split('=')[1] || 'dev';
 
-// Normalize environment — explicit --env flag takes priority
+// Normalize environment -- explicit --env flag takes priority
 const isProd = rawEnv === 'prod' || rawEnv === 'production';
 const wranglerEnvFlag = isProd ? '--env production' : '';
 const tempEnv = isProd ? 'prod' : 'dev';

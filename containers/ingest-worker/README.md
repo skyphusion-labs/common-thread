@@ -1,4 +1,4 @@
-# Common Thread — self-hosted extraction container
+# Common Thread -- self-hosted extraction container
 
 Always-on Docker service that runs the **archive + extraction pipeline** off the
 Cloudflare Worker. The Worker archives the raw Apify export once, inserts an
@@ -69,7 +69,7 @@ INGEST_WORKER_URL = "http://json-ingest:8080/trigger"
 wrangler secret put INGEST_SECRET
 ```
 
-Public API: `POST /investigations/:id/ingest/apify-twitter` — requires the
+Public API: `POST /investigations/:id/ingest/apify-twitter` -- requires the
 investigation capability token (see `docs/API.md`).
 
 ## Build and run

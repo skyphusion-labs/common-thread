@@ -135,7 +135,7 @@ export function sanitizePacketHtml(html: string): string {
 }
 
 export function packetDocumentTitle(investigationId: string, runId: number): string {
-  return `Common Thread Evidence Packet — ${investigationId} — run ${runId}`;
+  return `Common Thread Evidence Packet -- ${investigationId} -- run ${runId}`;
 }
 
 export async function packetMarkdownToHtml(

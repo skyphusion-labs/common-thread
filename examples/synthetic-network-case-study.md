@@ -37,19 +37,19 @@ practitioner hypothesized a single political consultant operated all three.
 
 | Signal category | Pair | Feature | Interpretation |
 |-----------------|------|---------|----------------|
-| Temporal | A–B | `cadence_jsd` ≈ 0.02 | Near-identical posting hour distributions |
-| Stylometric | A–B | `burrows_delta` low | Similar function-word vectors on English corpus |
-| Cross-platform | A–B | `bio_link_jaccard` = 1 | Same normalized fundraiser URL in bios |
-| Metadata leakage | A–B | `client_app_jaccard` = 1 | Identical Twitter Web App / iPhone mix |
-| Network | A–C | `follower_overlap_jaccard` low | Expected: C is unrelated local business |
+| Temporal | A-B | `cadence_jsd` ≈ 0.02 | Near-identical posting hour distributions |
+| Stylometric | A-B | `burrows_delta` low | Similar function-word vectors on English corpus |
+| Cross-platform | A-B | `bio_link_jaccard` = 1 | Same normalized fundraiser URL in bios |
+| Metadata leakage | A-B | `client_app_jaccard` = 1 | Identical Twitter Web App / iPhone mix |
+| Network | A-C | `follower_overlap_jaccard` low | Expected: C is unrelated local business |
 
 Cluster-C pairs correctly declined or landed `insufficient` across reasoning runs.
 
 ## Attribution output (illustrative)
 
-**Pair A–B:** `strongly_consistent` with cited temporal, stylometric, bio-link, and client-app signals. Alternative explanations (coincidental topic interest, same regional news cycle) considered and rejected on cumulative weight.
+**Pair A-B:** `strongly_consistent` with cited temporal, stylometric, bio-link, and client-app signals. Alternative explanations (coincidental topic interest, same regional news cycle) considered and rejected on cumulative weight.
 
-**Pair A–C / B–C:** `insufficient`; reasoning layer declination default applied.
+**Pair A-C / B-C:** `insufficient`; reasoning layer declination default applied.
 
 ## Evidence packet
 
@@ -59,7 +59,7 @@ Cluster-C pairs correctly declined or landed `insufficient` across reasoning run
 
 ## Practitioner reflection
 
-**Strengths:** Multi-signal convergence on A–B without platform-internal data.
+**Strengths:** Multi-signal convergence on A-B without platform-internal data.
 
 **Limits:** Stylometry alone would not have justified `strongly_consistent`; bio-link and client-app signals were common but became diagnostic in combination with temporal alignment.
 

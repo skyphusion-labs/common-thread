@@ -249,7 +249,7 @@ export async function runTwitterIngestPipeline(
         .run();
       seedsRegistered++;
     } catch {
-      // duplicate or constraint — continue
+      // duplicate or constraint -- continue
     }
   }
 

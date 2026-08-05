@@ -1,5 +1,5 @@
 /**
- * Distinctive terms and rare phrase n-grams from timeline corpora (§4.3.2–3).
+ * Distinctive terms and rare phrase n-grams from timeline corpora (§4.3.2-3).
  *
  * Account extractor emits term/ngram vocabularies; pair extractors
  * compute overlap metrics.

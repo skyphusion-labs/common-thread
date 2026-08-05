@@ -1,4 +1,4 @@
-# Background corpus for TF-IDF / novelty n-grams (§4.3.2–3)
+# Background corpus for TF-IDF / novelty n-grams (§4.3.2-3)
 
 The methodology weights distinctive vocabulary and idiosyncratic phrases
 against a **background corpus** from the broader community. Without a
@@ -41,7 +41,7 @@ Each string is one background document (DF counting is per-document).
    - Seeds: `account_term_tf`, `account_ngram_tf`
 5. Pair extractor `background_novelty_stylometric` emits
    `background_tfidf_term_*` and `novelty_ngram_*` overlap features for
-   seed–seed pairs (control accounts are excluded from pairs).
+   seed-seed pairs (control accounts are excluded from pairs).
 
 ## Notes
 

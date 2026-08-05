@@ -24,7 +24,7 @@ applying the methodology.
 
 | Path | Purpose |
 |------|---------|
-| `paper/` | Methodology paper (CC-BY-4.0) — **the spec** |
+| `paper/` | Methodology paper (CC-BY-4.0) -- **the spec** |
 | `implementation/` | Backend reference implementation (AGPL-3.0) |
 | `web/` | Browser UI Worker (proxies API, BYOK for attribution) |
 | `docs/` | Setup, deployment, API, testing |
@@ -51,10 +51,10 @@ cp web/wrangler.toml.example web/wrangler.toml
 **Local development**
 
 ```bash
-# Terminal 1 — backend API
+# Terminal 1 -- backend API
 npm run dev
 
-# Terminal 2 — web UI (optional)
+# Terminal 2 -- web UI (optional)
 npm run dev:web
 ```
 
@@ -87,7 +87,7 @@ plus a gateway URL ending in `/anthropic`. See `docs/SETUP.md`,
 - Run attribution with **bring-your-own-key** (BYOK) credentials
 - Download evidence packets (JSON, Markdown, PDF when configured)
 
-Investigations are private: no global listing. Tokens are capability secrets —
+Investigations are private: no global listing. Tokens are capability secrets  -- 
 the UI explains what they do and do not protect.
 
 The web Worker proxies `/api/proxy/*` to the backend via a **service binding**
@@ -135,7 +135,7 @@ frontend, and optional VPC ingest/PDF containers are implemented.
 
 **Public API:** https://common-thread-backend.skyphusion.org (see [docs/API.md](docs/API.md)).
 Using the hosted API in your own project requires prior contact with the
-operator — email **common-thread@skyphusion.org** or see [docs/contact.md](docs/contact.md).
+operator -- email **common-thread@skyphusion.org** or see [docs/contact.md](docs/contact.md).
 To run your own instance without asking, self-host per `docs/SETUP.md`.
 
 **Skyphusion Labs:** https://skyphusion.org · **Org:** https://github.com/skyphusion-labs

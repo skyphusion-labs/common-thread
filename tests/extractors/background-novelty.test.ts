@@ -1,5 +1,5 @@
 /**
- * Unit tests for §4.3.2–3 background TF-IDF / novelty n-grams.
+ * Unit tests for §4.3.2-3 background TF-IDF / novelty n-grams.
  */
 
 import { describe, expect, it } from 'vitest';

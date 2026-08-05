@@ -5,9 +5,9 @@
  * network calls; configuration is this file + extractor version.
  *
  * Two signal families:
- *   1. Hard errors — missing apostrophes, known misspellings, repeated
+ *   1. Hard errors -- missing apostrophes, known misspellings, repeated
  *      letters, QWERTY-adjacent swaps that yield a common word.
- *   2. Confusion-form fingerprints — relative use of their/there/they're
+ *   2. Confusion-form fingerprints -- relative use of their/there/they're
  *      (etc.). These are not labeled "wrong"; the distribution shape is
  *      the linkage signal.
  *

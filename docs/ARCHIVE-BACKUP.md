@@ -6,10 +6,10 @@ one independent backup** on separate infrastructure.
 
 Two supported paths:
 
-1. **Operator sync** (rclone / lifecycle rules) — always available; documented
+1. **Operator sync** (rclone / lifecycle rules) -- always available; documented
    below.
 2. **Optional in-Worker dual-write** (`ARCHIVE_REPLICA` + `ARCHIVE_DUAL_WRITE`)
-   — synchronous second-bucket puts from the Worker (#154). Off by default.
+   -- synchronous second-bucket puts from the Worker (#154). Off by default.
 
 ## Optional dual-write (in-Worker)
 

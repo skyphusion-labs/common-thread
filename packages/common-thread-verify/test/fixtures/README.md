@@ -6,10 +6,10 @@ is a throwaway generated solely for these fixtures.
 
 | Fixture | Expected result | Exit code |
 |---|---|---|
-| `valid.json` | `VALID` — signature verifies against canonical markdown | 0 |
-| `unsigned.json` | `UNSIGNED` — no `packet_signature` field | 2 |
-| `tampered.json` | `INVALID` — markdown mutated, hash mismatch | 2 |
-| `bad-signature.json` | `INVALID` — signature byte flipped, does not verify | 2 |
+| `valid.json` | `VALID` -- signature verifies against canonical markdown | 0 |
+| `unsigned.json` | `UNSIGNED` -- no `packet_signature` field | 2 |
+| `tampered.json` | `INVALID` -- markdown mutated, hash mismatch | 2 |
+| `bad-signature.json` | `INVALID` -- signature byte flipped, does not verify | 2 |
 
 ## Regenerating
 

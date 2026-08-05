@@ -1,4 +1,4 @@
-// worker.js — Common Thread Web Frontend
+// worker.js -- Common Thread Web Frontend
 //
 // Self-contained: NO external CDN or runtime dependency (house rule). Tailwind
 // CSS is prebuilt and inlined below (regen: see web/README-assets.md); icons
@@ -217,7 +217,7 @@ function requireWritableInvestigation() {
 }
 
 function updateSidebarInvestigation() {
-  document.getElementById('sidebar-investigation').textContent = state.investigationId || '—';
+  document.getElementById('sidebar-investigation').textContent = state.investigationId || ' -- ';
 }
 
 function showTab(tab) {
@@ -730,8 +730,8 @@ async function loadRuns() {
       tr.innerHTML =
         '<td class="px-4 py-2 font-mono text-xs">' + run.id + '</td>' +
         '<td class="px-4 py-2 text-xs">' + escapeHtml(pairLabel) + '</td>' +
-        '<td class="px-4 py-2"><span class="px-2 py-0.5 rounded-lg text-xs ' + bandClass(run.confidence_band) + '">' + escapeHtml(run.confidence_band || '—') + '</span></td>' +
-        '<td class="px-4 py-2 text-xs text-slate-600">' + escapeHtml(run.output_summary || '—') + '</td>' +
+        '<td class="px-4 py-2"><span class="px-2 py-0.5 rounded-lg text-xs ' + bandClass(run.confidence_band) + '">' + escapeHtml(run.confidence_band || ' -- ') + '</span></td>' +
+        '<td class="px-4 py-2 text-xs text-slate-600">' + escapeHtml(run.output_summary || ' -- ') + '</td>' +
         '<td class="px-4 py-2 text-xs space-x-2">' +
           '<button class="underline" data-action="view">View</button>' +
           '<button class="underline" data-action="markdown">Markdown</button>' +
@@ -905,7 +905,7 @@ const HTML = `<!DOCTYPE html>
       </nav>
       <div class="mt-6 px-2 text-xs text-slate-500">
         <div class="font-medium text-slate-700 mb-1">Active investigation</div>
-        <div id="sidebar-investigation" class="font-mono break-all text-[11px]">—</div>
+        <div id="sidebar-investigation" class="font-mono break-all text-[11px]"> -- </div>
       </div>
     </aside>
 
@@ -928,13 +928,13 @@ const HTML = `<!DOCTYPE html>
 
           <div class="bg-white rounded-2xl border p-5 space-y-4">
             <h3 class="font-semibold">AI credentials (BYOK)</h3>
-            <p class="text-xs text-slate-600">Attribution calls Anthropic via Cloudflare AI Gateway. Keys stay in your browser and are sent only when you run attribution — they are never stored on our servers.</p>
+            <p class="text-xs text-slate-600">Attribution calls Anthropic via Cloudflare AI Gateway. Keys stay in your browser and are sent only when you run attribution -- they are never stored on our servers.</p>
             <label class="block text-xs text-slate-500">AI Gateway URL</label>
             <input id="ai-gateway-url" class="w-full border rounded-xl px-3 py-2 text-sm font-mono" placeholder="https://gateway.ai.cloudflare.com/v1/ACCOUNT/GATEWAY/anthropic">
             <p class="text-[11px] text-slate-500">Or use direct Anthropic API: <code class="bg-slate-100 px-1 rounded">https://api.anthropic.com</code></p>
             <label class="block text-xs text-slate-500">Anthropic API key (option A)</label>
             <input id="anthropic-api-key" type="password" class="w-full border rounded-xl px-3 py-2 text-sm font-mono" placeholder="sk-ant-…" autocomplete="off">
-            <label class="block text-xs text-slate-500">AI Gateway Run token (option B — keyless Unified Billing)</label>
+            <label class="block text-xs text-slate-500">AI Gateway Run token (option B -- keyless Unified Billing)</label>
             <input id="cf-aig-token" type="password" class="w-full border rounded-xl px-3 py-2 text-sm font-mono" placeholder="CF AI Gateway token" autocomplete="off">
             <p class="text-[11px] text-slate-500">Provide the gateway URL plus either an Anthropic key or a CF AI Gateway Run token (not both required).</p>
             <label class="flex items-center gap-2 text-xs text-slate-600">
@@ -985,10 +985,10 @@ const HTML = `<!DOCTYPE html>
       <!-- Investigation -->
       <section id="tab-investigation" class="hidden">
         <h2 class="text-2xl font-semibold mb-1">Investigation</h2>
-        <p class="text-sm text-slate-600 mb-4">Each investigation is private. You receive an unguessable access token at creation — store it to reopen or share read access.</p>
+        <p class="text-sm text-slate-600 mb-4">Each investigation is private. You receive an unguessable access token at creation -- store it to reopen or share read access.</p>
 
         <div class="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900 space-y-1">
-          <p><strong>Honest security note:</strong> Access tokens are capability secrets, not passwords. They stop casual browsing and guessing, but anyone with the token can read the investigation (and modify it while active). Tokens stored in this browser use <code class="bg-amber-100 px-1 rounded">localStorage</code> on your device — not encrypted. For high-sensitivity work, self-host the backend or use dedicated access controls.</p>
+          <p><strong>Honest security note:</strong> Access tokens are capability secrets, not passwords. They stop casual browsing and guessing, but anyone with the token can read the investigation (and modify it while active). Tokens stored in this browser use <code class="bg-amber-100 px-1 rounded">localStorage</code> on your device -- not encrypted. For high-sensitivity work, self-host the backend or use dedicated access controls.</p>
           <p>If you lose the token, the investigation cannot be recovered from the server.</p>
         </div>
 
@@ -1014,7 +1014,7 @@ const HTML = `<!DOCTYPE html>
 
         <div id="token-reveal" class="hidden mt-6 bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-3">
           <h3 class="font-semibold text-emerald-900">Save your access token</h3>
-          <p class="text-xs text-emerald-800">This token is shown once. Copy it now — the server cannot recover it.</p>
+          <p class="text-xs text-emerald-800">This token is shown once. Copy it now -- the server cannot recover it.</p>
           <div class="flex gap-2">
             <input id="token-reveal-value" readonly class="flex-1 border rounded-xl px-3 py-2 text-xs font-mono bg-white">
             <button data-action="copyRevealedToken" class="px-3 py-2 border rounded-xl text-xs hover:bg-white">Copy token</button>
@@ -1219,7 +1219,7 @@ function renderHtml(env) {
 // The public-mode flag is projected into the EXTERNAL app.js (not the HTML), so
 // the served script is byte-stable per deploy and the strict CSP needs no inline.
 // Match backend isTruthyFlag (implementation/workers/index.ts): "1" or "true"
-// (case-insensitive). #201 — a value of "1" on both workers must gate the UI too.
+// (case-insensitive). #201 -- a value of "1" on both workers must gate the UI too.
 function isTruthyFlag(value) {
   const flag = String(value ?? '').trim().toLowerCase();
   return flag === 'true' || flag === '1';

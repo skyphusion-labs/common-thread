@@ -23,7 +23,7 @@
  * comparisons across runs.
  *
  * All entries are lowercase ASCII. Contractions use the typographer's
- * apostrophe NOT — they use the straight ASCII apostrophe (U+0027) to
+ * apostrophe NOT -- they use the straight ASCII apostrophe (U+0027) to
  * match the tokenizer's output.
  */
 

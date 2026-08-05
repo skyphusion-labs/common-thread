@@ -1,6 +1,6 @@
 /**
  * Per-account term and n-gram term-frequency maps for background TF-IDF
- * (§4.3.2–3). Companion to BackgroundCorpusExtractor + novelty pair extractor.
+ * (§4.3.2-3). Companion to BackgroundCorpusExtractor + novelty pair extractor.
  */
 
 import type {
