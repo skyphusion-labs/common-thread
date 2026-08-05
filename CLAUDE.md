@@ -12,16 +12,39 @@ confidence bands** -- `insufficient`, `consistent`, `strongly_consistent`. It
 stops at cluster-level attribution by design; it never identifies natural
 persons.
 
+**Hosted public UI (BYOK):** https://common-thread.skyphusion.org
+
 Two halves, two licenses:
 
 - `paper/` -- the twelve-section methodology paper (CC-BY-4.0). **The paper is the
   spec.** The implementation realizes it; code comments and prompts cite paper
   sections (e.g. `§7.4`, `§3.4`). When changing behavior governed by a section,
   keep the code consistent with the paper.
-- `implementation/` -- the reference implementation (AGPL-3.0).
+- `implementation/` -- the reference implementation (AGPL-3.0). Web UI Worker under
+  `web/` is part of the product surface (same repo).
 
 Paper vs code status (what is shipped, what is `paper-gap`, crew lanes):
-**`docs/PAPER-GAPS.md`**. Backlog table also in `TODO.md`.
+**`docs/PAPER-GAPS.md`**. Backlog table also in `TODO.md`. Privacy posture:
+**`docs/PRIVACY-COMMITMENT.md`** (privacy is primary product-wide; feature work
+yields when it conflicts).
+
+### Product priority (estate)
+
+Global product priority is **vivijure + postern**. Common Thread remains a
+**live hosted product** at the URL above and is fine to work when tasked. Do not
+treat the repo as shelved or dead because priority sits elsewhere.
+
+### Hosted public gate (load-bearing)
+
+Public prod runs **`PUBLIC_BYOK_ONLY=1` fail-closed**: host AI secrets are not
+used for visitor attribution; callers must supply BYOK (AI Gateway / Anthropic).
+Deploy CI asserts the var is present in wrangler escrow before a tag deploy.
+See `docs/DEPLOYMENT.md` and `docs/PUBLIC-RELEASE.md`.
+
+Encrypted investigations use **VPC key-on-dispatch** (`inv-enc-handoff`): the
+Worker seals the investigation key under `INGEST_SECRET` and hands it to VPC
+containers for the job lifetime; cleartext AES bytes never ride the VPC body.
+Detail: `docs/ENCRYPTION-AT-REST.md`.
 
 ## Commands
 
@@ -246,12 +269,14 @@ R2 and assert feature rows.
 
 Conventional Commits (`feat(scope):` / `fix(scope):` / `docs:` / `ci:`); the body explains the why.
 When a change is governed by a paper section, cite it (`§N.N`) in the commit body as well as the
-code. SemVer-style `0.MINOR.PATCH` while pre-1.0.
+code. SemVer-style `0.MINOR.PATCH` while pre-1.0. **Trust root `package.json` `version` + git
+tags** for the current cut; do not hardcode a frozen version in this file.
 
 ## Release / tagging
 
 **TAG-GATED deploy.** `.github/workflows/deploy.yml` runs on pushed `v*` tags (prod backend + web
-Workers). A bare merge to `main` does **not** redeploy production.
+Workers). A bare merge to `main` does **not** redeploy production. Tag should match root
+`package.json` version (`vX.Y.Z` == `X.Y.Z`).
 
 Operator instance (`--env operator`) is **manual only**: `workflow_dispatch` with
 `deploy_operator=true`. Never auto-fires on push. See private
