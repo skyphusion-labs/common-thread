@@ -255,7 +255,7 @@ export async function annotateControlComparisons(
     if (!unreliable.has(index)) return claim;
     return {
       ...claim,
-      reasoning: `${claim.reasoning} [§5.1.4: flagged unreliable — cited signals also match target-control pairs.]`,
+      reasoning: `${claim.reasoning} [§5.1.4: flagged unreliable -- cited signals also match target-control pairs.]`,
     };
   });
 

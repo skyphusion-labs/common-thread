@@ -1,7 +1,7 @@
 /**
  * Usage example: collecting an artifact end-to-end through the archive layer.
  *
- * This is not a test — it's a reference for what the API calls look like
+ * This is not a test -- it's a reference for what the API calls look like
  * in a typical collection workflow. Drop it into the Workers handler that
  * receives artifacts from a scraper.
  */

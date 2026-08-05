@@ -1,4 +1,4 @@
-# Common Thread — PDF/A evidence-packet renderer
+# Common Thread -- PDF/A evidence-packet renderer
 
 Always-on Docker service that converts evidence-packet HTML to **PDF/A-2b**
 off the Cloudflare Worker. The Worker builds Markdown (canonical per §8.1),

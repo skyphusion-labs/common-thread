@@ -1,5 +1,5 @@
 /**
- * Background corpus account extractor (§4.3.2–3).
+ * Background corpus account extractor (§4.3.2-3).
  *
  * Reads a practitioner-supplied background / control corpus artifact
  * (`application/x-background-corpus`) and emits document-frequency maps

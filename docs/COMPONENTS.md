@@ -14,7 +14,7 @@ service.
 ## Offline evidence toolchain (third-party facing)
 
 These let a stranger validate a Common Thread evidence packet with no clone, no
-Worker, no database — just Node ≥ 18.
+Worker, no database -- just Node ≥ 18.
 
 | Component | Install / run | License | When to use |
 |---|---|---|---|
@@ -62,15 +62,15 @@ AGPL-3.0. Deploy from git + wrangler; not npm libraries.
 ## Containers (deploy-from-git, GHCR)
 
 Private images, not npm. `containers/ingest-worker`, `containers/attribution-worker`,
-`containers/pdf-worker` — VPC-reached from the Worker (`VPC_INGEST`, `VPC_PDF`),
+`containers/pdf-worker` -- VPC-reached from the Worker (`VPC_INGEST`, `VPC_PDF`),
 bearer-authed. Adopters need these only for the VPC ingest/PDF path; the inline
 Worker path runs the pipeline without them for small exports.
 
 ## Explicit non-publish (unless Conrad expands scope)
 
-- Full Worker / web UI / MySQL schema — git + wrangler (AGPL network service).
-- Apify scrapers / `twitter_scrapes` fixtures — not npm libraries.
-- Container images — GHCR, not npm.
+- Full Worker / web UI / MySQL schema -- git + wrangler (AGPL network service).
+- Apify scrapers / `twitter_scrapes` fixtures -- not npm libraries.
+- Container images -- GHCR, not npm.
 
 If multiple CLIs come to need shared types (packet schema, canonical hash), the
 right move is a small `@skyphusion/common-thread-packet` MIT library rather than

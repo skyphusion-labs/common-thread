@@ -75,7 +75,7 @@ Active: ingest builds `application/x-color-palette-corpus` artifacts
 
 ## Paper implementation gaps
 
-Canonical audit + crew lanes: **`docs/PAPER-GAPS.md`**. Issues #139–#154
+Canonical audit + crew lanes: **`docs/PAPER-GAPS.md`**. Issues #139-#154
 (label `paper-gap`). Intentionally excluded: open-world discovery, real-time
 monitoring, per-language calibration datasets, empirical validation harness,
 inter-rater tooling, red-team procedures, block/mute lists, visible emails,
@@ -87,11 +87,11 @@ share-card crawling, likes/favorites collection.
 | #140 | §4.3.5 typo and error patterns (**done**) |
 | #141 | §4.5.1 / §6.2.5 pHash (**done**) |
 | #142 | §6.2.3 pairwise JSD (sentence/punct/caps) (**done**) |
-| #143 | §4.3.2–3 background TF-IDF / novelty n-grams (**done**) |
+| #143 | §4.3.2-3 background TF-IDF / novelty n-grams (**done**) |
 | #144 | §6.2.6 rarity-weighted bio / URL overlap (**done**) |
 | #145 | §4.4.4 amplification vs control baseline (**done**) |
 | #146 | §4.1.6 location geocoding (**done**) |
-| #147 | §4.5.5 AI-generated face detector (**deferred** — Workers cannot host model; see issue comment) |
+| #147 | §4.5.5 AI-generated face detector (**deferred** -- Workers cannot host model; see issue comment) |
 | #148 | §4.5.4 image source_class (**done**) |
 | #149 | §4.7.4 link shortener fingerprint (**done**) |
 | #150 | §5.2.1 enforce time_bounds at ingest (**done**) |

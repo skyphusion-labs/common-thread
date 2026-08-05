@@ -1,4 +1,4 @@
-# Public release readiness — common-thread.skyphusion.org
+# Public release readiness -- common-thread.skyphusion.org
 
 Go / no-go evaluation for opening the hosted instance to unsolicited public use
 (BYOK attribution only). Tracks [#187](https://github.com/skyphusion-labs/common-thread/issues/187).
@@ -23,7 +23,7 @@ Option 1 (UI public; API contact-gated). Detail below.
 
 | Subsystem | Verdict | Notes |
 |---|---|---|
-| Backend auth / authZ | **GO** | Constant-time token compare; no route missing authorize; IDOR closed — all three GET packet/run reads self-authorize in-handler, scoped to path investigation_id, integer runId (no hash-unguessability reliance). Confirmed. |
+| Backend auth / authZ | **GO** | Constant-time token compare; no route missing authorize; IDOR closed -- all three GET packet/run reads self-authorize in-handler, scoped to path investigation_id, integer runId (no hash-unguessability reliance). Confirmed. |
 | Fail-closed BYOK (prod) | **LIVE** | Code fix merged (#192); activated on prod 2026-07-18. **Re-verified 2026-08-04** after v0.2.0: `PUBLIC_BYOK_ONLY=1` on both workers (escrow had dropped the var; restored + redeployed); no-BYOK → **400 `byok_required`**; web `app.js` projects the gate. Host AI secrets remain stripped. Deploy CI now asserts the var is present in wrangler escrow before tag deploy. |
 | Web UI | **GO** | Parse-break (dead since #69) + BYOK fail-closed gate + headers (#197); de-CDN (self-hosted Tailwind + inline SVG) + strict CSP + branded BYOK error page (#199). Verified in a real browser under enforced CSP, zero violations, both modes. Hard-refresh after 2026-08-04 redeploy if you still see "server-side" copy. |
 | Deterministic extractors | GO | Resource caps in Worker (#189): seeds / ingest items / attribution pairs. WAF still front-line. |
@@ -35,26 +35,26 @@ Option 1 (UI public; API contact-gated). Detail below.
 | CORS / origin | GO | Prod `CORS_ALLOWED_ORIGINS=""` (browser API blocked); never `*`-with-credentials. |
 | Legal / policy docs | **UPDATED** (retention/DELETE/R2 + BYOK verified) | `PRIVACY.md` / `ACCEPTABLE-USE.md` are active disclosures. Controller/processor and calendar retention still OPEN. UI-vs-API: Option 1 (UI public; API not third-party open) remains the default. |
 
-## CRITICAL / HIGH findings — all resolved in code
+## CRITICAL / HIGH findings -- all resolved in code
 
-### CRITICAL-1 — prod backend not fail-closed BYOK → FIXED + LIVE (verified 2026-07-18)
+### CRITICAL-1 -- prod backend not fail-closed BYOK → FIXED + LIVE (verified 2026-07-18)
 `common-thread-prod` holds `AI_GATEWAY_URL` + `CF_AIG_TOKEN` (keyless Unified
 Billing = host-paid); a no-BYOK request fell back to host env and got host-paid
 attribution. Violated the #187 non-negotiable on the live (unannounced) endpoint.
 
 **Remediation:**
-- **Code (merged, #192):** `PUBLIC_BYOK_ONLY` flag — backend ignores server AI
+- **Code (merged, #192):** `PUBLIC_BYOK_ONLY` flag -- backend ignores server AI
   creds, requires visitor BYOK, gates at `handleAttribute` entry before any
   dispatch. Same-source BYOK hardening folded in (no env x-api-key backfilled into
   a request-supplied gateway; keyless Unified Billing path preserved).
 - **Fail-closed semantics:** credential-less → **400 `byok_required`** (flag on) /
   **503** (creds stripped, flag off); both pre-dispatch, no VPC dispatch. Joan's
   UI asserts on the `byok_required` code.
-- **Executor path:** closed — confirmed internal-only both code-side and infra-side.
+- **Executor path:** closed -- confirmed internal-only both code-side and infra-side.
 - **Activation (pending Conrad):** set `PUBLIC_BYOK_ONLY=1` on both workers + strip
   the two host AI secrets (reversible, escrowed). Rollins runs the live smoke after.
 
-### HIGH — web UI not fail-closed → FIXED (#197)
+### HIGH -- web UI not fail-closed → FIXED (#197)
 Frontend submitted credential-less attribution and advertised "server-side, may
 queue." Fixed: `PUBLIC_BYOK_ONLY` projected into the UI gates Run until BYOK is set;
 `byok_required` translated to a friendly message; honest copy. Also fixed the
@@ -62,13 +62,13 @@ inline-script parse break that had left the whole UI non-functional since #69.
 
 ## MEDIUM / LOW
 
-- **MED (fixed, #194):** `escapeHtml` non-terminating loop — CPU-DoS + broke every
+- **MED (fixed, #194):** `escapeHtml` non-terminating loop -- CPU-DoS + broke every
   PDF export containing `&`. Fixed (single ordered pass) + regression test.
 - **MED (fixed, #199):** UI loaded Tailwind + FontAwesome from external CDNs on a
   page holding BYOK keys. Fixed: self-hosted prebuilt Tailwind + inline SVG icons,
   strict CSP (`default-src 'none'`, `script-src 'self'`, …), plus the
   `nosniff`/`Referrer-Policy`/`X-Frame-Options` from #197.
-- **LOW (self-host only, #195 closed — fixed in #192):** partial-BYOK credential
+- **LOW (self-host only, #195 closed -- fixed in #192):** partial-BYOK credential
   mixing. Same-source enforcement shipped with #192.
 - **LOW (#189):** code-level resource caps shipped (seed count, ingest items,
   O(n²) pair fan-out) with wrangler-tunable defaults; WAF remains front-line.
@@ -81,13 +81,13 @@ BYOK keys never persisted to DB / packets / R2; no secrets logged; generic 500 o
 unhandled error; container bearer auth + 32MB body cap.
 
 ## Conrad decisions outstanding (release-gate batch)
-1. ~~**Activate prod fail-closed**~~ — **DONE** 2026-07-18 (`PUBLIC_BYOK_ONLY` + host AI stripped; negative smoke PASS).
-2. ~~**npm publish** `@skyphusion/common-thread-verify`~~ — **DONE** `0.1.0` via `verify-v0.1.0` (2026-08-04).
-3. **UI-public vs API-public** — default remains Option 1 (UI public; CORS empty on API). Confirm if changing.
-4. ~~**Retention / deletion policy (code truth)**~~ — documented in `PRIVACY.md` (DELETE graph + investigation archive keys; retain global `sha256/` blobs; default indefinite). Optional: fixed calendar purge later.
+1. ~~**Activate prod fail-closed**~~ -- **DONE** 2026-07-18 (`PUBLIC_BYOK_ONLY` + host AI stripped; negative smoke PASS).
+2. ~~**npm publish** `@skyphusion/common-thread-verify`~~ -- **DONE** `0.1.0` via `verify-v0.1.0` (2026-08-04).
+3. **UI-public vs API-public** -- default remains Option 1 (UI public; CORS empty on API). Confirm if changing.
+4. ~~**Retention / deletion policy (code truth)**~~ -- documented in `PRIVACY.md` (DELETE graph + investigation archive keys; retain global `sha256/` blobs; default indefinite). Optional: fixed calendar purge later.
 5. **Controller vs processor** framing for ingested third-party public data (counsel if scaled).
-6. ~~**WAF apply**~~ — **DONE** 2026-08-04 (2 rate-limit rules + managed WAF on CT hosts; fleet-chezmoi CR APPLIED).
-7. ~~**Positive BYOK E2E**~~ — **DONE** 2026-08-04 (CF AIG Run token path; optional Anthropic-key smoke is same client contract).
+6. ~~**WAF apply**~~ -- **DONE** 2026-08-04 (2 rate-limit rules + managed WAF on CT hosts; fleet-chezmoi CR APPLIED).
+7. ~~**Positive BYOK E2E**~~ -- **DONE** 2026-08-04 (CF AIG Run token path; optional Anthropic-key smoke is same client contract).
 
 ## Infra
 - **WAF / rate-limit:** **APPLIED** 2026-08-04. IaC in fleet-chezmoi
@@ -97,11 +97,11 @@ unhandled error; container bearer auth + 32MB body cap.
 
 ## Acceptance criteria (#187) status
 - [x] Readiness evaluation written (this doc)
-- [x] Adverse security analysis — complete; no open critical/high
+- [x] Adverse security analysis -- complete; no open critical/high
 - [x] Public instance runs with no worker-level AI secrets (activated + verified 2026-07-18)
 - [~] Documented stranger happy-path (`docs/PUBLIC-USAGE.md`, #197)
-- [x] Prod BYOK smoke — negative (fail-closed) PASS 8/0 + web/CSP PASS; re-checked 2026-08-04 (`400 byok_required` + UI gate)
-- [x] Prod BYOK smoke — **positive** round-trip PASS 2026-08-04 (ops AI Gateway Run token as visitor `X-CF-AIG-Token` + gateway URL; inv `e2e187-55af59cb8f15`; create → inline ingest 2 accts → attribute request-source sync → packet JSON)
+- [x] Prod BYOK smoke -- negative (fail-closed) PASS 8/0 + web/CSP PASS; re-checked 2026-08-04 (`400 byok_required` + UI gate)
+- [x] Prod BYOK smoke -- **positive** round-trip PASS 2026-08-04 (ops AI Gateway Run token as visitor `X-CF-AIG-Token` + gateway URL; inv `e2e187-55af59cb8f15`; create → inline ingest 2 accts → attribute request-source sync → packet JSON)
 - [x] workers_dev closed for prod + ops (2026-08-04)
 - [x] WAF/rate-limit applied (2026-08-04)
 - [x] Follow-up issues filed (#189); hard caps shipped (#243); encryption expansion (#244); VPC key-on-dispatch shipped (#246 / #250 / #251)

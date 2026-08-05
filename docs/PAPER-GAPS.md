@@ -1,7 +1,7 @@
 # Paper vs implementation gaps
 
 Durable record of the 2026-07 paper-vs-implementation audit for Common Thread.
-GitHub issues labeled `paper-gap` (#139–#154) are the work queue. This file is
+GitHub issues labeled `paper-gap` (#139-#154) are the work queue. This file is
 the contract: what is shipped, what is tracked, and what is intentionally out of
 scope. Trust this file and `main` over chat history.
 
@@ -20,12 +20,12 @@ scope. Trust this file and `main` over chat history.
 
 ## Shipped relative to paper (do not re-open)
 
-These were verified present on `main` at audit time (or landed in Sprints 6–10):
+These were verified present on `main` at audit time (or landed in Sprints 6-10):
 
 | Area | Status | Where |
 |------|--------|-------|
-| Default Twitter / Apify ingest signals (§4.1, §4.2.1, §4.2.3–5, §4.3 partial, §4.5.1–3, §4.6, §4.7 partial) | Active | Ingest + extractors |
-| Engagement reply/repost/quote (§4.4.3–4) | Active when ≥2 accounts | Event + pair extractors |
+| Default Twitter / Apify ingest signals (§4.1, §4.2.1, §4.2.3-5, §4.3 partial, §4.5.1-3, §4.6, §4.7 partial) | Active | Ingest + extractors |
+| Engagement reply/repost/quote (§4.4.3-4) | Active when ≥2 accounts | Event + pair extractors |
 | Response latency (§4.2.2) | Active when configured | `PATCH /investigations/:id/metadata` + web UI (`triggering_events`) |
 | Color palette (§4.5.6) | Active | Ingest builds color-palette corpus (#120) |
 | Evidence packet JSON/Markdown/PDF/A + Ed25519 (§8.1) | Active | `docs/API.md`, `docs/PDF-A.md` |
@@ -37,7 +37,7 @@ These were verified present on `main` at audit time (or landed in Sprints 6–10
 
 Paper §6.4.6 table must stay consistent with the rows above when extractors ship.
 
-## Paper-gap campaign #139–#154 (closed 2026-07-16)
+## Paper-gap campaign #139-#154 (closed 2026-07-16)
 
 Epic [#164](https://github.com/skyphusion-labs/common-thread/issues/164) closed when all
 implementable gaps landed on `main`. No open `paper-gap` issues remain; #147 (AI face
@@ -49,7 +49,7 @@ detector) is **deferred** per issue comment (Workers cannot host the model in v1
 | [#140](https://github.com/skyphusion-labs/common-thread/issues/140) | §4.3.5 | Typo / error-pattern extractor | **Done** |
 | [#141](https://github.com/skyphusion-labs/common-thread/issues/141) | §4.5.1 / §6.2.5 | pHash alongside dHash | **Done** |
 | [#142](https://github.com/skyphusion-labs/common-thread/issues/142) | §6.2.3 | Pairwise JSD (sentence / punct / caps) | **Done** |
-| [#143](https://github.com/skyphusion-labs/common-thread/issues/143) | §4.3.2–3 | Background-corpus TF-IDF / novelty n-grams | **Done** |
+| [#143](https://github.com/skyphusion-labs/common-thread/issues/143) | §4.3.2-3 | Background-corpus TF-IDF / novelty n-grams | **Done** |
 | [#144](https://github.com/skyphusion-labs/common-thread/issues/144) | §6.2.6 | Rarity-weighted bio + posted-URL overlap | **Done** |
 | [#145](https://github.com/skyphusion-labs/common-thread/issues/145) | §4.4.4 | Amplification vs control baseline | **Done** (`amplification.ts` v1.1.0, #180) |
 | [#146](https://github.com/skyphusion-labs/common-thread/issues/146) | §4.1.6 | Geocode profile locations | **Done** (`geocode.ts`, `docs/GEOCODING.md`, #179) |
@@ -81,8 +81,8 @@ explicitly pulls them in:
 
 ## Crew dispatch lanes (2026-07-16, complete)
 
-**Epic:** [#164](https://github.com/skyphusion-labs/common-thread/issues/164) — **closed**
-2026-07-16. All implementable `paper-gap` issues (#139–#154 except deferred #147) landed
+**Epic:** [#164](https://github.com/skyphusion-labs/common-thread/issues/164) -- **closed**
+2026-07-16. All implementable `paper-gap` issues (#139-#154 except deferred #147) landed
 on `main`. Coordination channel: crew-bus `common-thread`.
 
 ## Definition of done (per gap)

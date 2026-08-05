@@ -89,7 +89,7 @@ export function looksLikeSelfHostedShortener(host: string, pathname: string): bo
   const segs = pathname.replace(/\/+$/, '').split('/').filter(Boolean);
   if (segs.length !== 1) return false;
   const token = segs[0] ?? '';
-  // Typical short codes: 3–12 chars, alnum/_/-
+  // Typical short codes: 3-12 chars, alnum/_/-
   if (token.length < 3 || token.length > 12) return false;
   if (!/^[A-Za-z0-9_-]+$/.test(token)) return false;
   return true;

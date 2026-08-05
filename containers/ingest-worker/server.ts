@@ -214,13 +214,13 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Do NOT strip encryptionKeyMaterial here — processJob reads it first, then
+  // Do NOT strip encryptionKeyMaterial here -- processJob reads it first, then
   // clears the field before any work/logging (#246). Clearing before processJob
   // made every encrypted VPC ingest fail-closed with "requires encryptionKeyMaterial"
   // (live miss 2026-08-04).
   const jobId = handoff.jobId;
   processJob(handoff).catch(async (err) => {
-    // Log message only — never the Error object or handoff (could retain key).
+    // Log message only -- never the Error object or handoff (could retain key).
     const message = err instanceof Error ? err.message : String(err);
     console.error('[ingest] job %s failed: %s', jobId, message);
     try {

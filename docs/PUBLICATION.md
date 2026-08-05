@@ -19,7 +19,7 @@ Complete before contacting reviewers or depositing anywhere.
 
 ### 1.1 Paper completeness
 
-- [ ] All twelve body sections present under `paper/` (§1–§12) plus `references.md`.
+- [ ] All twelve body sections present under `paper/` (§1-§12) plus `references.md`.
 - [ ] Internal cross-references resolve (§N pointers, appendix references in §7/§8).
 - [ ] `paper/references.md`: resolve or consciously retain every `[verify]` flag
       before formal deposit (search the file for `[verify]`).
@@ -89,7 +89,7 @@ See also `examples/README.md` and `docs/PAPER-GAPS.md` (out of scope list).
 Zenodo/arXiv. Not a substitute for peer review at a journal; sufficient for a
 documented open methodology release.
 
-### 2.1 Reviewer profile (pick 2–4)
+### 2.1 Reviewer profile (pick 2-4)
 
 At least one from each lane where possible:
 
@@ -110,7 +110,7 @@ Use `docs/contact.md` for discretion if a reviewer needs a private PDF.
 
 Ask for **written** feedback (bullet form is fine) on:
 
-1. **Coherence:** Do §3–§8 read as one reproducible pipeline a practitioner could follow?
+1. **Coherence:** Do §3-§8 read as one reproducible pipeline a practitioner could follow?
 2. **Scope honesty:** Are §1.2 audience exclusions and §10 ethical commitments clear
    and internally consistent?
 3. **Evidentiary claims:** Does §3 avoid overclaiming calibration or legal admissibility?
@@ -152,7 +152,7 @@ When done, check the box in `TODO.md` and update `docs/MAINTENANCE.md` milestone
 | Upload type | Publication → Article **or** Working paper |
 | Title | Same as cover metadata (§1.1) |
 | Authors | Conrad Rockenhaus (affiliation: Skyphusion Labs) |
-| Description | 2–3 paragraphs: closed-world sockpuppet attribution; cluster-level only; §9 placeholder; synthetic example at `examples/synthetic-network-case-study.md`; AGPL reference implementation in linked repo |
+| Description | 2-3 paragraphs: closed-world sockpuppet attribution; cluster-level only; §9 placeholder; synthetic example at `examples/synthetic-network-case-study.md`; AGPL reference implementation in linked repo |
 | License | Creative Commons Attribution 4.0 International |
 | Keywords | `sockpuppet attribution`, `coordinated inauthentic behavior`, `OSINT`, `open methodology`, `chain of custody`, `evidence packet` |
 
@@ -184,8 +184,8 @@ remains the canonical open-methodology DOI unless you later publish in a journal
 
 | Code | Fit |
 |------|-----|
-| **cs.CY** (primary) | Computers and Society — ethics, practitioner audience, dual-use |
-| **cs.SI** | Social and Information Networks — coordinated behavior, network signals |
+| **cs.CY** (primary) | Computers and Society -- ethics, practitioner audience, dual-use |
+| **cs.SI** | Social and Information Networks -- coordinated behavior, network signals |
 | **cs.CL** (optional cross) | Stylometric / linguistic signal sections (§4.3, §6.2) |
 
 **Process sketch**

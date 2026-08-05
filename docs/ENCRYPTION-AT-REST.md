@@ -92,7 +92,7 @@ Pack/read seam: `implementation/crypto/feature-cells.ts`.
   The request-scoped `CryptoKey` in the Worker stays **non-extractable**; only
   a temporary extractable derivation exists inside the seal helper.
   Sealed material is sent **only** in the bearer-authenticated VPC handoff
-  body — **never** `ingest_jobs` / `attribution_jobs`, R2, logs, or HTTP client
+  body -- **never** `ingest_jobs` / `attribution_jobs`, R2, logs, or HTTP client
   responses. Containers unseal, optional `key_check` verify, pack/write, then
   drop the key. Error logs record `jobId` + message only (no Error object /
   handoff dump). **Fail closed:** `crypto_version` set with no sealed material
@@ -120,8 +120,8 @@ otherwise-encrypted investigation is returned unchanged.
 Migration `mysql-migrations/0013_investigation_encryption.sql` adds two nullable
 columns to `investigations`:
 
-- `crypto_version VARCHAR(16)` — scheme tag (`v1`) or NULL for legacy plaintext.
-- `key_check TEXT` — sentinel encrypted under the derived key.
+- `crypto_version VARCHAR(16)` -- scheme tag (`v1`) or NULL for legacy plaintext.
+- `key_check TEXT` -- sentinel encrypted under the derived key.
 
 No payload column type changes: ciphertext cells are ASCII and fit the existing
 `TEXT`/`MEDIUMTEXT` columns. `mysql-schema.sql` declares both columns for fresh

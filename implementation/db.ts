@@ -5,7 +5,7 @@
  * and tests. Production connects via Hyperdrive; tests use the same
  * client with a direct mysql2 connection string (TEST_MYSQL_URL).
  *
- * Hyperdrive does not support COM_STMT_PREPARE — use query(), not execute().
+ * Hyperdrive does not support COM_STMT_PREPARE -- use query(), not execute().
  */
 
 import mysql from 'mysql2/promise';

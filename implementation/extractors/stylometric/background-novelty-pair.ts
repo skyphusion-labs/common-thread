@@ -1,5 +1,5 @@
 /**
- * Background-weighted TF-IDF term overlap and novelty n-gram overlap (§4.3.2–3).
+ * Background-weighted TF-IDF term overlap and novelty n-gram overlap (§4.3.2-3).
  *
  * buildContext loads background_doc_count / background_term_df /
  * background_ngram_df from a control (or any) account via

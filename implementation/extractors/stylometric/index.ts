@@ -17,7 +17,7 @@
  * punctuation / capitalization distributions (§6.2.3), register /
  * code-switch pattern comparisons (§4.3.4), typo / error-pattern
  * comparisons (§4.3.5), and background-weighted TF-IDF / novelty
- * n-gram overlap (§4.3.2–3) when a background corpus is present.
+ * n-gram overlap (§4.3.2-3) when a background corpus is present.
  *
  * Shared text-processing math lives in text-helpers.ts; platform-
  * specific parsing and cleaning stays in each per-platform file.

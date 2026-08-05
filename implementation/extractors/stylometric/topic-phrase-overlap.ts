@@ -1,5 +1,5 @@
 /**
- * Pair overlap on distinctive terms and rare phrase n-grams (§4.3.2–3).
+ * Pair overlap on distinctive terms and rare phrase n-grams (§4.3.2-3).
  */
 
 import type { PairFeatureExtractor, AccountFeatureMap } from '../pair-types';

@@ -22,9 +22,9 @@ cover running and deploying the code.
 | [PROMPT-VERSIONS.md](PROMPT-VERSIONS.md) | Attribution prompt version registry (§7.4) |
 | [MAINTENANCE.md](MAINTENANCE.md) | Bounded maintenance window and community transition |
 | [PUBLICATION.md](PUBLICATION.md) | Methodology paper v1 checklist (reviewers, Zenodo, optional arXiv) |
-| [PAPER-GAPS.md](PAPER-GAPS.md) | Paper vs implementation audit; closed `paper-gap` campaign #139–#154 |
+| [PAPER-GAPS.md](PAPER-GAPS.md) | Paper vs implementation audit; closed `paper-gap` campaign #139-#154 |
 | [TESTING_SETUP.md](TESTING_SETUP.md) | Vitest, `TEST_MYSQL_URL`, LLM mocks |
-| [BACKGROUND-CORPUS.md](BACKGROUND-CORPUS.md) | Practitioner background corpus for §4.3.2–3 TF-IDF / novelty n-grams |
+| [BACKGROUND-CORPUS.md](BACKGROUND-CORPUS.md) | Practitioner background corpus for §4.3.2-3 TF-IDF / novelty n-grams |
 | [contact.md](contact.md) | Issue tracker vs private email |
 | [PRIVACY.md](PRIVACY.md) | Hosted-instance privacy disclosure (DRAFT) |
 | [ACCEPTABLE-USE.md](ACCEPTABLE-USE.md) | Hosted-instance acceptable use / audience limits (DRAFT) |

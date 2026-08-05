@@ -4,7 +4,7 @@
  * Reads a per-account timeline artifact and emits one event_features row
  * per discrete engagement (reply, repost, quote) for §4.4.3 and §4.4.4.
  *
- * Requires manifest entry.account — the seed account that performed the
+ * Requires manifest entry.account -- the seed account that performed the
  * engagement. Apify ingest archives one timeline per account.
  */
 
