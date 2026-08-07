@@ -39,6 +39,14 @@ estate when that lane is open). Common Thread remains a **live hosted product** 
 URL above and is fine to work when tasked. Do not treat the repo as shelved or dead
 because priority sits elsewhere.
 
+### Agent door (MCP)
+
+**`@skyphusion/common-thread-mcp`** (MIT, separate public repo
+[common-thread-mcp](https://github.com/skyphusion-labs/common-thread-mcp)): stdio MCP server with
+website/API parity (investigations, seeds, ingest, BYOK attribute, packets, archive). Install:
+`npx -y @skyphusion/common-thread-mcp`. Points at `COMMON_THREAD_API_URL` (default hosted backend).
+
+
 ### Hosted public gate (load-bearing)
 
 Public prod runs **`PUBLIC_BYOK_ONLY=1` fail-closed**: host AI secrets are not
