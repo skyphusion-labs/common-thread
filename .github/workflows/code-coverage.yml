@@ -1,5 +1,9 @@
 name: code-coverage
 
+# Estate-standard name + check context "coverage". Common Thread integration
+# tests need MySQL (same as ci.yml coverage / db-tests). Without a service
+# container this job fails ECONNREFUSED 127.0.0.1:3306.
+
 on:
   push:
     branches: [main]
@@ -19,6 +23,22 @@ jobs:
   coverage:
     name: coverage
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+          MYSQL_DATABASE: common_thread_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      TEST_MYSQL_URL: mysql://root@127.0.0.1:3306/common_thread_test
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -26,6 +46,10 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
+      - name: Apply schema
+        env:
+          MYSQL_URL: mysql://root@127.0.0.1:3306/common_thread_test
+        run: npm run db:migrate
       - name: Run tests with coverage
         run: npm run test:coverage
       - name: Upload coverage report
