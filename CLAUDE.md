@@ -14,6 +14,10 @@ persons.
 
 **Hosted public UI (BYOK):** https://common-thread.skyphusion.org
 
+**Status:** live product; root `package.json` is the version pin (currently **0.3.0** train; trust
+`package.json` + git tags, do not hardcode a frozen cut here). Pre-1.0 SemVer. Aviation-grade
+`main` where applicable. Recent estate work: Dependabot / CI workflow standard, docs dash hygiene.
+
 Two halves, two licenses:
 
 - `paper/` -- the twelve-section methodology paper (CC-BY-4.0). **The paper is the
@@ -30,9 +34,10 @@ yields when it conflicts).
 
 ### Product priority (estate)
 
-Global product priority is **vivijure + postern**. Common Thread remains a
-**live hosted product** at the URL above and is fine to work when tasked. Do not
-treat the repo as shelved or dead because priority sits elsewhere.
+Global product priority is **vivijure + postern** (and the **Prism 1.0** client/plane
+estate when that lane is open). Common Thread remains a **live hosted product** at the
+URL above and is fine to work when tasked. Do not treat the repo as shelved or dead
+because priority sits elsewhere.
 
 ### Hosted public gate (load-bearing)
 
