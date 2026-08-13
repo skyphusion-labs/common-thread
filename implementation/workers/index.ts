@@ -44,6 +44,7 @@ import {
   insertSeedIfActive,
   sealInvestigationIfActive,
   softDeleteSeedIfActive,
+  updateInvestigationMetadataIfActive,
 } from '../investigations/write-guard';
 import { deleteInvestigationData } from '../investigations/purge';
 import { purgeInvestigationArchive } from '../investigations/archive-purge';
@@ -565,6 +566,9 @@ async function handleDeleteInvestigation(ctx: RouteContext): Promise<Response> {
   }
 }
 
+/** VPC callback payload bound; a sealed investigation must not grow its log. */
+export const MAX_MANIFEST_ENTRY_BYTES = 64 * 1024;
+
 async function handlePatchInvestigationMetadata(ctx: RouteContext): Promise<Response> {
   const { env, request } = ctx;
   const investigationId = ctx.investigationId;
@@ -576,44 +580,55 @@ async function handlePatchInvestigationMetadata(ctx: RouteContext): Promise<Resp
     return jsonResponse({ error: validationError }, 400);
   }
 
-  await assertInvestigationActiveForWrite(env.DB, investigationId);
+  try {
+    await assertInvestigationActiveForWrite(env.DB, investigationId);
 
-  const row = await queryOne<{ metadata_json: string | null }>(
-    env.DB,
-    'SELECT metadata_json FROM investigations WHERE id = ?',
-    [investigationId]
-  );
+    const row = await queryOne<{ metadata_json: string | null }>(
+      env.DB,
+      'SELECT metadata_json FROM investigations WHERE id = ?',
+      [investigationId]
+    );
 
-  const existingPlain = await readTextCell(row?.metadata_json ?? null, {
-    key: ctx.encKey ?? null,
-    investigationId,
-    column: 'investigations.metadata_json',
-  });
-  const merged = mergeInvestigationMetadata(existingPlain, body);
-  const serialized = serializeInvestigationMetadata(merged);
-  const metadataJson =
-    serialized.length > 0
-      ? await packTextCell(serialized, {
-          key: ctx.encKey ?? null,
-          investigationId,
-          column: 'investigations.metadata_json',
-        })
-      : null;
-  const now = new Date().toISOString();
+    const existingPlain = await readTextCell(row?.metadata_json ?? null, {
+      key: ctx.encKey ?? null,
+      investigationId,
+      column: 'investigations.metadata_json',
+    });
+    const merged = mergeInvestigationMetadata(existingPlain, body);
+    const serialized = serializeInvestigationMetadata(merged);
+    const metadataJson =
+      serialized.length > 0
+        ? await packTextCell(serialized, {
+            key: ctx.encKey ?? null,
+            investigationId,
+            column: 'investigations.metadata_json',
+          })
+        : null;
+    const now = new Date().toISOString();
 
-  await execute(
-    env.DB,
-    `UPDATE investigations SET metadata_json = ?, updated_at = ? WHERE id = ?`,
-    [metadataJson, now, investigationId]
-  );
+    const updated = await updateInvestigationMetadataIfActive(
+      env.DB,
+      investigationId,
+      metadataJson,
+      now
+    );
+    if (!updated) {
+      return readOnlyResponse();
+    }
 
-  return jsonResponse({
-    investigation: {
-      ...publicInvestigationView(ctx.auth!),
-      updated_at: now,
-    },
-    metadata: merged,
-  });
+    return jsonResponse({
+      investigation: {
+        ...publicInvestigationView(ctx.auth!),
+        updated_at: now,
+      },
+      metadata: merged,
+    });
+  } catch (err) {
+    if (err instanceof InvestigationAccessError) {
+      return jsonResponse({ error: err.message, code: err.code }, accessErrorStatus(err.code));
+    }
+    throw err;
+  }
 }
 
 async function handleInternalManifestAppend(ctx: RouteContext): Promise<Response> {
@@ -629,6 +644,15 @@ async function handleInternalManifestAppend(ctx: RouteContext): Promise<Response
     return jsonResponse({ error: 'Unauthorized' }, 401);
   }
 
+  try {
+    await assertInvestigationActiveForWrite(env.DB, investigationId);
+  } catch (err) {
+    if (err instanceof InvestigationAccessError) {
+      return jsonResponse({ error: err.message, code: err.code }, accessErrorStatus(err.code));
+    }
+    throw err;
+  }
+
   const body = await parseJsonBody<{ entry?: ManifestEntry }>(request);
   if (body instanceof Response) return body;
   if (!body.entry || typeof body.entry !== 'object') {
@@ -636,6 +660,19 @@ async function handleInternalManifestAppend(ctx: RouteContext): Promise<Response
   }
   if (body.entry.investigationId !== investigationId) {
     return jsonResponse({ error: 'entry.investigationId mismatch' }, 400);
+  }
+
+  const entryBytes = new TextEncoder().encode(JSON.stringify(body.entry)).byteLength;
+  if (entryBytes > MAX_MANIFEST_ENTRY_BYTES) {
+    return jsonResponse(
+      {
+        error: 'entry too large',
+        code: 'entry_too_large',
+        limit: MAX_MANIFEST_ENTRY_BYTES,
+        attempted: entryBytes,
+      },
+      400
+    );
   }
 
   const manifest = manifestStoreFor(
