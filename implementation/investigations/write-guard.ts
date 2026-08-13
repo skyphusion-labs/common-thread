@@ -62,6 +62,27 @@ export async function assertInvestigationActiveForWrite(
  * false when the row was already non-active (idempotent re-seal / concurrent
  * seal). The `WHERE status = active` predicate makes the transition atomic.
  */
+/**
+ * Persist investigation metadata only if the row is committed-active (#283).
+ * The `WHERE status = 'active'` predicate is the write-time seal gate: a
+ * stale-active capability read cannot mutate a sealed investigation.
+ * Returns true when a row was updated.
+ */
+export async function updateInvestigationMetadataIfActive(
+  db: Hyperdrive,
+  investigationId: string,
+  metadataJson: string | null,
+  now: string
+): Promise<boolean> {
+  const result = (await execute(
+    db,
+    `UPDATE investigations SET metadata_json = ?, updated_at = ?
+     WHERE id = ? AND status = 'active'`,
+    [metadataJson, now, investigationId]
+  )) as unknown as { affectedRows?: number };
+  return (result.affectedRows ?? 0) > 0;
+}
+
 export async function sealInvestigationIfActive(
   db: Hyperdrive,
   investigationId: string,
