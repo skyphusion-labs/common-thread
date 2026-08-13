@@ -210,7 +210,7 @@ attribution, attribution runs, evidence packets (JSON / Markdown / PDF), seal,
 manifest/signature endpoints, and debug routes.
 
 Creating an investigation returns a one-time `access_token`; all
-`/investigations/:id` routes require it (`Authorization: Bearer`, `X-Investigation-Token`, or `?access_token=` on GET). `sealed` investigations are read-only.
+`/investigations/:id` routes require it (`Authorization: Bearer` or `X-Investigation-Token`). `sealed` investigations are read-only.
 
 When `VPC_INGEST` is configured, ingest archives raw JSON once and dispatches
 to `containers/ingest-worker/`; PDF export (`?format=pdf`) uses `VPC_PDF` to

@@ -115,11 +115,12 @@ Pass the token on every request scoped to an investigation (`/investigations/:id
 `GET /manifest?investigation=:id`, `GET /signatures?investigation=:id`, and
 `GET /verify?investigation=:id`).
 
-| Method | Header / query |
-|--------|----------------|
+| Method | Header |
+|--------|--------|
 | Preferred | `Authorization: Bearer ct_…` |
 | Alternate | `X-Investigation-Token: ct_…` |
-| GET only | `?access_token=ct_…` on the request URL |
+
+Do not put the token in the query string. Query tokens leak via logs, Referer, and history.
 
 **Responses**
 
