@@ -27,6 +27,7 @@ import { TwitterStylometricExtractor } from './twitter';
 import { RedditStylometricExtractor } from './reddit';
 import { InstagramStylometricExtractor } from './instagram';
 import { BlueskyStylometricExtractor } from './bluesky';
+import { MastodonStylometricExtractor } from './mastodon';
 import { BurrowsDeltaExtractor } from './burrows-delta';
 import { JsdCharacterBigramsExtractor } from './jsd-bigrams';
 import {
@@ -54,13 +55,12 @@ export const STYLOMETRIC_EXTRACTORS: AccountFeatureExtractor[] = [
   new RedditStylometricExtractor(),
   new InstagramStylometricExtractor(),
   new BlueskyStylometricExtractor(),
+  new MastodonStylometricExtractor(),
   new TwitterTopicPhraseExtractor(),
   new TwitterCodeSwitchingExtractor(),
   new TwitterTypoErrorExtractor(),
   new BackgroundCorpusExtractor(),
   new TwitterAccountTermTfExtractor(),
-  // Future:
-  // new MastodonStylometricExtractor(),
 ];
 
 export const STYLOMETRIC_PAIR_EXTRACTORS: PairFeatureExtractor[] = [
@@ -79,6 +79,8 @@ export const STYLOMETRIC_PAIR_EXTRACTORS: PairFeatureExtractor[] = [
 export { TwitterStylometricExtractor } from './twitter';
 export { RedditStylometricExtractor } from './reddit';
 export { InstagramStylometricExtractor } from './instagram';
+export { BlueskyStylometricExtractor } from './bluesky';
+export { MastodonStylometricExtractor } from './mastodon';
 export { BurrowsDeltaExtractor } from './burrows-delta';
 export { JsdCharacterBigramsExtractor } from './jsd-bigrams';
 export { TwitterCodeSwitchingExtractor } from './code-switching';

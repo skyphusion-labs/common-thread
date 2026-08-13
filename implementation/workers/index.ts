@@ -72,6 +72,7 @@ import {
   ingestApifyInstagram,
   ingestApifyReddit,
   ingestApifyBluesky,
+  ingestApifyMastodon,
   ingestApifyTwitter,
   TWITTER_ACCOUNT_EXTRACTORS,
   TWITTER_PAIR_EXTRACTORS,
@@ -422,6 +423,7 @@ const ROUTES: Route[] = [
   { method: 'POST', pattern: /^\/investigations\/([^/]+)\/ingest\/apify-instagram$/, auth: { requireWrite: true }, handler: handleIngestApifyInstagram },
   { method: 'POST', pattern: /^\/investigations\/([^/]+)\/ingest\/apify-reddit$/, auth: { requireWrite: true }, handler: handleIngestApifyReddit },
   { method: 'POST', pattern: /^\/investigations\/([^/]+)\/ingest\/apify-bluesky$/, auth: { requireWrite: true }, handler: handleIngestApifyBluesky },
+  { method: 'POST', pattern: /^\/investigations\/([^/]+)\/ingest\/apify-mastodon$/, auth: { requireWrite: true }, handler: handleIngestApifyMastodon },
 
   // Ingest job status
   { method: 'GET', pattern: /^\/investigations\/([^/]+)\/ingest-jobs\/([^/]+)$/, auth: {}, handler: handleIngestJobStatus },
@@ -1387,6 +1389,10 @@ async function handleIngestApifyReddit(ctx: RouteContext): Promise<Response> {
 
 async function handleIngestApifyBluesky(ctx: RouteContext): Promise<Response> {
   return runIngestUpload(ctx, ingestApifyBluesky);
+}
+
+async function handleIngestApifyMastodon(ctx: RouteContext): Promise<Response> {
+  return runIngestUpload(ctx, ingestApifyMastodon);
 }
 
 async function runIngestUpload(
