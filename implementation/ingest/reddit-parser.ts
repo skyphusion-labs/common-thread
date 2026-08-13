@@ -8,6 +8,8 @@
  */
 
 import { flattenPayloadItems, isRecord } from './platform-detect';
+import { DEFAULT_MAX_INGEST_ITEMS } from '../workers/resource-caps';
+import { MAX_COLLECT_DEPTH } from './collect-limit';
 
 export interface RedditListingChild {
   kind: 't1' | 't3';
@@ -61,16 +63,21 @@ export function aggregateRedditByAccount(payload: unknown): RedditAccountListing
   return listings;
 }
 
-function collectReddit(value: unknown, out: RedditListingChild[]): void {
-  if (!value) return;
+function collectReddit(
+  value: unknown,
+  out: RedditListingChild[],
+  depth = 0
+): void {
+  if (!value || out.length >= DEFAULT_MAX_INGEST_ITEMS) return;
+  if (depth >= MAX_COLLECT_DEPTH) return;
   if (Array.isArray(value)) {
-    for (const item of value) collectReddit(item, out);
+    for (const item of value) collectReddit(item, out, depth + 1);
     return;
   }
   if (!isRecord(value)) return;
 
   if (value.kind === 'Listing' && isRecord(value.data) && Array.isArray(value.data.children)) {
-    for (const child of value.data.children) collectReddit(child, out);
+    for (const child of value.data.children) collectReddit(child, out, depth + 1);
     return;
   }
 
@@ -95,7 +102,7 @@ function collectReddit(value: unknown, out: RedditListingChild[]): void {
   for (const key of ['posts', 'comments', 'submissions', 'children', 'items', 'data']) {
     const nested = value[key];
     if (Array.isArray(nested)) {
-      for (const item of nested) collectReddit(item, out);
+      for (const item of nested) collectReddit(item, out, depth + 1);
     }
   }
 }
