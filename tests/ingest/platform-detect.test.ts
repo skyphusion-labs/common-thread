@@ -45,6 +45,30 @@ describe('detectItemPlatform', () => {
       })
     ).toBe('twitter');
   });
+
+  it('does not treat text+author on a foreign host as Twitter', () => {
+    expect(
+      detectItemPlatform({
+        text: 'a facebook post',
+        user: { name: 'Someone' },
+        url: 'https://www.facebook.com/someone/posts/123',
+      })
+    ).toBe('unknown');
+    expect(
+      detectItemPlatform({
+        text: 'a bluesky post',
+        author: { handle: 'someone.bsky.social' },
+        url: 'https://bsky.app/profile/someone.bsky.social/post/abc',
+      })
+    ).toBe('unknown');
+    expect(
+      detectItemPlatform({
+        text: 'a tiktok with author',
+        author: { name: 'someone' },
+        webVideoUrl: 'https://www.tiktok.com/@someone/video/1',
+      })
+    ).toBe('unknown');
+  });
 });
 
 describe('splitApifyPayload', () => {

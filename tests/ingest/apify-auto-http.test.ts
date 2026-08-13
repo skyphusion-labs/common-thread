@@ -37,4 +37,55 @@ describe('POST /ingest/apify', () => {
     const body = (await res.json()) as { error: string };
     expect(body.error).toBe('unsupported_export');
   });
+
+  it('returns 400 unsupported_export for a typical Facebook row (text + user + facebook.com)', async () => {
+    const created = await createInvestigation(testDb(), { id: uid('apify-auto-fb') });
+    const res = await worker.fetch(
+      new Request(`http://localhost/investigations/${created.id}/ingest/apify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${created.accessToken}`,
+        },
+        body: JSON.stringify([
+          {
+            text: 'public page update',
+            user: { id: '1000444', name: 'Example Page' },
+            url: 'https://www.facebook.com/examplepage/posts/pfbid0abc',
+            time: '2025-03-01T14:00:00.000Z',
+          },
+        ]),
+      }),
+      env
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe('unsupported_export');
+  });
+
+  it('returns 400 unsupported_export for a typical Bluesky row (text + author + bsky.app)', async () => {
+    const created = await createInvestigation(testDb(), { id: uid('apify-auto-bsky') });
+    const res = await worker.fetch(
+      new Request(`http://localhost/investigations/${created.id}/ingest/apify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${created.accessToken}`,
+        },
+        body: JSON.stringify([
+          {
+            text: 'hello from atproto',
+            author: { did: 'did:plc:abc', handle: 'example.bsky.social' },
+            url: 'https://bsky.app/profile/example.bsky.social/post/3kxyz',
+            uri: 'at://did:plc:abc/app.bsky.feed.post/3kxyz',
+            createdAt: '2025-03-01T14:00:00.000Z',
+          },
+        ]),
+      }),
+      env
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe('unsupported_export');
+  });
 });
