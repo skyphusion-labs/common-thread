@@ -19,14 +19,16 @@ Complete before contacting reviewers or depositing anywhere.
 
 ### 1.1 Paper completeness
 
-- [ ] All twelve body sections present under `paper/` (§1-§12) plus `references.md`.
+- [x] All twelve body sections present under `paper/` (§1-§12) plus `references.md`
+      and `00-front-matter.md`.
 - [ ] Internal cross-references resolve (§N pointers, appendix references in §7/§8).
-- [ ] `paper/references.md`: resolve or consciously retain every `[verify]` flag
-      before formal deposit (search the file for `[verify]`).
-- [ ] Add or confirm **cover metadata** for the deposit bundle: title, author
+- [x] `paper/references.md`: resolve or consciously retain every `[verify]` flag
+      before formal deposit. Argamon (2009) and Hui et al. (2019) confirmed
+      2026-08-13; remaining flags marked `[retained 2026-08-13]` for the
+      reviewer pass.
+- [x] Add or confirm **cover metadata** for the deposit bundle: title, author
       (Conrad Rockenhaus / Skyphusion Labs), version label (**v1.0**), date,
-      license (CC-BY-4.0), repo URL. `references.md` cites "the date on the cover
-      page"; the deposit PDF should include it even though `paper/` is plain Markdown.
+      license (CC-BY-4.0), repo URL. Lives in `paper/00-front-matter.md` (2026-08-13).
 - [ ] Build a **single PDF** from `paper/*.md` (pandoc or equivalent) for Zenodo/arXiv;
       keep the Markdown source tree as a separate upload file.
 - [ ] Record the **git tag or commit** the PDF was built from (pin for reproducibility).

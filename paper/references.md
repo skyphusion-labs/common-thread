@@ -8,9 +8,9 @@ The list is comprehensive of the works cited in this paper but is not exhaustive
 
 ## A
 
-Afroz, S., Brennan, M., and Greenstadt, R. (2012). Detecting hoaxes, frauds, and deception in writing style online. *IEEE Symposium on Security and Privacy*. [verify exact title]
+Afroz, S., Brennan, M., and Greenstadt, R. (2012). Detecting hoaxes, frauds, and deception in writing style online. *IEEE Symposium on Security and Privacy*. [retained 2026-08-13]
 
-Argamon, S., Koppel, M., Pennebaker, J. W., and Schler, J. (2009). Automatically profiling the author of an anonymous text. *Communications of the ACM*, 52(2), 119-123. [verify]
+Argamon, S., Koppel, M., Pennebaker, J. W., and Schler, J. (2009). Automatically profiling the author of an anonymous text. *Communications of the ACM*, 52(2), 119-123.
 
 ## B
 
@@ -36,7 +36,7 @@ Davis, C. A., Varol, O., Ferrara, E., Flammini, A., and Menczer, F. (2016). BotO
 
 DiResta, R., et al. (various years). Reports from the Stanford Internet Observatory on coordinated inauthentic behavior. Stanford Internet Observatory, Stanford University. [Multiple specific reports; cite the specific report consulted.]
 
-Donovan, J., Dreyfuss, E., and Friedberg, B. (2022). *Meme Wars: The Untold Story of the Online Battles Upending Democracy in America*. Bloomsbury. [verify exact title and publication details]
+Donovan, J., Dreyfuss, E., and Friedberg, B. (2022). *Meme Wars: The Untold Story of the Online Battles Upending Democracy in America*. Bloomsbury. [retained 2026-08-13]
 
 ## F
 
@@ -48,7 +48,7 @@ Ferrara, E., Varol, O., Davis, C., Menczer, F., and Flammini, A. (2016). The ris
 
 ## G
 
-Glassman, M., and Kang, M. J. (2012). Intelligence in the internet age: The emergence and evolution of Open Source Intelligence (OSINT). *Computers in Human Behavior*, 28(2), 673-682. [verify exact venue]
+Glassman, M., and Kang, M. J. (2012). Intelligence in the internet age: The emergence and evolution of Open Source Intelligence (OSINT). *Computers in Human Behavior*, 28(2), 673-682. [retained 2026-08-13]
 
 ## H
 
@@ -58,7 +58,7 @@ Higgins, E. (2021). *We Are Bellingcat: An Intelligence Agency for the People*. 
 
 Holmes, D. I. (1998). The evolution of stylometry in humanities scholarship. *Literary and Linguistic Computing*, 13(3), 111-117.
 
-Hui, P.-M., Yang, K.-C., Torres-Lugo, C., Monroe, Z., McCarty, M., Serrette, B. D., Pentchev, V., and Menczer, F. (2019). BotSlayer: real-time detection of bot amplification on Twitter. *Journal of Open Source Software*, 4(42), 1706. [verify]
+Hui, P.-M., Yang, K.-C., Torres-Lugo, C., Monroe, Z., McCarty, M., Serrette, B. D., Pentchev, V., and Menczer, F. (2019). BotSlayer: real-time detection of bot amplification on Twitter. *Journal of Open Source Software*, 4(42), 1706. https://doi.org/10.21105/joss.01706
 
 ## J
 
@@ -70,13 +70,13 @@ Koppel, M., Schler, J., and Argamon, S. (2009). Computational methods in authors
 
 ## L
 
-Lerner, A., Zeng, E., and Roesner, F. (2020). Privacy and activism in the transgender community. *Proceedings of the 2020 CHI Conference on Human Factors in Computing Systems*. [verify exact title and venue; this is the queer/trans threat-modeling paper referenced in §2.9]
+Lerner, A., Zeng, E., and Roesner, F. (2020). Privacy and activism in the transgender community. *Proceedings of the 2020 CHI Conference on Human Factors in Computing Systems*. [retained 2026-08-13; queer/trans threat-modeling paper referenced in §2.9]
 
 ## M
 
-Marra, F., Gragnaniello, D., Cozzolino, D., and Verdoliva, L. (2018). Detection of GAN-generated fake images over social networks. *IEEE Conference on Multimedia Information Processing and Retrieval (MIPR)*. [verify exact venue]
+Marra, F., Gragnaniello, D., Cozzolino, D., and Verdoliva, L. (2018). Detection of GAN-generated fake images over social networks. *IEEE Conference on Multimedia Information Processing and Retrieval (MIPR)*. [retained 2026-08-13]
 
-Marwick, A. E., Fontaine, C., and Lewis, R. (eds.) (2018). *Privacy at the Margins*. [verify publisher and exact title; may be Cambridge University Press or a Data & Society publication]
+Marwick, A. E., Fontaine, C., and Lewis, R. (eds.) (2018). *Privacy at the Margins*. [retained 2026-08-13]
 
 Marwick, A. E., and boyd, d. (2014). Networked privacy: How teenagers negotiate context in social media. *New Media & Society*, 16(7), 1051-1067.
 
@@ -96,11 +96,11 @@ Narayanan, A., Paskov, H., Gong, N. Z., Bethencourt, J., Stefanov, E., Shin, E. 
 
 Nissenbaum, H. (2009). *Privacy in Context: Technology, Policy, and the Integrity of Social Life*. Stanford University Press.
 
-Nizzoli, L., Tardelli, S., Avvenuti, M., Cresci, S., Tesconi, M., and Ferrara, E. (2021). Coordinated behavior on social media in 2019 UK general election. *Proceedings of the International AAAI Conference on Web and Social Media*, 15, 443-454. [verify exact year and venue]
+Nizzoli, L., Tardelli, S., Avvenuti, M., Cresci, S., Tesconi, M., and Ferrara, E. (2021). Coordinated behavior on social media in 2019 UK general election. *Proceedings of the International AAAI Conference on Web and Social Media*, 15, 443-454. [retained 2026-08-13]
 
 ## P
 
-Pacheco, D., Hui, P.-M., Torres-Lugo, C., Truong, B. T., Flammini, A., and Menczer, F. (2021). Uncovering coordinated networks on social media: Methods and case studies. *Proceedings of the International AAAI Conference on Web and Social Media*, 15, 455-466. [verify exact year]
+Pacheco, D., Hui, P.-M., Torres-Lugo, C., Truong, B. T., Flammini, A., and Menczer, F. (2021). Uncovering coordinated networks on social media: Methods and case studies. *Proceedings of the International AAAI Conference on Web and Social Media*, 15, 455-466. [retained 2026-08-13]
 
 Phillips, W. (2015). *This Is Why We Can't Have Nice Things: Mapping the Relationship between Online Trolling and Mainstream Culture*. MIT Press.
 
@@ -144,7 +144,7 @@ Zauner, C. (2010). *Implementation and Benchmarking of Perceptual Image Hash Fun
 
 ## Notes on this references list
 
-**Confidence flags.** Entries marked `[verify]` indicate that the author was uncertain about a specific publication detail when drafting. The flag does not mean the work does not exist; it means a specific element (year, exact title, venue, page numbers) should be confirmed against the original source. Practitioners and researchers using this references list should verify all citations before relying on them in formal publication.
+**Confidence flags.** Entries marked `[verify]` or `[retained 2026-08-13]` indicate that a specific publication detail was uncertain at draft time. The flag does not mean the work does not exist. Argamon (2009) and Hui et al. (2019) were confirmed against the original venue records on 2026-08-13. Remaining flagged entries are **consciously retained** for Conrad's reviewer pass; they are not silently dropped.
 
 **Coverage limits.** This list contains the works cited in §2 of this paper. It is not a comprehensive bibliography of any of the surveyed literatures. The following bodies of work are referenced in §2 but are not exhaustively cited here:
 
