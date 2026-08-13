@@ -2,15 +2,16 @@
  * Posted-image corpus building for Apify Twitter ingest.
  *
  * Extracts media URLs from timeline tweets and archives a per-account
- * `application/x-image-hash-corpus` artifact. Image bytes are not
- * downloaded in v1; URLs are preserved for URL-level overlap until a
- * collection-layer decoder supplies dHashes.
+ * `application/x-image-hash-corpus` artifact. Fetch enrichment is
+ * best-effort and host-allowlisted (#279): only Twitter CDN HTTPS URLs
+ * are downloaded.
  */
 
 import { ArchiveStore } from '../archive/store';
 import { mergeHistograms } from '../extractors/visual/color-palette';
 import { manifestStoreFor, type ArchiveManifestBinding } from './manifest-env';
 import { fetchUrlImageFeatures } from '../collection/image-decode';
+import { validateImageFetchUrl } from '../collection/safe-image-url';
 import type { AccountExifCorpus } from './apify-exif-corpus';
 import {
   buildColorPaletteCorpusFromHistogram,
@@ -325,14 +326,7 @@ function pushMediaUrls(out: string[], value: unknown): void {
   }
 }
 
-function normalizeMediaUrl(url: string): string | null {
-  const trimmed = url.trim();
-  if (!trimmed.startsWith('http')) return null;
-  try {
-    const parsed = new URL(trimmed);
-    parsed.hash = '';
-    return parsed.toString();
-  } catch {
-    return null;
-  }
+export function normalizeMediaUrl(url: string): string | null {
+  const validated = validateImageFetchUrl(url.trim());
+  return 'url' in validated ? validated.url : null;
 }
