@@ -8,6 +8,8 @@
  * real scrape shapes resolve consistently.
  */
 
+import { detectItemPlatform } from './platform-detect';
+
 export interface ApifyTweetLike {
   id?: string | number;
   id_str?: string;
@@ -222,26 +224,8 @@ export function isApifyNoResultsItem(item: unknown): boolean {
   return (item as Record<string, unknown>).noResults === true;
 }
 
-/** True when the object looks like a tweet/post rather than a wrapper. */
+/** True when detect would classify the row as Twitter (#281). */
 export function isApifyTweetLike(value: unknown): value is ApifyTweetLike {
-  if (!value || typeof value !== 'object') return false;
   if (isApifyNoResultsItem(value)) return false;
-  const obj = value as Record<string, unknown>;
-  if (obj.type === 'user') return false;
-  return (
-    'text' in obj ||
-    'fullText' in obj ||
-    'full_text' in obj ||
-    'createdAt' in obj ||
-    'created_at' in obj ||
-    'retweet' in obj ||
-    'retweetedTweet' in obj ||
-    'retweeted_status' in obj ||
-    'quotedTweet' in obj ||
-    'quoted_status' in obj ||
-    'inReplyToId' in obj ||
-    'in_reply_to_status_id' in obj ||
-    'isReply' in obj ||
-    'isRetweet' in obj
-  );
+  return detectItemPlatform(value) === 'twitter';
 }

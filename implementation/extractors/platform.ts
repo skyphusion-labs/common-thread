@@ -95,7 +95,14 @@ export type InferredPlatform =
  * and require it at collection time.
  */
 export function inferPlatform(entry: ManifestEntry): InferredPlatform {
-  const tool = entry.collectionMethod.tool.toLowerCase();
+  const method = entry.collectionMethod as {
+    tool: string;
+    platform?: string;
+  };
+  const explicit = method.platform?.toLowerCase();
+  if (explicit && isInferredPlatform(explicit)) return explicit;
+
+  const tool = method.tool.toLowerCase();
   const source = entry.source;
 
   const fromSource = platformFromSourceHost(source);
@@ -111,6 +118,19 @@ export function inferPlatform(entry: ManifestEntry): InferredPlatform {
   if (tool.includes('facebook')) return 'facebook';
 
   return 'unknown';
+}
+
+function isInferredPlatform(value: string): value is InferredPlatform {
+  return (
+    value === 'twitter' ||
+    value === 'reddit' ||
+    value === 'bluesky' ||
+    value === 'mastodon' ||
+    value === 'instagram' ||
+    value === 'tiktok' ||
+    value === 'youtube' ||
+    value === 'facebook'
+  );
 }
 
 /** True when {@link inferPlatform} resolves to the given platform. */

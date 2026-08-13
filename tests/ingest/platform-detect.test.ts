@@ -83,6 +83,35 @@ describe('detectItemPlatform', () => {
     ).toBe('mastodon');
   });
 
+  it('does not treat text+user+timestamp without a Facebook host as Facebook', () => {
+    expect(
+      detectItemPlatform({
+        text: 'a tweet',
+        user: { name: 'Ava', userName: 'ava_loomis' },
+        timestamp: 1735689600,
+        twitterUrl: 'https://x.com/ava_loomis/status/1',
+      })
+    ).toBe('twitter');
+  });
+
+  it('does not treat comment+author without a YouTube host as YouTube', () => {
+    expect(
+      detectItemPlatform({
+        comment: 'nice video',
+        author: 'bob',
+      })
+    ).toBe('unknown');
+  });
+
+  it('does not treat authorHandle+text without a Bluesky host as Bluesky', () => {
+    expect(
+      detectItemPlatform({
+        text: 'hello',
+        authorHandle: 'someone.example',
+      })
+    ).toBe('unknown');
+  });
+
   it('does not treat a foreign-instance URL alone as Mastodon', () => {
     expect(
       detectItemPlatform({
