@@ -1,0 +1,42 @@
+[
+  {
+    "id": "7483920192837461",
+    "text": "The atlas annotates these coordinates as promised before dawn.",
+    "createTimeISO": "2026-01-01T12:00:00.000Z",
+    "createTime": 1767268800,
+    "authorMeta": { "name": "finchlowe", "nickName": "Finch Lowe" },
+    "webVideoUrl": "https://www.tiktok.com/@finchlowe/video/7483920192837461"
+  },
+  {
+    "id": "7483920192837462",
+    "text": "My compass reroutes our shared route before the next waypoint.",
+    "createTimeISO": "2026-01-02T13:28:00.000Z",
+    "createTime": 1767355680,
+    "authorMeta": { "name": "finchlowe", "nickName": "Finch Lowe" },
+    "webVideoUrl": "https://www.tiktok.com/@finchlowe/video/7483920192837462"
+  },
+  {
+    "id": "7483920192837463",
+    "text": "Beacon light still holds on the ridge after midnight watch.",
+    "createTimeISO": "2026-01-03T02:03:00.000Z",
+    "createTime": 1767400980,
+    "authorMeta": { "name": "finchlowe" },
+    "webVideoUrl": "https://www.tiktok.com/@finchlowe/video/7483920192837463"
+  },
+  {
+    "id": "7483920192838001",
+    "text": "Gray moor weather returns and the lantern stays unlit tonight.",
+    "createTimeISO": "2026-01-01T15:10:00.000Z",
+    "createTime": 1767280200,
+    "authorMeta": { "name": "graymoor", "nickName": "Gray Moor" },
+    "webVideoUrl": "https://www.tiktok.com/@graymoor/video/7483920192838001"
+  },
+  {
+    "id": "7483920192838002",
+    "text": "These coordinates remain the same every morning on this circuit.",
+    "createTimeISO": "2026-01-04T09:40:00.000Z",
+    "createTime": 1767514800,
+    "authorMeta": { "name": "graymoor" },
+    "webVideoUrl": "https://www.tiktok.com/@graymoor/video/7483920192838002"
+  }
+]

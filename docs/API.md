@@ -374,15 +374,16 @@ Supported actors (upload their dataset JSON):
 | Reddit | `trudax/reddit-scraper-lite` (and native listings) | stylometric + temporal + Reddit account-metadata + shared pair extractors |
 | Bluesky | `fatihtahta/All-In-One-Bluesky-Scraper`, `cryptosignals/bluesky-scraper` (AT Proto `text` / `createdAt` / `authorHandle`) | stylometric + temporal Bluesky + shared pair extractors |
 | Mastodon | `newpo/mastodon-scraper` (public API `text` / `createdAt` / `author.acct`; `mastodon.social` plus acct/instance hints, not every federated host) | stylometric + temporal Mastodon + shared pair extractors |
+| TikTok | `clockworks/tiktok-scraper` (caption `text` / `createTimeISO` / `authorMeta.name` / `webVideoUrl`) | stylometric + temporal TikTok + shared pair extractors |
 
-TikTok, YouTube, and Facebook have Apify scrapers but no extractor
+YouTube and Facebook have Apify scrapers but no extractor
 set in this repo yet. Those uploads return `400 unsupported_export`.
 
 ### `POST /investigations/:id/ingest/apify`
 
 Requires capability token. Requires `status: active`.
 
-Auto-detects Twitter, Instagram, Reddit, Bluesky, and Mastodon items (mixed uploads split).
+Auto-detects Twitter, Instagram, Reddit, Bluesky, Mastodon, and TikTok items (mixed uploads split).
 Archives raw JSON and runs the matching extractor pipeline (container when
 `VPC_INGEST`, `INGEST_WORKER_URL`, and `INGEST_SECRET` are configured;
 inline otherwise).
@@ -416,6 +417,11 @@ Same contract as Twitter, forced Mastodon parse (`text` + `createdAt` /
 `created_at` + `author.acct`, `mastodon.social` url or `/users/.../statuses/`
 uri). Federated instance hosts are not treated as known unless the row
 carries acct/instance/tool hints.
+
+### `POST /investigations/:id/ingest/apify-tiktok`
+
+Same contract as Twitter, forced TikTok parse (`text` caption + `createTimeISO`
+/ `createTime` + `authorMeta.name` + `webVideoUrl`).
 
 **Content types**
 

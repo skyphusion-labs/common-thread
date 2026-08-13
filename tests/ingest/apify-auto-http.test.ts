@@ -12,9 +12,9 @@ function uid(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 }
 
-describe('POST /ingest/apify', { timeout: 20_000 }, () => {
-  it('returns 400 unsupported_export for a TikTok-shaped payload', async () => {
-    const created = await createInvestigation(testDb(), { id: uid('apify-auto-tiktok') });
+describe('POST /ingest/apify', { timeout: 30_000 }, () => {
+  it('returns 400 unsupported_export for a YouTube-shaped payload', async () => {
+    const created = await createInvestigation(testDb(), { id: uid('apify-auto-yt') });
     const res = await worker.fetch(
       new Request(`http://localhost/investigations/${created.id}/ingest/apify`, {
         method: 'POST',
@@ -24,10 +24,11 @@ describe('POST /ingest/apify', { timeout: 20_000 }, () => {
         },
         body: JSON.stringify([
           {
-            id: '7483920192837461',
-            webVideoUrl: 'https://www.tiktok.com/@someuser/video/7483920192837461',
-            text: 'a tiktok caption',
-            authorMeta: { name: 'someuser' },
+            title: 'a video',
+            text: 'a description',
+            channelUsername: 'somechannel',
+            url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+            date: '2026-01-01',
           },
         ]),
       }),
@@ -233,6 +234,91 @@ describe('POST /ingest/apify', { timeout: 20_000 }, () => {
       .all<{ platform: string }>();
     const names = (platforms.results ?? []).map((r) => r.platform);
     expect(names).toContain('mastodon');
+    expect(names).toContain('twitter');
+  });
+
+  it('ingests a TikTok Apify fixture and emits stylometric_tiktok features', async () => {
+    const created = await createInvestigation(testDb(), { id: uid('apify-auto-tiktok') });
+    const fixture = (await import('../fixtures/tiktok-posts.json')).default;
+    const res = await worker.fetch(
+      new Request(`http://localhost/investigations/${created.id}/ingest/apify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${created.accessToken}`,
+        },
+        body: JSON.stringify(fixture),
+      }),
+      env
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { uniqueAccounts: number; tweetsProcessed: number };
+    expect(body.uniqueAccounts).toBe(2);
+    expect(body.tweetsProcessed).toBeGreaterThan(0);
+
+    const row = await testDb()
+      .prepare(
+        `SELECT COUNT(*) AS n FROM account_features
+         WHERE investigation_id = ? AND extractor_name = 'stylometric_tiktok'`
+      )
+      .bind(created.id)
+      .first<{ n: number }>();
+    expect(Number(row?.n ?? 0)).toBeGreaterThan(0);
+
+    const temporal = await testDb()
+      .prepare(
+        `SELECT COUNT(*) AS n FROM account_features
+         WHERE investigation_id = ? AND extractor_name = 'temporal_tiktok'`
+      )
+      .bind(created.id)
+      .first<{ n: number }>();
+    expect(Number(temporal?.n ?? 0)).toBeGreaterThan(0);
+
+    const seed = await testDb()
+      .prepare(
+        `SELECT platform FROM seed_accounts WHERE investigation_id = ? LIMIT 1`
+      )
+      .bind(created.id)
+      .first<{ platform: string }>();
+    expect(seed?.platform).toBe('tiktok');
+  });
+
+  it('splits a mixed Twitter + TikTok upload on POST /ingest/apify', async () => {
+    const created = await createInvestigation(testDb(), { id: uid('apify-mixed-tiktok') });
+    const res = await worker.fetch(
+      new Request(`http://localhost/investigations/${created.id}/ingest/apify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${created.accessToken}`,
+        },
+        body: JSON.stringify([
+          {
+            id_str: '1001',
+            full_text: 'This beacon reroutes every waypoint before dawn.',
+            created_at: '2026-01-01T23:16:00.000Z',
+            url: 'https://x.com/finchlowe_synth/status/1001',
+            user: { screen_name: 'finchlowe_synth' },
+          },
+          {
+            text: 'The atlas annotates these coordinates as promised.',
+            createTimeISO: '2026-01-02T12:00:00.000Z',
+            authorMeta: { name: 'finchlowe' },
+            webVideoUrl: 'https://www.tiktok.com/@finchlowe/video/1',
+          },
+        ]),
+      }),
+      env
+    );
+    expect(res.status).toBe(200);
+    const platforms = await testDb()
+      .prepare(
+        `SELECT DISTINCT platform FROM seed_accounts WHERE investigation_id = ? ORDER BY platform`
+      )
+      .bind(created.id)
+      .all<{ platform: string }>();
+    const names = (platforms.results ?? []).map((r) => r.platform);
+    expect(names).toContain('tiktok');
     expect(names).toContain('twitter');
   });
 });

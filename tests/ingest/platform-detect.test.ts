@@ -68,7 +68,7 @@ describe('detectItemPlatform', () => {
         author: { name: 'someone' },
         webVideoUrl: 'https://www.tiktok.com/@someone/video/1',
       })
-    ).toBe('unknown');
+    ).toBe('tiktok');
   });
 
   it('classifies newpo Mastodon rows by acct and mastodon.social', () => {
@@ -154,6 +154,25 @@ describe('splitApifyPayload', () => {
     ]);
     expect(split.twitter).toHaveLength(1);
     expect(split.mastodon).toHaveLength(1);
+    expect(dominantProvider(split)).toBe('mixed');
+  });
+
+  it('splits a mixed Twitter + TikTok upload', () => {
+    const split = splitApifyPayload([
+      {
+        text: 'a tweet',
+        userName: 'ava_loomis',
+        twitterUrl: 'https://x.com/ava_loomis/status/1',
+      },
+      {
+        text: 'a caption',
+        createTimeISO: '2026-01-01T12:00:00.000Z',
+        authorMeta: { name: 'ava' },
+        webVideoUrl: 'https://www.tiktok.com/@ava/video/1',
+      },
+    ]);
+    expect(split.twitter).toHaveLength(1);
+    expect(split.tiktok).toHaveLength(1);
     expect(dominantProvider(split)).toBe('mixed');
   });
 });
