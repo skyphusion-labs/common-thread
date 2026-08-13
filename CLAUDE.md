@@ -14,7 +14,7 @@ persons.
 
 **Hosted public UI (BYOK):** https://common-thread.skyphusion.org
 
-**Status:** live product; root `package.json` is the version pin (currently **0.3.0** train; trust
+**Status:** live product; root `package.json` is the version pin (currently **0.4.0** train; trust
 `package.json` + git tags, do not hardcode a frozen cut here). Pre-1.0 SemVer. Aviation-grade
 `main` where applicable. Recent estate work: Dependabot / CI workflow standard, docs dash hygiene.
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.4.0
+
+MINOR (Instagram + Reddit Apify ingest on the hosted path):
+
+- **Multi-platform ingest (#267):** `POST /ingest/apify` auto-detects Twitter/X, Instagram, and Reddit (mixed uploads split). Dedicated `/apify-instagram` and `/apify-reddit` routes; VPC ingest container follows `provider`. Official Apify Instagram JSON and `trudax/reddit-scraper-lite` rows (normalized to `created_utc`) run the existing stylometric / temporal / Reddit account-metadata extractors.
+- **Unsupported platforms stay closed (#270):** Facebook, Bluesky, TikTok, YouTube, and Mastodon hosts (plus `at://` URIs) return `400 unsupported_export` instead of falling into the Twitter pipeline.
+- **Estate coverage:** `code-coverage.yml` materializes `wrangler.toml.example` so the required coverage check can run on PRs (gitignored wrangler.toml).
+- **Publication pre-submit (#268):** `paper/00-front-matter.md`; Argamon 2009 and Hui 2019 confirmed; remaining `[verify]` flags retained for the reviewer pass.
+
+Tag-gated prod deploy: `v0.4.0` (Workers + GHCR image push/roll on `v*`).
+
 ## v0.3.0
 
 MINOR (visitor BYOK + encrypted VPC key-on-dispatch):
