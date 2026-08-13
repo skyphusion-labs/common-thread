@@ -53,7 +53,10 @@ you have been in touch (see [contact.md](contact.md)).
 ```text
 POST /investigations                         (save access_token from response)
   → POST /investigations/:id/seeds           (optional; ingest also registers seeds)
+  → POST /investigations/:id/ingest/apify
   → POST /investigations/:id/ingest/apify-twitter
+  → POST /investigations/:id/ingest/apify-instagram
+  → POST /investigations/:id/ingest/apify-reddit
   → GET  /investigations/:id/ingest-jobs/:job_id   (poll until completed)
   → GET  /investigations/:id/features        (verify extractors ran)
   → POST /investigations/:id/attribute       (requires AI credentials; see BYOK)
@@ -359,7 +362,27 @@ Query extracted features from MySQL.
 
 ---
 
-## Ingest (Apify Twitter)
+## Ingest (Apify)
+
+Supported actors (upload their dataset JSON):
+
+| Platform | Typical actors | Pipeline |
+|----------|----------------|----------|
+| Twitter / X | `apidojo/tweet-scraper`, profile/user scrapers | existing Twitter extractors |
+| Instagram | `apify/instagram-scraper`, `apify/instagram-post-scraper`, `apify/instagram-profile-scraper` | stylometric + temporal Instagram + shared pair extractors |
+| Reddit | `trudax/reddit-scraper-lite` (and native listings) | stylometric + temporal + Reddit account-metadata + shared pair extractors |
+
+TikTok, YouTube, Bluesky, Facebook, and Mastodon have Apify scrapers but no
+extractor set in this repo yet. Those uploads return `400 unsupported_export`.
+
+### `POST /investigations/:id/ingest/apify`
+
+Requires capability token. Requires `status: active`.
+
+Auto-detects Twitter, Instagram, and Reddit items (mixed uploads split).
+Archives raw JSON and runs the matching extractor pipeline (container when
+`VPC_INGEST`, `INGEST_WORKER_URL`, and `INGEST_SECRET` are configured;
+inline otherwise).
 
 ### `POST /investigations/:id/ingest/apify-twitter`
 
@@ -368,6 +391,16 @@ Requires capability token. Requires `status: active`.
 Upload an Apify Twitter export. Always archives raw JSON and runs the full
 extractor pipeline (container when `VPC_INGEST`, `INGEST_WORKER_URL`, and
 `INGEST_SECRET` are configured; inline otherwise).
+
+### `POST /investigations/:id/ingest/apify-instagram`
+
+Same contract as Twitter, forced Instagram parse (official Apify Instagram
+scraper / post scraper / profile scraper JSON).
+
+### `POST /investigations/:id/ingest/apify-reddit`
+
+Same contract as Twitter, forced Reddit parse (native listings or
+`trudax/reddit-scraper-lite` rows).
 
 **Content types**
 

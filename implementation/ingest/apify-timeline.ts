@@ -134,11 +134,21 @@ export async function archiveAccountTimelines(
     timeBounds?: InvestigationTimeBounds;
     /** Pre-filter tweet counts keyed by account (audit when time_bounds applied). */
     tweetCountRawByAccount?: Record<string, number>;
+    /** Defaults to the Twitter timeline tool / x.com source. */
+    tool?: string;
+    platform?: string;
+    sourceFor?: (account: string) => string;
+    itemCountKey?: string;
   }
 ): Promise<ArchiveTimelinesResult> {
   const archive = new ArchiveStore({ bucket: env.ARCHIVE });
   const manifest = manifestStoreFor(env, options.investigationId);
   const toolVersion = options.toolVersion ?? '1';
+  const tool = options.tool ?? APIFY_TWITTER_TIMELINE_TOOL;
+  const platform = options.platform ?? 'twitter';
+  const sourceFor =
+    options.sourceFor ?? ((account: string) => `https://x.com/${account}/timeline`);
+  const itemCountKey = options.itemCountKey ?? 'tweet_count';
   const manifestHashes: string[] = [];
 
   for (const { account, tweets } of options.timelines) {
@@ -148,7 +158,7 @@ export async function archiveAccountTimelines(
       extension: 'json',
     });
 
-    const config: Record<string, unknown> = { tweet_count: tweets.length };
+    const config: Record<string, unknown> = { [itemCountKey]: tweets.length };
     if (options.timeBounds) {
       config.time_bounds = {
         start: options.timeBounds.start,
@@ -163,13 +173,13 @@ export async function archiveAccountTimelines(
     await manifest.append({
       hash,
       account,
-      source: `https://x.com/${account}/timeline`,
+      source: sourceFor(account),
       collectedAt: options.collectedAt,
       investigationId: options.investigationId,
       collectionMethod: {
-        tool: APIFY_TWITTER_TIMELINE_TOOL,
+        tool,
         version: toolVersion,
-        platform: 'twitter',
+        platform,
         config,
       },
       mimeType: 'application/json',

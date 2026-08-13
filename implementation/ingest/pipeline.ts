@@ -75,6 +75,8 @@ export interface RunTwitterIngestPipelineContext {
   now?: string;
   /** Per-investigation encryption key (§3.5 / #228). */
   encKey?: CryptoKey | null;
+  /** Leave the ingest job open when another platform pipeline still has to run. */
+  skipComplete?: boolean;
 }
 
 export interface TwitterIngestPipelineResult {
@@ -310,7 +312,9 @@ export async function runTwitterIngestPipeline(
     pairExtractorsSkippedReason = `Pair extractors require at least 2 accounts; got ${handles.length}`;
   }
 
-  await completeIngestJob(env.db, ctx.jobId, manifestHashes);
+  if (!ctx.skipComplete) {
+    await completeIngestJob(env.db, ctx.jobId, manifestHashes);
+  }
 
   return {
     investigationId: ctx.investigationId,

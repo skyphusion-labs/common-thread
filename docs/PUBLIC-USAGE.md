@@ -73,11 +73,11 @@ machine.
    cannot recover it, and anyone with the token can read (and, while active,
    modify) the investigation. It is a capability secret, not a password.
    New investigations are encrypted at rest under that token (§3.5).
-4. **Upload Data.** Drop your Apify Twitter JSON exports (profiles, timelines,
-   follower / following lists). The backend archives the raw data by content
-   hash and runs extractors (VPC containers when configured, including
-   key-on-dispatch for encrypted investigations). Watch the ingest job to
-   completion.
+4. **Upload Data.** Drop Apify JSON exports for Twitter/X, Instagram, or Reddit
+   (profiles, timelines, posts, comments). Mixed files are split by platform.
+   The backend archives the raw data by content hash and runs extractors (VPC
+   containers when configured, including key-on-dispatch for encrypted
+   investigations). Watch the ingest job to completion.
 5. **Features.** Review the extracted account-level and pair-level signals. No
    LLM or credentials are involved here.
 6. **Attribution.** With BYOK credentials saved, the **Run attribution** button

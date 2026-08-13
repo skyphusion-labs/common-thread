@@ -22,6 +22,19 @@ export async function completeIngestJob(
   manifestHashes: string[]
 ): Promise<void> {
   const now = new Date().toISOString();
+  if (manifestHashes.length === 0) {
+    await db
+      .prepare(
+        `UPDATE ingest_jobs
+         SET status = 'completed',
+             completed_at = ?,
+             error_message = NULL
+         WHERE job_id = ?`
+      )
+      .bind(now, jobId)
+      .run();
+    return;
+  }
   await db
     .prepare(
       `UPDATE ingest_jobs
