@@ -58,9 +58,10 @@ describe('detectItemPlatform', () => {
       detectItemPlatform({
         text: 'a bluesky post',
         author: { handle: 'someone.bsky.social' },
+        createdAt: '2026-01-01T12:00:00.000Z',
         url: 'https://bsky.app/profile/someone.bsky.social/post/abc',
       })
-    ).toBe('unknown');
+    ).toBe('bluesky');
     expect(
       detectItemPlatform({
         text: 'a tiktok with author',
@@ -91,6 +92,26 @@ describe('splitApifyPayload', () => {
     expect(split.instagram).toHaveLength(1);
     expect(split.reddit).toHaveLength(1);
     expect(split.twitter).toHaveLength(0);
+    expect(dominantProvider(split)).toBe('mixed');
+  });
+
+  it('splits a mixed Twitter + Bluesky upload', () => {
+    const split = splitApifyPayload([
+      {
+        text: 'a tweet',
+        userName: 'ava_loomis',
+        twitterUrl: 'https://x.com/ava_loomis/status/1',
+      },
+      {
+        text: 'hello from atproto',
+        authorHandle: 'ava.bsky.social',
+        createdAt: '2026-01-01T12:00:00.000Z',
+        uri: 'at://did:plc:ava/app.bsky.feed.post/1',
+        url: 'https://bsky.app/profile/ava.bsky.social/post/1',
+      },
+    ]);
+    expect(split.twitter).toHaveLength(1);
+    expect(split.bluesky).toHaveLength(1);
     expect(dominantProvider(split)).toBe('mixed');
   });
 });

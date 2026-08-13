@@ -9,12 +9,13 @@
 import { hostOf, hostMatches } from '../extractors/platform';
 import { isInstagramPostLike } from './instagram-post-fields';
 
-export type DetectedPlatform = 'twitter' | 'instagram' | 'reddit';
+export type DetectedPlatform = 'twitter' | 'instagram' | 'reddit' | 'bluesky';
 
 export interface SplitApifyPayload {
   twitter: unknown[];
   instagram: unknown[];
   reddit: unknown[];
+  bluesky: unknown[];
   unknown: unknown[];
 }
 
@@ -30,8 +31,6 @@ const UNSUPPORTED_DOMAINS = [
   'tiktok.com',
   'youtube.com',
   'youtu.be',
-  'bsky.app',
-  'bsky.social',
   'mastodon.social',
 ] as const;
 
@@ -57,6 +56,7 @@ export function detectItemPlatform(item: unknown): DetectedPlatform | 'unknown' 
 
   // Foreign hosts first: text+author Facebook/Bluesky/TikTok rows must not
   // become twitter ingest.
+  if (isBlueskyItem(obj)) return 'bluesky';
   if (isUnsupportedPlatformItem(obj)) return 'unknown';
   if (isRedditItem(obj)) return 'reddit';
   if (isInstagramItem(obj)) return 'instagram';
@@ -70,6 +70,7 @@ export function splitApifyPayload(payload: unknown): SplitApifyPayload {
     twitter: [],
     instagram: [],
     reddit: [],
+    bluesky: [],
     unknown: [],
   };
   for (const item of items) {
@@ -95,6 +96,7 @@ export function dominantProvider(
   if (split.twitter.length > 0) present.push('twitter');
   if (split.instagram.length > 0) present.push('instagram');
   if (split.reddit.length > 0) present.push('reddit');
+  if (split.bluesky.length > 0) present.push('bluesky');
   if (present.length === 0) return null;
   if (present.length === 1) return present[0];
   return 'mixed';
@@ -144,9 +146,20 @@ function isInstagramItem(obj: Record<string, unknown>): boolean {
   );
 }
 
-function isUnsupportedPlatformItem(obj: Record<string, unknown>): boolean {
-  if (urlMatchesHost(obj, ...UNSUPPORTED_DOMAINS)) return true;
+function isBlueskyItem(obj: Record<string, unknown>): boolean {
   if (typeof obj.uri === 'string' && obj.uri.startsWith('at://')) return true;
+  if (urlMatchesHost(obj, 'bsky.app', 'bsky.social')) return true;
+  if (typeof obj.authorHandle === 'string' && typeof obj.text === 'string') return true;
+  const author = isRecord(obj.author) ? obj.author : null;
+  if (author && typeof author.handle === 'string' && typeof obj.text === 'string') {
+    return typeof obj.createdAt === 'string' || typeof obj.indexedAt === 'string';
+  }
+  return false;
+}
+
+function isUnsupportedPlatformItem(obj: Record<string, unknown>): boolean {
+  if (isBlueskyItem(obj)) return false;
+  if (urlMatchesHost(obj, ...UNSUPPORTED_DOMAINS)) return true;
   if (typeof obj.facebookUrl === 'string' || typeof obj.facebookId === 'string') return true;
   return false;
 }

@@ -26,6 +26,7 @@
 import { TwitterStylometricExtractor } from './twitter';
 import { RedditStylometricExtractor } from './reddit';
 import { InstagramStylometricExtractor } from './instagram';
+import { BlueskyStylometricExtractor } from './bluesky';
 import { BurrowsDeltaExtractor } from './burrows-delta';
 import { JsdCharacterBigramsExtractor } from './jsd-bigrams';
 import {
@@ -52,13 +53,13 @@ export const STYLOMETRIC_EXTRACTORS: AccountFeatureExtractor[] = [
   new TwitterStylometricExtractor(),
   new RedditStylometricExtractor(),
   new InstagramStylometricExtractor(),
+  new BlueskyStylometricExtractor(),
   new TwitterTopicPhraseExtractor(),
   new TwitterCodeSwitchingExtractor(),
   new TwitterTypoErrorExtractor(),
   new BackgroundCorpusExtractor(),
   new TwitterAccountTermTfExtractor(),
   // Future:
-  // new BlueskyStylometricExtractor(),
   // new MastodonStylometricExtractor(),
 ];
 

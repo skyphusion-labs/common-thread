@@ -1,0 +1,39 @@
+[
+  {
+    "text": "The atlas annotates these coordinates as promised before dawn.",
+    "createdAt": "2026-01-01T12:00:00.000Z",
+    "authorHandle": "finchlowe.bsky.social",
+    "author": { "handle": "finchlowe.bsky.social", "did": "did:plc:finchlowe" },
+    "uri": "at://did:plc:finchlowe/app.bsky.feed.post/abc1",
+    "url": "https://bsky.app/profile/finchlowe.bsky.social/post/abc1"
+  },
+  {
+    "text": "My compass reroutes our shared route before the next waypoint.",
+    "createdAt": "2026-01-02T13:28:00.000Z",
+    "authorHandle": "finchlowe.bsky.social",
+    "uri": "at://did:plc:finchlowe/app.bsky.feed.post/abc2",
+    "url": "https://bsky.app/profile/finchlowe.bsky.social/post/abc2"
+  },
+  {
+    "text": "Beacon light still holds on the ridge after midnight watch.",
+    "createdAt": "2026-01-03T02:03:00.000Z",
+    "authorHandle": "finchlowe.bsky.social",
+    "uri": "at://did:plc:finchlowe/app.bsky.feed.post/abc3",
+    "url": "https://bsky.app/profile/finchlowe.bsky.social/post/abc3"
+  },
+  {
+    "text": "Gray moor weather returns and the lantern stays unlit tonight.",
+    "createdAt": "2026-01-01T15:10:00.000Z",
+    "authorHandle": "graymoor.bsky.social",
+    "author": { "handle": "graymoor.bsky.social", "did": "did:plc:graymoor" },
+    "uri": "at://did:plc:graymoor/app.bsky.feed.post/xyz1",
+    "postUrl": "https://bsky.app/profile/graymoor.bsky.social/post/xyz1"
+  },
+  {
+    "text": "These coordinates remain the same every morning on this circuit.",
+    "createdAt": "2026-01-04T09:40:00.000Z",
+    "authorHandle": "graymoor.bsky.social",
+    "uri": "at://did:plc:graymoor/app.bsky.feed.post/xyz2",
+    "url": "https://bsky.app/profile/graymoor.bsky.social/post/xyz2"
+  }
+]
