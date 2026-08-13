@@ -75,6 +75,7 @@ import {
   ingestApifyMastodon,
   ingestApifyTikTok,
   ingestApifyYouTube,
+  ingestApifyFacebook,
   ingestApifyTwitter,
   TWITTER_ACCOUNT_EXTRACTORS,
   TWITTER_PAIR_EXTRACTORS,
@@ -428,6 +429,7 @@ const ROUTES: Route[] = [
   { method: 'POST', pattern: /^\/investigations\/([^/]+)\/ingest\/apify-mastodon$/, auth: { requireWrite: true }, handler: handleIngestApifyMastodon },
   { method: 'POST', pattern: /^\/investigations\/([^/]+)\/ingest\/apify-tiktok$/, auth: { requireWrite: true }, handler: handleIngestApifyTikTok },
   { method: 'POST', pattern: /^\/investigations\/([^/]+)\/ingest\/apify-youtube$/, auth: { requireWrite: true }, handler: handleIngestApifyYouTube },
+  { method: 'POST', pattern: /^\/investigations\/([^/]+)\/ingest\/apify-facebook$/, auth: { requireWrite: true }, handler: handleIngestApifyFacebook },
 
   // Ingest job status
   { method: 'GET', pattern: /^\/investigations\/([^/]+)\/ingest-jobs\/([^/]+)$/, auth: {}, handler: handleIngestJobStatus },
@@ -1405,6 +1407,10 @@ async function handleIngestApifyTikTok(ctx: RouteContext): Promise<Response> {
 
 async function handleIngestApifyYouTube(ctx: RouteContext): Promise<Response> {
   return runIngestUpload(ctx, ingestApifyYouTube);
+}
+
+async function handleIngestApifyFacebook(ctx: RouteContext): Promise<Response> {
+  return runIngestUpload(ctx, ingestApifyFacebook);
 }
 
 async function runIngestUpload(

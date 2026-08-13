@@ -36,6 +36,7 @@ import { runBlueskyIngestPipeline } from '../../implementation/ingest/bluesky-pi
 import { runMastodonIngestPipeline } from '../../implementation/ingest/mastodon-pipeline';
 import { runTikTokIngestPipeline } from '../../implementation/ingest/tiktok-pipeline';
 import { runYouTubeIngestPipeline } from '../../implementation/ingest/youtube-pipeline';
+import { runFacebookIngestPipeline } from '../../implementation/ingest/facebook-pipeline';
 import { splitApifyPayload } from '../../implementation/ingest/platform-detect';
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -180,6 +181,8 @@ async function processJob(handoff: IngestJobHandoff): Promise<void> {
       await runTikTokIngestPipeline(pipelineEnv, ctx);
     } else if (provider === 'youtube') {
       await runYouTubeIngestPipeline(pipelineEnv, ctx);
+    } else if (provider === 'facebook') {
+      await runFacebookIngestPipeline(pipelineEnv, ctx);
     } else if (provider === 'mixed') {
       const split = splitApifyPayload(payload);
       if (split.twitter.length > 0) {
@@ -228,6 +231,13 @@ async function processJob(handoff: IngestJobHandoff): Promise<void> {
         await runYouTubeIngestPipeline(pipelineEnv, {
           ...ctx,
           payload: split.youtube,
+          skipComplete: true,
+        });
+      }
+      if (split.facebook.length > 0) {
+        await runFacebookIngestPipeline(pipelineEnv, {
+          ...ctx,
+          payload: split.facebook,
           skipComplete: true,
         });
       }

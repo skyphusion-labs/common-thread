@@ -1,0 +1,41 @@
+[
+  {
+    "text": "The atlas annotates these coordinates as promised before dawn.",
+    "time": "2026-01-01T12:00:00.000Z",
+    "timestamp": 1767268800,
+    "user": { "id": "1000444001", "name": "Finch Lowe" },
+    "pageName": "Finch Lowe",
+    "facebookUrl": "https://www.facebook.com/finchlowe/posts/pfbid0abc1",
+    "url": "https://www.facebook.com/finchlowe/posts/pfbid0abc1"
+  },
+  {
+    "text": "My compass reroutes our shared route before the next waypoint.",
+    "time": "2026-01-02T13:28:00.000Z",
+    "user": { "id": "1000444001", "name": "Finch Lowe" },
+    "pageName": "Finch Lowe",
+    "facebookUrl": "https://www.facebook.com/finchlowe/posts/pfbid0abc2",
+    "url": "https://www.facebook.com/finchlowe/posts/pfbid0abc2"
+  },
+  {
+    "text": "Beacon light still holds on the ridge after midnight watch.",
+    "time": "2026-01-03T02:03:00.000Z",
+    "user": { "id": "1000444001", "name": "Finch Lowe" },
+    "pageName": "Finch Lowe",
+    "url": "https://www.facebook.com/finchlowe/posts/pfbid0abc3"
+  },
+  {
+    "text": "Gray moor weather returns and the lantern stays unlit tonight.",
+    "time": "2026-01-01T15:10:00.000Z",
+    "user": { "id": "1000444002", "name": "Gray Moor" },
+    "pageName": "Gray Moor",
+    "facebookUrl": "https://www.facebook.com/graymoor/posts/pfbid0xyz1",
+    "url": "https://www.facebook.com/graymoor/posts/pfbid0xyz1"
+  },
+  {
+    "text": "These coordinates remain the same every morning on this circuit.",
+    "time": "2026-01-04T09:40:00.000Z",
+    "user": { "id": "1000444002", "name": "Gray Moor" },
+    "pageName": "Gray Moor",
+    "url": "https://www.facebook.com/graymoor/posts/pfbid0xyz2"
+  }
+]
