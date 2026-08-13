@@ -46,6 +46,9 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
+      # wrangler.toml is gitignored; the workers pool needs the example to start.
+      - name: Materialize wrangler.toml
+        run: cp wrangler.toml.example wrangler.toml
       - name: Apply schema
         env:
           MYSQL_URL: mysql://root@127.0.0.1:3306/common_thread_test
