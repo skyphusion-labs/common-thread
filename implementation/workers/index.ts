@@ -536,6 +536,9 @@ async function handleDeleteInvestigation(ctx: RouteContext): Promise<Response> {
   const investigationId = ctx.investigationId;
 
   try {
+    // Assert committed-active before touching R2. Purging first then failing
+    // the seal check would delete a sealed investigation's manifest (#277).
+    await assertInvestigationActiveForWrite(env.DB, investigationId);
     const archive = await purgeInvestigationArchive(env.ARCHIVE, investigationId);
     const result = await deleteInvestigationData(env.DB, investigationId);
     if (!result.deleted) {

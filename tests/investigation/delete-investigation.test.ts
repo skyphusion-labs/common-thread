@@ -52,9 +52,11 @@ describe('DELETE /investigations/:id', () => {
     expect(await env.ARCHIVE.head(investigationManifestPath(id))).toBeNull();
   });
 
-  it('refuses deletion for a sealed investigation', async () => {
+  it('refuses deletion for a sealed investigation and keeps the manifest', async () => {
     const id = uid('del-sealed');
     const { accessToken } = await createInvestigation(testDb(), { id, status: 'sealed' });
+    const manifestKey = investigationManifestPath(id);
+    await env.ARCHIVE.put(manifestKey, new TextEncoder().encode('{"hash":"sealed"}\n'));
 
     const res = await worker.fetch(
       new Request(`http://localhost/investigations/${id}`, {
@@ -66,5 +68,6 @@ describe('DELETE /investigations/:id', () => {
     expect(res.status).toBe(403);
     const body = (await res.json()) as { code?: string };
     expect(body.code).toBe('read_only');
+    expect(await env.ARCHIVE.head(manifestKey)).not.toBeNull();
   });
 });
