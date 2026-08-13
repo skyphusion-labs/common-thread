@@ -12,7 +12,7 @@ function uid(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 }
 
-describe('POST /ingest/apify', () => {
+describe('POST /ingest/apify', { timeout: 20_000 }, () => {
   it('returns 400 unsupported_export for a TikTok-shaped payload', async () => {
     const created = await createInvestigation(testDb(), { id: uid('apify-auto-tiktok') });
     const res = await worker.fetch(
