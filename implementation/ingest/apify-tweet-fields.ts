@@ -224,8 +224,36 @@ export function isApifyNoResultsItem(item: unknown): boolean {
   return (item as Record<string, unknown>).noResults === true;
 }
 
-/** True when detect would classify the row as Twitter (#281). */
+/**
+ * Structural tweet/post check for extractors and the dedicated Twitter parser.
+ *
+ * Detect (#281) stays host-strict for ingest split, so Facebook/Bluesky rows
+ * with a foreign host never land in `split.twitter`. Extractors still have to
+ * parse already-archived Apify camelCase tweets and official timeline dumps
+ * that have no per-item URL. Reject any row detect classifies as a
+ * non-Twitter platform; accept URL-less tweet-shaped objects.
+ */
 export function isApifyTweetLike(value: unknown): value is ApifyTweetLike {
+  if (!value || typeof value !== 'object') return false;
   if (isApifyNoResultsItem(value)) return false;
-  return detectItemPlatform(value) === 'twitter';
+  const platform = detectItemPlatform(value);
+  if (platform !== 'unknown' && platform !== 'twitter') return false;
+  const obj = value as Record<string, unknown>;
+  if (obj.type === 'user') return false;
+  return (
+    'text' in obj ||
+    'fullText' in obj ||
+    'full_text' in obj ||
+    'createdAt' in obj ||
+    'created_at' in obj ||
+    'retweet' in obj ||
+    'retweetedTweet' in obj ||
+    'retweeted_status' in obj ||
+    'quotedTweet' in obj ||
+    'quoted_status' in obj ||
+    'inReplyToId' in obj ||
+    'in_reply_to_status_id' in obj ||
+    'isReply' in obj ||
+    'isRetweet' in obj
+  );
 }
