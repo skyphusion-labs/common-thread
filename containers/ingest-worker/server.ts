@@ -27,9 +27,12 @@ import {
   verifyKeyCheck,
 } from '../../implementation/crypto/investigation-key';
 import type { IngestJobHandoff } from '../../implementation/ingest/handoff';
-import { claimIngestJob, failIngestJob } from '../../implementation/ingest/jobs';
+import { claimIngestJob, completeIngestJob, failIngestJob } from '../../implementation/ingest/jobs';
 import { buildManifestRemoteAppend } from '../../implementation/ingest/manifest-env';
 import { runTwitterIngestPipeline } from '../../implementation/ingest/pipeline';
+import { runInstagramIngestPipeline } from '../../implementation/ingest/instagram-pipeline';
+import { runRedditIngestPipeline } from '../../implementation/ingest/reddit-pipeline';
+import { splitApifyPayload } from '../../implementation/ingest/platform-detect';
 
 const PORT = Number(process.env.PORT ?? 8080);
 const INGEST_SECRET = process.env.INGEST_SECRET ?? '';
@@ -152,16 +155,46 @@ async function processJob(handoff: IngestJobHandoff): Promise<void> {
   );
 
   try {
-    await runTwitterIngestPipeline(
-      { db, archive, manifestRemoteAppend },
-      {
-        investigationId: handoff.investigationId,
-        payload,
-        rawHash: handoff.rawFileHash,
-        jobId: handoff.jobId,
-        encKey,
+    const pipelineEnv = { db, archive, manifestRemoteAppend };
+    const ctx = {
+      investigationId: handoff.investigationId,
+      payload,
+      rawHash: handoff.rawFileHash,
+      jobId: handoff.jobId,
+      encKey,
+    };
+    const provider = handoff.provider ?? 'twitter';
+    if (provider === 'instagram') {
+      await runInstagramIngestPipeline(pipelineEnv, ctx);
+    } else if (provider === 'reddit') {
+      await runRedditIngestPipeline(pipelineEnv, ctx);
+    } else if (provider === 'mixed') {
+      const split = splitApifyPayload(payload);
+      if (split.twitter.length > 0) {
+        await runTwitterIngestPipeline(pipelineEnv, {
+          ...ctx,
+          payload: split.twitter,
+          skipComplete: true,
+        });
       }
-    );
+      if (split.instagram.length > 0) {
+        await runInstagramIngestPipeline(pipelineEnv, {
+          ...ctx,
+          payload: split.instagram,
+          skipComplete: true,
+        });
+      }
+      if (split.reddit.length > 0) {
+        await runRedditIngestPipeline(pipelineEnv, {
+          ...ctx,
+          payload: split.reddit,
+          skipComplete: true,
+        });
+      }
+      await completeIngestJob(db, handoff.jobId, []);
+    } else {
+      await runTwitterIngestPipeline(pipelineEnv, ctx);
+    }
   } finally {
     // Best-effort: drop the in-memory key reference when the job ends.
     encKey = null;

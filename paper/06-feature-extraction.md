@@ -199,7 +199,7 @@ When re-collection (§5.5) discovers that content present in earlier collection 
 
 ### 6.4.6 Reference implementation v1 signal availability
 
-Extractors for the full §4 taxonomy are present in the reference implementation, but not every signal is populated on the default v1 ingest path. The table below states what practitioners should expect from a standard Apify Twitter ingest without additional configuration.
+Extractors for the full §4 taxonomy are present in the reference implementation, but not every signal is populated on every ingest path. The table below states what practitioners should expect from a standard Apify Twitter ingest without additional configuration. Instagram and Reddit Apify exports (`POST /ingest/apify`, `/apify-instagram`, `/apify-reddit`) populate the platform-parallel stylometric and temporal account features (and Reddit account-metadata / subreddit overlap) plus the shared pair extractors; Twitter-only network, visual, and metadata-leakage signals stay dormant on those paths.
 
 | Signal | Paper | v1 default ingest | Notes |
 |--------|-------|-------------------|-------|

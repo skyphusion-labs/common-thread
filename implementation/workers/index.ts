@@ -67,6 +67,10 @@ import type { ManifestEntry } from '../archive/types';
 import { manifestStoreFor } from '../ingest/manifest-env';
 import {
   EncryptedIngestKeyRequiredError,
+  EmptyApifyIngestError,
+  ingestApify,
+  ingestApifyInstagram,
+  ingestApifyReddit,
   ingestApifyTwitter,
   TWITTER_ACCOUNT_EXTRACTORS,
   TWITTER_PAIR_EXTRACTORS,
@@ -411,8 +415,11 @@ const ROUTES: Route[] = [
   // Evidence packet for an attribution run (§8.1; validates run_id before auth)
   { method: 'GET', pattern: /^\/investigations\/([^/]+)\/packet\/([^/]+)$/, handler: handlePacket },
 
-  // === Apify Twitter ingest ===
+  // === Apify ingest (Twitter, Instagram, Reddit) ===
+  { method: 'POST', pattern: /^\/investigations\/([^/]+)\/ingest\/apify$/, auth: { requireWrite: true }, handler: handleIngestApifyAuto },
   { method: 'POST', pattern: /^\/investigations\/([^/]+)\/ingest\/apify-twitter$/, auth: { requireWrite: true }, handler: handleIngestApify },
+  { method: 'POST', pattern: /^\/investigations\/([^/]+)\/ingest\/apify-instagram$/, auth: { requireWrite: true }, handler: handleIngestApifyInstagram },
+  { method: 'POST', pattern: /^\/investigations\/([^/]+)\/ingest\/apify-reddit$/, auth: { requireWrite: true }, handler: handleIngestApifyReddit },
 
   // Ingest job status
   { method: 'GET', pattern: /^\/investigations\/([^/]+)\/ingest-jobs\/([^/]+)$/, auth: {}, handler: handleIngestJobStatus },
@@ -1360,17 +1367,103 @@ async function handleIngestApify(ctx: RouteContext): Promise<Response> {
     const status = result.delegatedToContainer ? 202 : 200;
     return jsonResponse(result, status);
   } catch (err) {
-    if (err instanceof EncryptedIngestKeyRequiredError) {
-      return jsonResponse(
-        {
-          error: 'encryption_key_required',
-          message: err.message,
-        },
-        400
-      );
-    }
-    throw err;
+    return mapIngestError(err);
   }
+}
+
+async function handleIngestApifyAuto(ctx: RouteContext): Promise<Response> {
+  return runIngestUpload(ctx, ingestApify);
+}
+
+async function handleIngestApifyInstagram(ctx: RouteContext): Promise<Response> {
+  return runIngestUpload(ctx, ingestApifyInstagram);
+}
+
+async function handleIngestApifyReddit(ctx: RouteContext): Promise<Response> {
+  return runIngestUpload(ctx, ingestApifyReddit);
+}
+
+async function runIngestUpload(
+  ctx: RouteContext,
+  ingest: typeof ingestApify
+): Promise<Response> {
+  const { env, request } = ctx;
+  const investigationId = ctx.investigationId;
+  const guard = await guardWriteOrRespond(env, investigationId);
+  if (guard) return guard;
+
+  const parsed = await parseIngestItems(request);
+  if (parsed instanceof Response) return parsed;
+
+  const caps = resolveResourceCaps(env);
+  if (parsed.length > caps.maxIngestItems) {
+    return jsonResponse(ingestCapExceeded(caps.maxIngestItems, parsed.length), 400);
+  }
+
+  try {
+    const result = await ingest(env, investigationId, parsed, {
+      encKey: ctx.encKey ?? null,
+      accessToken: extractAccessToken(ctx.request, ctx.url) ?? undefined,
+    });
+    return jsonResponse(result, result.delegatedToContainer ? 202 : 200);
+  } catch (err) {
+    return mapIngestError(err);
+  }
+}
+
+function mapIngestError(err: unknown): Response {
+  if (err instanceof EncryptedIngestKeyRequiredError) {
+    return jsonResponse(
+      {
+        error: 'encryption_key_required',
+        message: err.message,
+      },
+      400
+    );
+  }
+  if (err instanceof EmptyApifyIngestError) {
+    return jsonResponse({ error: 'unsupported_export', message: err.message }, 400);
+  }
+  throw err;
+}
+
+async function parseIngestItems(request: Request): Promise<unknown[] | Response> {
+  const contentType = request.headers.get('content-type') || '';
+  const allItems: unknown[] = [];
+
+  if (contentType.includes('multipart/form-data')) {
+    const formData = await request.formData();
+    const fileEntries = formData.getAll('file');
+
+    for (const entry of fileEntries) {
+      if (entry && typeof entry !== 'string' && 'text' in entry) {
+        try {
+          const text = await (entry as File).text();
+          const parsed = JSON.parse(text);
+          if (Array.isArray(parsed)) allItems.push(...parsed);
+          else if (Array.isArray(parsed?.items)) allItems.push(...parsed.items);
+          else if (Array.isArray(parsed?.data)) allItems.push(...parsed.data);
+          else allItems.push(parsed);
+        } catch {
+          return jsonResponse({ error: 'Invalid JSON in uploaded file' }, 400);
+        }
+      }
+    }
+
+    if (allItems.length === 0) return jsonResponse({ error: 'No valid files uploaded' }, 400);
+    return allItems;
+  }
+
+  const parsedBody = await parseJsonBody<unknown>(request);
+  if (parsedBody instanceof Response) return parsedBody;
+  const body = parsedBody as { items?: unknown[]; data?: unknown[] };
+  return Array.isArray(parsedBody)
+    ? parsedBody
+    : Array.isArray(body?.items)
+      ? body.items
+      : Array.isArray(body?.data)
+        ? body.data
+        : [parsedBody];
 }
 
 async function handleIngestJobStatus(ctx: RouteContext): Promise<Response> {
