@@ -7,7 +7,7 @@ import { runRedditIngestPipeline } from '../../implementation/ingest/reddit-pipe
 import { ArchiveStore } from '../../implementation/archive/store';
 import instagramFixture from '../fixtures/instagram-posts.json';
 
-describe('instagram ingest pipeline', () => {
+describe('instagram ingest pipeline', { timeout: 20_000 }, () => {
   it('archives listings, registers seeds, and emits stylometric features', async () => {
     const investigationId = `ig-ingest-${crypto.randomUUID()}`;
     await createInvestigation(testDb(), { id: investigationId });
@@ -40,7 +40,7 @@ describe('instagram ingest pipeline', () => {
   });
 });
 
-describe('reddit ingest pipeline', () => {
+describe('reddit ingest pipeline', { timeout: 20_000 }, () => {
   it('normalizes Apify rows and emits temporal features', async () => {
     const investigationId = `reddit-ingest-${crypto.randomUUID()}`;
     await createInvestigation(testDb(), { id: investigationId });

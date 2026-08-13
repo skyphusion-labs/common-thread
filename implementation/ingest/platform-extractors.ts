@@ -31,3 +31,11 @@ export const INSTAGRAM_PAIR_EXTRACTORS: PairFeatureExtractor[] =
 
 export const REDDIT_PAIR_EXTRACTORS: PairFeatureExtractor[] =
   ALL_PAIR_EXTRACTORS.filter((e) => SHARED_PAIR_NAME.test(e.name));
+
+export const BLUESKY_ACCOUNT_EXTRACTORS: AccountFeatureExtractor[] =
+  ALL_ACCOUNT_EXTRACTORS.filter(
+    (e) => /bluesky/i.test(e.name) || e.name === 'background_corpus_stylometric'
+  );
+
+export const BLUESKY_PAIR_EXTRACTORS: PairFeatureExtractor[] =
+  ALL_PAIR_EXTRACTORS.filter((e) => SHARED_PAIR_NAME.test(e.name));

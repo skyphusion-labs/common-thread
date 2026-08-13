@@ -32,6 +32,7 @@ import { buildManifestRemoteAppend } from '../../implementation/ingest/manifest-
 import { runTwitterIngestPipeline } from '../../implementation/ingest/pipeline';
 import { runInstagramIngestPipeline } from '../../implementation/ingest/instagram-pipeline';
 import { runRedditIngestPipeline } from '../../implementation/ingest/reddit-pipeline';
+import { runBlueskyIngestPipeline } from '../../implementation/ingest/bluesky-pipeline';
 import { splitApifyPayload } from '../../implementation/ingest/platform-detect';
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -168,6 +169,8 @@ async function processJob(handoff: IngestJobHandoff): Promise<void> {
       await runInstagramIngestPipeline(pipelineEnv, ctx);
     } else if (provider === 'reddit') {
       await runRedditIngestPipeline(pipelineEnv, ctx);
+    } else if (provider === 'bluesky') {
+      await runBlueskyIngestPipeline(pipelineEnv, ctx);
     } else if (provider === 'mixed') {
       const split = splitApifyPayload(payload);
       if (split.twitter.length > 0) {
@@ -188,6 +191,13 @@ async function processJob(handoff: IngestJobHandoff): Promise<void> {
         await runRedditIngestPipeline(pipelineEnv, {
           ...ctx,
           payload: split.reddit,
+          skipComplete: true,
+        });
+      }
+      if (split.bluesky.length > 0) {
+        await runBlueskyIngestPipeline(pipelineEnv, {
+          ...ctx,
+          payload: split.bluesky,
           skipComplete: true,
         });
       }

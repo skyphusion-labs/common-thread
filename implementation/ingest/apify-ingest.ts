@@ -11,9 +11,11 @@ import {
 import { runTwitterIngestPipeline } from './pipeline';
 import { runInstagramIngestPipeline } from './instagram-pipeline';
 import { runRedditIngestPipeline } from './reddit-pipeline';
+import { runBlueskyIngestPipeline } from './bluesky-pipeline';
 import { completeIngestJob } from './jobs';
 import { extractInstagramHandles } from './instagram-parser';
 import { extractRedditHandles } from './reddit-parser';
+import { extractBlueskyHandles } from './bluesky-parser';
 import { dominantProvider as detectDominant, splitApifyPayload } from './platform-detect';
 import type { Env } from '../workers/index';
 export {
@@ -186,7 +188,7 @@ export async function ingestApifyTwitter(
 export class EmptyApifyIngestError extends Error {
   override name = 'EmptyApifyIngestError';
   constructor() {
-    super('No Twitter, Instagram, or Reddit items found in the upload');
+    super('No Twitter, Instagram, Reddit, or Bluesky items found in the upload');
   }
 }
 
@@ -232,11 +234,23 @@ export async function ingestApifyReddit(
   return ingestApifyExport(env, investigationId, payload, 'reddit', options);
 }
 
+export async function ingestApifyBluesky(
+  env: Env,
+  investigationId: string,
+  payload: unknown,
+  options?: {
+    encKey?: CryptoKey | null;
+    accessToken?: string;
+  }
+): Promise<ApifyIngestResult> {
+  return ingestApifyExport(env, investigationId, payload, 'bluesky', options);
+}
+
 async function ingestApifyExport(
   env: Env,
   investigationId: string,
   payload: unknown,
-  provider: 'instagram' | 'reddit' | 'mixed',
+  provider: 'instagram' | 'reddit' | 'bluesky' | 'mixed',
   options?: {
     encKey?: CryptoKey | null;
     accessToken?: string;
@@ -249,8 +263,10 @@ async function ingestApifyExport(
     ...extractAllHandlesFromApifyTwitter(split.twitter),
     ...extractInstagramHandles(split.instagram),
     ...extractRedditHandles(split.reddit),
+    ...extractBlueskyHandles(split.bluesky),
   ];
-  const itemCount = split.twitter.length + split.instagram.length + split.reddit.length;
+  const itemCount =
+    split.twitter.length + split.instagram.length + split.reddit.length + split.bluesky.length;
   const now = new Date().toISOString();
   const jobId = `job_${crypto.randomUUID()}`;
 
@@ -377,6 +393,19 @@ async function ingestApifyExport(
       await runRedditIngestPipeline(pipelineEnv, {
         investigationId,
         payload: split.reddit,
+        rawHash,
+        jobId,
+        now,
+        encKey,
+        skipComplete,
+      })
+    );
+  }
+  if (split.bluesky.length > 0) {
+    results.push(
+      await runBlueskyIngestPipeline(pipelineEnv, {
+        investigationId,
+        payload: split.bluesky,
         rawHash,
         jobId,
         now,

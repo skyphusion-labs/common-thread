@@ -57,6 +57,7 @@ POST /investigations                         (save access_token from response)
   → POST /investigations/:id/ingest/apify-twitter
   → POST /investigations/:id/ingest/apify-instagram
   → POST /investigations/:id/ingest/apify-reddit
+  → POST /investigations/:id/ingest/apify-bluesky
   → GET  /investigations/:id/ingest-jobs/:job_id   (poll until completed)
   → GET  /investigations/:id/features        (verify extractors ran)
   → POST /investigations/:id/attribute       (requires AI credentials; see BYOK)
@@ -371,15 +372,16 @@ Supported actors (upload their dataset JSON):
 | Twitter / X | `apidojo/tweet-scraper`, profile/user scrapers | existing Twitter extractors |
 | Instagram | `apify/instagram-scraper`, `apify/instagram-post-scraper`, `apify/instagram-profile-scraper` | stylometric + temporal Instagram + shared pair extractors |
 | Reddit | `trudax/reddit-scraper-lite` (and native listings) | stylometric + temporal + Reddit account-metadata + shared pair extractors |
+| Bluesky | `fatihtahta/All-In-One-Bluesky-Scraper`, `cryptosignals/bluesky-scraper` (AT Proto `text` / `createdAt` / `authorHandle`) | stylometric + temporal Bluesky + shared pair extractors |
 
-TikTok, YouTube, Bluesky, Facebook, and Mastodon have Apify scrapers but no
-extractor set in this repo yet. Those uploads return `400 unsupported_export`.
+TikTok, YouTube, Facebook, and Mastodon have Apify scrapers but no extractor
+set in this repo yet. Those uploads return `400 unsupported_export`.
 
 ### `POST /investigations/:id/ingest/apify`
 
 Requires capability token. Requires `status: active`.
 
-Auto-detects Twitter, Instagram, and Reddit items (mixed uploads split).
+Auto-detects Twitter, Instagram, Reddit, and Bluesky items (mixed uploads split).
 Archives raw JSON and runs the matching extractor pipeline (container when
 `VPC_INGEST`, `INGEST_WORKER_URL`, and `INGEST_SECRET` are configured;
 inline otherwise).
@@ -401,6 +403,11 @@ scraper / post scraper / profile scraper JSON).
 
 Same contract as Twitter, forced Reddit parse (native listings or
 `trudax/reddit-scraper-lite` rows).
+
+### `POST /investigations/:id/ingest/apify-bluesky`
+
+Same contract as Twitter, forced Bluesky parse (`text` + `createdAt` +
+`authorHandle` / `author.handle`, `at://` uri, `bsky.app` url).
 
 **Content types**
 
