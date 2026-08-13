@@ -55,6 +55,11 @@ import {
   resolveResourceCaps,
   seedCapExceeded,
 } from './resource-caps';
+import {
+  DEFAULT_MAX_JSON_BODY_BYTES,
+  flattenIngestItems,
+  jsonBodyTooLarge,
+} from '../ingest/collect-limit';
 import { packTextCell, readTextCell } from '../crypto/feature-cells';
 import {
   mergeInvestigationMetadata,
@@ -1363,62 +1368,7 @@ async function handlePacket(ctx: RouteContext): Promise<Response> {
 }
 
 async function handleIngestApify(ctx: RouteContext): Promise<Response> {
-  const { env, request } = ctx;
-  const investigationId = ctx.investigationId;
-
-  // Ingest archives artifacts and appends to the manifest across several
-  // writes, so re-check status at write time against an uncached committed
-  // read before touching the archive. A stale-active cache read in the
-  // requireWrite guard must not admit new artifacts onto a sealed
-  // investigation (§3.1 immutable archival).
-  const guard = await guardWriteOrRespond(env, investigationId);
-  if (guard) return guard;
-
-  const contentType = request.headers.get('content-type') || '';
-  let allItems: any[] = [];
-
-  if (contentType.includes('multipart/form-data')) {
-    const formData = await request.formData();
-    const fileEntries = formData.getAll('file');
-
-    for (const entry of fileEntries) {
-      if (entry && typeof entry !== 'string' && 'text' in entry) {
-        try {
-          const text = await (entry as File).text();
-          const parsed = JSON.parse(text);
-          if (Array.isArray(parsed)) allItems.push(...parsed);
-          else if (Array.isArray(parsed?.items)) allItems.push(...parsed.items);
-          else if (Array.isArray(parsed?.data)) allItems.push(...parsed.data);
-          else allItems.push(parsed);
-        } catch {
-          return jsonResponse({ error: 'Invalid JSON in uploaded file' }, 400);
-        }
-      }
-    }
-
-    if (allItems.length === 0) return jsonResponse({ error: 'No valid files uploaded' }, 400);
-  } else {
-    const parsedBody = await parseJsonBody<unknown>(request);
-    if (parsedBody instanceof Response) return parsedBody;
-    const body = parsedBody as any;
-    allItems = Array.isArray(body) ? body : Array.isArray(body?.items) ? body.items : Array.isArray(body?.data) ? body.data : [body];
-  }
-
-  const caps = resolveResourceCaps(env);
-  if (allItems.length > caps.maxIngestItems) {
-    return jsonResponse(ingestCapExceeded(caps.maxIngestItems, allItems.length), 400);
-  }
-
-  try {
-    const result = await ingestApifyTwitter(env, investigationId, allItems, {
-      encKey: ctx.encKey ?? null,
-      accessToken: extractAccessToken(ctx.request, ctx.url) ?? undefined,
-    });
-    const status = result.delegatedToContainer ? 202 : 200;
-    return jsonResponse(result, status);
-  } catch (err) {
-    return mapIngestError(err);
-  }
+  return runIngestUpload(ctx, ingestApifyTwitter);
 }
 
 async function handleIngestApifyAuto(ctx: RouteContext): Promise<Response> {
@@ -1466,12 +1416,19 @@ async function runIngestUpload(
   if (parsed instanceof Response) return parsed;
 
   const caps = resolveResourceCaps(env);
-  if (parsed.length > caps.maxIngestItems) {
-    return jsonResponse(ingestCapExceeded(caps.maxIngestItems, parsed.length), 400);
+  const flattened = flattenIngestItems(parsed, caps.maxIngestItems);
+  if (flattened.truncated || flattened.items.length > caps.maxIngestItems) {
+    return jsonResponse(
+      ingestCapExceeded(
+        caps.maxIngestItems,
+        Math.max(flattened.items.length, caps.maxIngestItems + 1)
+      ),
+      400
+    );
   }
 
   try {
-    const result = await ingest(env, investigationId, parsed, {
+    const result = await ingest(env, investigationId, flattened.items, {
       encKey: ctx.encKey ?? null,
       accessToken: extractAccessToken(ctx.request, ctx.url) ?? undefined,
     });
@@ -1507,8 +1464,20 @@ async function parseIngestItems(request: Request): Promise<unknown[] | Response>
 
     for (const entry of fileEntries) {
       if (entry && typeof entry !== 'string' && 'text' in entry) {
+        const file = entry as File;
+        if (typeof file.size === 'number' && jsonBodyTooLarge(file.size)) {
+          return jsonResponse(
+            {
+              error: 'Request body exceeds the ingest size limit',
+              code: 'body_too_large',
+              limit: DEFAULT_MAX_JSON_BODY_BYTES,
+              attempted: file.size,
+            },
+            413
+          );
+        }
         try {
-          const text = await (entry as File).text();
+          const text = await file.text();
           const parsed = JSON.parse(text);
           if (Array.isArray(parsed)) allItems.push(...parsed);
           else if (Array.isArray(parsed?.items)) allItems.push(...parsed.items);
@@ -1640,8 +1609,20 @@ function readOnlyResponse(): Response {
  * than letting a malformed body bubble up as a generic 500 (#67).
  */
 async function parseJsonBody<T>(request: Request): Promise<T | Response> {
+  const buf = await request.arrayBuffer();
+  if (jsonBodyTooLarge(buf.byteLength)) {
+    return jsonResponse(
+      {
+        error: 'Request body exceeds the ingest size limit',
+        code: 'body_too_large',
+        limit: DEFAULT_MAX_JSON_BODY_BYTES,
+        attempted: buf.byteLength,
+      },
+      413
+    );
+  }
   try {
-    return (await request.json()) as T;
+    return JSON.parse(new TextDecoder().decode(buf)) as T;
   } catch {
     return jsonResponse(
       { error: 'Request body must be valid JSON', code: 'invalid_json_body' },

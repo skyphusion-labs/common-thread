@@ -11,6 +11,7 @@
 
 import { flattenPayloadItems, isRecord } from './platform-detect';
 import { parseTimestamp } from '../extractors/temporal/helpers';
+import { boundedCollect } from './collect-limit';
 
 export interface MastodonPost {
   text: string;
@@ -62,7 +63,9 @@ export function mastodonAcctOf(obj: Record<string, unknown>): string | null {
 
 export function extractMastodonPosts(payload: unknown): MastodonPost[] {
   const out: MastodonPost[] = [];
-  for (const item of flattenPayloadItems(payload)) collect(item, out);
+  for (const item of flattenPayloadItems(payload)) {
+    boundedCollect(item, out, normalize);
+  }
   return out;
 }
 
@@ -94,25 +97,6 @@ export function parseMastodonListingBytes(bytes: Uint8Array): MastodonPost[] | n
     return posts.length > 0 ? posts : null;
   } catch {
     return null;
-  }
-}
-
-function collect(value: unknown, out: MastodonPost[]): void {
-  if (!value) return;
-  if (Array.isArray(value)) {
-    for (const item of value) collect(item, out);
-    return;
-  }
-  if (!isRecord(value)) return;
-  const post = normalize(value);
-  if (post) {
-    out.push(post);
-    return;
-  }
-  for (const key of ['posts', 'items', 'data', 'results', 'statuses']) {
-    if (Array.isArray(value[key])) {
-      for (const child of value[key] as unknown[]) collect(child, out);
-    }
   }
 }
 

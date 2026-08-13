@@ -8,6 +8,7 @@ import {
   type InstagramPostLike,
 } from './instagram-post-fields';
 import { flattenPayloadItems, isRecord } from './platform-detect';
+import { boundedCollect } from './collect-limit';
 
 export interface InstagramAccountListing {
   account: string;
@@ -69,21 +70,13 @@ export function aggregateInstagramPostsByAccount(
 }
 
 function collectInstagramPosts(value: unknown, out: InstagramPostLike[]): void {
-  if (!value) return;
-  if (Array.isArray(value)) {
-    for (const item of value) collectInstagramPosts(item, out);
-    return;
-  }
-  if (!isRecord(value)) return;
-
-  if (Array.isArray(value.latestPosts)) {
-    for (const post of value.latestPosts) collectInstagramPosts(post, out);
-  }
-  if (Array.isArray(value.latestIgtvVideos)) {
-    for (const post of value.latestIgtvVideos) collectInstagramPosts(post, out);
-  }
-
-  if (isInstagramPostLike(value) && instagramAccountOf(value)) {
-    out.push(value);
-  }
+  boundedCollect(
+    value,
+    out,
+    (obj) => (isInstagramPostLike(obj) && instagramAccountOf(obj) ? obj : null),
+    {
+      extraKeys: ['latestPosts', 'latestIgtvVideos', 'posts', 'items', 'data', 'results'],
+      continueAfterMatch: true,
+    }
+  );
 }
