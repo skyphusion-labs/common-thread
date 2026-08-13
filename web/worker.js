@@ -296,7 +296,8 @@ function slugify(text) {
 }
 
 async function createInvestigation() {
-  var id = document.getElementById('inv-id').value.trim() || ('inv-' + Date.now());
+  var raw = document.getElementById('inv-id').value.trim() || ('inv-' + Date.now());
+  var id = slugify(raw) || ('inv-' + Date.now());
   var name = document.getElementById('inv-name').value.trim() || id;
   var description = document.getElementById('inv-description').value.trim() || undefined;
   try {

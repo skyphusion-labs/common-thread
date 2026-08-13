@@ -16,6 +16,7 @@
 import { execute } from '../db';
 import { dispatchAttributionJob, type AttributionDispatchEnv } from './dispatch';
 import type { AttributionJobOptions } from './handoff';
+import { sanitizeJobErrorMessage } from '../workers/job-error';
 
 export interface AttributionEnqueueEnv extends AttributionDispatchEnv {
   DB: Hyperdrive;
@@ -84,6 +85,6 @@ async function markFailed(
   await execute(
     env.DB,
     `UPDATE attribution_jobs SET status = 'failed', completed_at = ?, error_message = ? WHERE job_id = ?`,
-    [new Date().toISOString(), reason.slice(0, 4000), jobId]
+    [new Date().toISOString(), sanitizeJobErrorMessage(reason), jobId]
   );
 }

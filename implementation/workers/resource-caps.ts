@@ -22,10 +22,17 @@ export const DEFAULT_MAX_INGEST_ITEMS = 5000;
  */
 export const DEFAULT_MAX_ATTRIBUTION_PAIRS = 1225;
 
+/** Unauthenticated investigation creates per client IP per window (#282). */
+export const DEFAULT_MAX_INVESTIGATION_CREATES_PER_WINDOW = 20;
+
+/** Sliding window for the create cap, seconds. */
+export const DEFAULT_INVESTIGATION_CREATE_WINDOW_SECONDS = 600;
+
 export type ResourceCapName =
   | 'MAX_SEED_ACCOUNTS'
   | 'MAX_INGEST_ITEMS'
-  | 'MAX_ATTRIBUTION_PAIRS';
+  | 'MAX_ATTRIBUTION_PAIRS'
+  | 'MAX_INVESTIGATION_CREATES_PER_WINDOW';
 
 export interface ResourceCaps {
   maxSeedAccounts: number;
@@ -79,7 +86,8 @@ export function canonicalPairCount(accountCount: number): number {
 export type ResourceCapErrorCode =
   | 'seed_cap_exceeded'
   | 'ingest_cap_exceeded'
-  | 'pair_cap_exceeded';
+  | 'pair_cap_exceeded'
+  | 'create_cap_exceeded';
 
 export interface ResourceCapErrorBody {
   error: ResourceCapErrorCode;
@@ -110,6 +118,15 @@ export function pairCapExceeded(limit: number, attempted: number): ResourceCapEr
   return {
     error: 'pair_cap_exceeded',
     message: `Attribution pair limit is ${limit}; this run would process ${attempted} pairs. Narrow accountFilter, remove seeds, or raise MAX_ATTRIBUTION_PAIRS.`,
+    limit,
+    attempted,
+  };
+}
+
+export function createCapExceeded(limit: number, attempted: number): ResourceCapErrorBody {
+  return {
+    error: 'create_cap_exceeded',
+    message: `Investigation create limit is ${limit} per client in the current window. Wait and retry or raise MAX_INVESTIGATION_CREATES_PER_WINDOW.`,
     limit,
     attempted,
   };

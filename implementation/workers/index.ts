@@ -60,6 +60,9 @@ import {
   flattenIngestItems,
   jsonBodyTooLarge,
 } from '../ingest/collect-limit';
+import { isValidInvestigationId, packetPdfFilename } from '../archive/paths';
+import { checkInvestigationCreateCap } from './create-cap';
+import { publicJobErrorMessage } from './job-error';
 import { packTextCell, readTextCell } from '../crypto/feature-cells';
 import {
   mergeInvestigationMetadata,
@@ -185,6 +188,8 @@ export interface Env {
   MAX_SEED_ACCOUNTS?: string;
   MAX_INGEST_ITEMS?: string;
   MAX_ATTRIBUTION_PAIRS?: string;
+  MAX_INVESTIGATION_CREATES_PER_WINDOW?: string;
+  INVESTIGATION_CREATE_WINDOW_SECONDS?: string;
 }
 
 export default {
@@ -485,6 +490,21 @@ async function handleCreateInvestigation(ctx: RouteContext): Promise<Response> {
 
   if (!body.id || !body.name) {
     return jsonResponse({ error: 'id and name are required' }, 400);
+  }
+  if (!isValidInvestigationId(body.id)) {
+    return jsonResponse(
+      {
+        error:
+          'id must be 1-64 characters, start with a letter or digit, and contain only letters, digits, ".", "_" or "-"',
+        code: 'invalid_investigation_id',
+      },
+      400
+    );
+  }
+
+  const cap = await checkInvestigationCreateCap(request, env);
+  if (!cap.allowed) {
+    return jsonResponse(cap.body, 429);
   }
 
   const now = new Date().toISOString();
@@ -1353,7 +1373,7 @@ async function handlePacket(ctx: RouteContext): Promise<Response> {
     }
 
     const pdfBytes = await pdfResponse.arrayBuffer();
-    const filename = `common-thread-${investigationId}-run-${runId}.pdf`;
+    const filename = packetPdfFilename(investigationId, String(runId));
     return new Response(pdfBytes, {
       status: 200,
       headers: {
@@ -1524,7 +1544,9 @@ async function handleIngestJobStatus(ctx: RouteContext): Promise<Response> {
     return jsonResponse({ error: `Ingest job not found: ${jobId}` }, 404);
   }
 
-  return jsonResponse({ job: row });
+  return jsonResponse({
+    job: { ...row, error_message: publicJobErrorMessage(row.error_message) },
+  });
 }
 
 async function handleAttributionJobStatus(ctx: RouteContext): Promise<Response> {
@@ -1545,7 +1567,9 @@ async function handleAttributionJobStatus(ctx: RouteContext): Promise<Response> 
     return jsonResponse({ error: `Attribution job not found: ${jobId}` }, 404);
   }
 
-  return jsonResponse({ job: row });
+  return jsonResponse({
+    job: { ...row, error_message: publicJobErrorMessage(row.error_message) },
+  });
 }
 
 // ---------------------------------------------------------------------------

@@ -16,7 +16,7 @@ import { runMastodonIngestPipeline } from './mastodon-pipeline';
 import { runTikTokIngestPipeline } from './tiktok-pipeline';
 import { runYouTubeIngestPipeline } from './youtube-pipeline';
 import { runFacebookIngestPipeline } from './facebook-pipeline';
-import { completeIngestJob } from './jobs';
+import { completeIngestJob, failIngestJob } from './jobs';
 import { extractInstagramHandles } from './instagram-parser';
 import { extractRedditHandles } from './reddit-parser';
 import { extractBlueskyHandles } from './bluesky-parser';
@@ -154,10 +154,10 @@ export async function ingestApifyTwitter(
 
     if (!dispatchResponse.ok) {
       const detail = await dispatchResponse.text();
-      await execute(
-        env.DB,
-        `UPDATE ingest_jobs SET status = 'failed', error_message = ? WHERE job_id = ?`,
-        [`Ingest worker dispatch failed: ${dispatchResponse.status} ${detail}`, jobId]
+      await failIngestJob(
+        resolveDatabase(env.DB),
+        jobId,
+        `Ingest worker dispatch failed: ${dispatchResponse.status} ${detail}`
       );
       throw new Error(`Ingest worker dispatch failed: ${dispatchResponse.status}`);
     }
@@ -399,10 +399,10 @@ async function ingestApifyExport(
 
     if (!dispatchResponse.ok) {
       const detail = await dispatchResponse.text();
-      await execute(
-        env.DB,
-        `UPDATE ingest_jobs SET status = 'failed', error_message = ? WHERE job_id = ?`,
-        [`Ingest worker dispatch failed: ${dispatchResponse.status} ${detail}`, jobId]
+      await failIngestJob(
+        resolveDatabase(env.DB),
+        jobId,
+        `Ingest worker dispatch failed: ${dispatchResponse.status} ${detail}`
       );
       throw new Error(`Ingest worker dispatch failed: ${dispatchResponse.status}`);
     }

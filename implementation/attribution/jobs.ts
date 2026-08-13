@@ -9,8 +9,7 @@
  */
 
 import type { DatabaseClient } from '../db';
-
-const MAX_ERROR_LEN = 4000;
+import { sanitizeJobErrorMessage } from '../workers/job-error';
 
 /**
  * Claim a job for execution: queued|running -> running, recording the start
@@ -66,6 +65,6 @@ export async function failAttributionJob(
        SET status = 'failed', completed_at = ?, error_message = ?
        WHERE job_id = ?`
     )
-    .bind(now, errorMessage.slice(0, MAX_ERROR_LEN), jobId)
+    .bind(now, sanitizeJobErrorMessage(errorMessage), jobId)
     .run();
 }

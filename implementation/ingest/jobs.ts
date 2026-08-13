@@ -1,4 +1,5 @@
 import type { DatabaseClient } from '../db';
+import { sanitizeJobErrorMessage } from '../workers/job-error';
 
 export async function claimIngestJob(
   db: DatabaseClient,
@@ -60,6 +61,6 @@ export async function failIngestJob(
        SET status = 'failed', completed_at = ?, error_message = ?
        WHERE job_id = ?`
     )
-    .bind(now, errorMessage.slice(0, 4000), jobId)
+    .bind(now, sanitizeJobErrorMessage(errorMessage), jobId)
     .run();
 }

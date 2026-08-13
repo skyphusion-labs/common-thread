@@ -36,6 +36,7 @@ describe('CORS allowlist', () => {
     expect(res?.status).toBe(204);
     expect(res?.headers.get('Access-Control-Allow-Origin')).toBe('https://app.example.com');
     expect(res?.headers.get('Access-Control-Allow-Headers')).toContain('Authorization');
+    expect(res?.headers.get('Access-Control-Allow-Headers')).toContain('X-CF-AIG-Token');
   });
 
   it('blocks preflight from unknown origins', () => {

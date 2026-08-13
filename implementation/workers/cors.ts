@@ -17,7 +17,7 @@ export interface CorsEnv {
 
 const ALLOWED_METHODS = 'GET, HEAD, POST, DELETE, OPTIONS';
 const ALLOWED_HEADERS =
-  'Authorization, Content-Type, X-Investigation-Token, X-AI-Gateway-Url, X-Anthropic-Api-Key';
+  'Authorization, Content-Type, X-Investigation-Token, X-AI-Gateway-Url, X-Anthropic-Api-Key, X-CF-AIG-Token';
 const MAX_AGE = '86400';
 
 export function parseAllowedOrigins(raw: string | undefined): Set<string> {

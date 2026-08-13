@@ -78,6 +78,7 @@ const nodeSuites = [
   // §5.5 re-collection tombstones (#151)
   'tests/ingest/recollection.test.ts',
   'tests/investigation/access.test.ts',
+  'tests/investigation/create-hygiene.test.ts',
   // Seal enforced at write time against a stale-active cache read (§3.1).
   'tests/investigation/seal-enforcement.test.ts',
   'tests/investigation/delete-investigation.test.ts',

@@ -14,6 +14,7 @@ import {
   completeAttributionJob,
   failAttributionJob,
 } from '../../implementation/attribution/jobs';
+import { GENERIC_JOB_ERROR } from '../../implementation/workers/job-error';
 
 interface JobRow {
   job_id: string;
@@ -104,6 +105,23 @@ describe('attribution_jobs transitions', () => {
     const row = await readJob(jobId);
     expect(row?.status).toBe('failed');
     expect(row?.error_message?.length).toBe(4000);
+  });
+
+  it('fail genericizes SQL / driver strings', async () => {
+    const investigationId = `inv_attrjob_sql-${Date.now()}`;
+    const jobId = `attrjob_sql-${Date.now()}`;
+    await createInvestigation(testDb(), { id: investigationId });
+    await insertQueuedJob(investigationId, jobId);
+
+    await failAttributionJob(
+      testDb(),
+      jobId,
+      'driver failure: host=192.0.2.9 user=root password=hunter2'
+    );
+
+    const row = await readJob(jobId);
+    expect(row?.error_message).toBe(GENERIC_JOB_ERROR);
+    expect(row?.error_message).not.toContain('hunter2');
   });
 
   it('claim does not resurrect a job already in a terminal state', async () => {

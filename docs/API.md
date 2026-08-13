@@ -129,7 +129,8 @@ Do not put the token in the query string. Query tokens leak via logs, Referer, a
 | `401` | `missing_token` | No token provided |
 | `401` | `invalid_token` | Wrong token or unknown investigation |
 | `403` | `read_only` | Investigation is `sealed` (or `archived`); mutating routes rejected |
-| `404` | `not_found` | Investigation ID does not exist |
+| `404` | `not_found` | A job or run id does not exist (investigation misses are `invalid_token`) |
+| `429` | `create_cap_exceeded` | Too many `POST /investigations` from this client |
 
 **Status and writes**
 
@@ -159,6 +160,11 @@ not enumerable.
 ### `POST /investigations`
 
 Create an investigation. Does not require a token.
+
+`id` must match `^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$` (1-64 chars). Quote, slash,
+and control characters are rejected (`400 invalid_investigation_id`). Creates
+are capped per client IP (`429 create_cap_exceeded`; default 20 per 10 minutes,
+`MAX_INVESTIGATION_CREATES_PER_WINDOW`).
 
 **Body**
 
@@ -459,6 +465,7 @@ Poll ingest job status. Status reads bypass Hyperdrive query cache (fresh
 transaction) so `completed` is visible as soon as the job finishes.
 
 **Response `200`**:  `{ job: { status, item_count, manifest_hashes, error_message, ... } }`
+(`error_message` is sanitized; SQL/driver strings are replaced with a generic line.)
 
 ---
 
@@ -518,6 +525,7 @@ Requires capability token.
 Poll async attribution job status.
 
 **Response `200`**: `{ job: { status, pair_count, error_message, … } }`
+(`error_message` is sanitized; SQL/driver strings are replaced with a generic line.)
 
 ### `GET /investigations/:id/runs`
 

@@ -51,21 +51,39 @@ export function hashFromPath(path: string): string | null {
 }
 
 /**
- * Validate an investigation id for use in R2 object keys.
+ * Caller-chosen investigation ids (#282). Letters, digits, `.` `_` `-`,
+ * 1-64 chars, must start alphanumeric. Quote / CR/LF / `/` cannot appear,
+ * so the id is safe in R2 keys and Content-Disposition filenames.
+ */
+export const INVESTIGATION_ID_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/;
+
+export function isValidInvestigationId(investigationId: string): boolean {
+  return INVESTIGATION_ID_PATTERN.test(investigationId);
+}
+
+/**
+ * Validate an investigation id for use in R2 object keys and create.
  *
- * @throws Error when the id is empty or would escape its prefix directory
+ * @throws Error when the id is empty or outside the allowlist
  */
 export function assertSafeInvestigationId(investigationId: string): void {
-  if (!investigationId || investigationId.trim().length === 0) {
-    throw new Error('investigationId is required');
+  if (!isValidInvestigationId(investigationId)) {
+    throw new Error(
+      investigationId && investigationId.trim().length > 0
+        ? `Invalid investigationId for archive path: ${investigationId}`
+        : 'investigationId is required'
+    );
   }
-  if (
-    investigationId.includes('/') ||
-    investigationId.includes('\\') ||
-    investigationId.includes('..')
-  ) {
-    throw new Error(`Invalid investigationId for archive path: ${investigationId}`);
-  }
+}
+
+/** Filename token: strip anything that can break Content-Disposition. */
+export function safeFilenameToken(raw: string, fallback = 'x'): string {
+  const cleaned = raw.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 64);
+  return cleaned.length > 0 ? cleaned : fallback;
+}
+
+export function packetPdfFilename(investigationId: string, runId: string): string {
+  return `common-thread-${safeFilenameToken(investigationId)}-run-${safeFilenameToken(runId)}.pdf`;
 }
 
 /**
