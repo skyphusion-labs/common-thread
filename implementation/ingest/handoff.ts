@@ -2,7 +2,7 @@
 export interface IngestJobHandoff {
   jobId: string;
   investigationId: string;
-  provider: 'twitter' | 'instagram' | 'reddit' | 'bluesky' | 'mastodon' | 'tiktok' | 'mixed';
+  provider: 'twitter' | 'instagram' | 'reddit' | 'bluesky' | 'mastodon' | 'tiktok' | 'youtube' | 'mixed';
   rawFileHash: string;
   itemCount: number;
   accounts: string[];

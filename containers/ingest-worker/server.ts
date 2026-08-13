@@ -35,6 +35,7 @@ import { runRedditIngestPipeline } from '../../implementation/ingest/reddit-pipe
 import { runBlueskyIngestPipeline } from '../../implementation/ingest/bluesky-pipeline';
 import { runMastodonIngestPipeline } from '../../implementation/ingest/mastodon-pipeline';
 import { runTikTokIngestPipeline } from '../../implementation/ingest/tiktok-pipeline';
+import { runYouTubeIngestPipeline } from '../../implementation/ingest/youtube-pipeline';
 import { splitApifyPayload } from '../../implementation/ingest/platform-detect';
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -177,6 +178,8 @@ async function processJob(handoff: IngestJobHandoff): Promise<void> {
       await runMastodonIngestPipeline(pipelineEnv, ctx);
     } else if (provider === 'tiktok') {
       await runTikTokIngestPipeline(pipelineEnv, ctx);
+    } else if (provider === 'youtube') {
+      await runYouTubeIngestPipeline(pipelineEnv, ctx);
     } else if (provider === 'mixed') {
       const split = splitApifyPayload(payload);
       if (split.twitter.length > 0) {
@@ -218,6 +221,13 @@ async function processJob(handoff: IngestJobHandoff): Promise<void> {
         await runTikTokIngestPipeline(pipelineEnv, {
           ...ctx,
           payload: split.tiktok,
+          skipComplete: true,
+        });
+      }
+      if (split.youtube.length > 0) {
+        await runYouTubeIngestPipeline(pipelineEnv, {
+          ...ctx,
+          payload: split.youtube,
           skipComplete: true,
         });
       }

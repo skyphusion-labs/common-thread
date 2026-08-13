@@ -73,6 +73,7 @@ const nodeSuites = [
   'tests/ingest/bluesky-ingest.test.ts',
   'tests/ingest/mastodon-ingest.test.ts',
   'tests/ingest/tiktok-ingest.test.ts',
+  'tests/ingest/youtube-ingest.test.ts',
   // §5.5 re-collection tombstones (#151)
   'tests/ingest/recollection.test.ts',
   'tests/investigation/access.test.ts',

@@ -55,3 +55,11 @@ export const TIKTOK_ACCOUNT_EXTRACTORS: AccountFeatureExtractor[] =
 
 export const TIKTOK_PAIR_EXTRACTORS: PairFeatureExtractor[] =
   ALL_PAIR_EXTRACTORS.filter((e) => SHARED_PAIR_NAME.test(e.name));
+
+export const YOUTUBE_ACCOUNT_EXTRACTORS: AccountFeatureExtractor[] =
+  ALL_ACCOUNT_EXTRACTORS.filter(
+    (e) => /youtube/i.test(e.name) || e.name === 'background_corpus_stylometric'
+  );
+
+export const YOUTUBE_PAIR_EXTRACTORS: PairFeatureExtractor[] =
+  ALL_PAIR_EXTRACTORS.filter((e) => SHARED_PAIR_NAME.test(e.name));

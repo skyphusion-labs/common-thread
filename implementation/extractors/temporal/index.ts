@@ -23,6 +23,7 @@ import { InstagramTemporalExtractor } from './instagram';
 import { BlueskyTemporalExtractor } from './bluesky';
 import { MastodonTemporalExtractor } from './mastodon';
 import { TikTokTemporalExtractor } from './tiktok';
+import { YouTubeTemporalExtractor } from './youtube';
 import { BurstOverlapExtractor } from './burst-correlation';
 import { CadenceJsdExtractor } from './cadence-jsd';
 import { ActiveHourJsdExtractor } from './active-hour-jsd';
@@ -38,6 +39,7 @@ export const TEMPORAL_EXTRACTORS: AccountFeatureExtractor[] = [
   new BlueskyTemporalExtractor(),
   new MastodonTemporalExtractor(),
   new TikTokTemporalExtractor(),
+  new YouTubeTemporalExtractor(),
 ];
 
 export const TEMPORAL_PAIR_EXTRACTORS: PairFeatureExtractor[] = [
@@ -54,6 +56,7 @@ export { InstagramTemporalExtractor } from './instagram';
 export { BlueskyTemporalExtractor } from './bluesky';
 export { MastodonTemporalExtractor } from './mastodon';
 export { TikTokTemporalExtractor } from './tiktok';
+export { YouTubeTemporalExtractor } from './youtube';
 export { BurstOverlapExtractor } from './burst-correlation';
 export { CadenceJsdExtractor } from './cadence-jsd';
 export { ActiveHourJsdExtractor } from './active-hour-jsd';

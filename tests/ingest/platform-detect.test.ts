@@ -175,6 +175,26 @@ describe('splitApifyPayload', () => {
     expect(split.tiktok).toHaveLength(1);
     expect(dominantProvider(split)).toBe('mixed');
   });
+
+  it('splits a mixed Twitter + YouTube upload', () => {
+    const split = splitApifyPayload([
+      {
+        text: 'a tweet',
+        userName: 'ava_loomis',
+        twitterUrl: 'https://x.com/ava_loomis/status/1',
+      },
+      {
+        title: 'a video',
+        text: 'a description',
+        channelUsername: 'ava',
+        url: 'https://www.youtube.com/watch?v=1',
+        date: '2026-01-01T12:00:00.000Z',
+      },
+    ]);
+    expect(split.twitter).toHaveLength(1);
+    expect(split.youtube).toHaveLength(1);
+    expect(dominantProvider(split)).toBe('mixed');
+  });
 });
 
 describe('instagram parser', () => {

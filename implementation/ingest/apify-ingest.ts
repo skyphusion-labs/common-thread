@@ -14,12 +14,14 @@ import { runRedditIngestPipeline } from './reddit-pipeline';
 import { runBlueskyIngestPipeline } from './bluesky-pipeline';
 import { runMastodonIngestPipeline } from './mastodon-pipeline';
 import { runTikTokIngestPipeline } from './tiktok-pipeline';
+import { runYouTubeIngestPipeline } from './youtube-pipeline';
 import { completeIngestJob } from './jobs';
 import { extractInstagramHandles } from './instagram-parser';
 import { extractRedditHandles } from './reddit-parser';
 import { extractBlueskyHandles } from './bluesky-parser';
 import { extractMastodonHandles } from './mastodon-parser';
 import { extractTikTokHandles } from './tiktok-parser';
+import { extractYouTubeHandles } from './youtube-parser';
 import { dominantProvider as detectDominant, splitApifyPayload } from './platform-detect';
 import type { Env } from '../workers/index';
 export {
@@ -192,7 +194,7 @@ export async function ingestApifyTwitter(
 export class EmptyApifyIngestError extends Error {
   override name = 'EmptyApifyIngestError';
   constructor() {
-    super('No Twitter, Instagram, Reddit, Bluesky, Mastodon, or TikTok items found in the upload');
+    super('No Twitter, Instagram, Reddit, Bluesky, Mastodon, TikTok, or YouTube items found in the upload');
   }
 }
 
@@ -274,11 +276,23 @@ export async function ingestApifyTikTok(
   return ingestApifyExport(env, investigationId, payload, 'tiktok', options);
 }
 
+export async function ingestApifyYouTube(
+  env: Env,
+  investigationId: string,
+  payload: unknown,
+  options?: {
+    encKey?: CryptoKey | null;
+    accessToken?: string;
+  }
+): Promise<ApifyIngestResult> {
+  return ingestApifyExport(env, investigationId, payload, 'youtube', options);
+}
+
 async function ingestApifyExport(
   env: Env,
   investigationId: string,
   payload: unknown,
-  provider: 'instagram' | 'reddit' | 'bluesky' | 'mastodon' | 'tiktok' | 'mixed',
+  provider: 'instagram' | 'reddit' | 'bluesky' | 'mastodon' | 'tiktok' | 'youtube' | 'mixed',
   options?: {
     encKey?: CryptoKey | null;
     accessToken?: string;
@@ -294,6 +308,7 @@ async function ingestApifyExport(
     ...extractBlueskyHandles(split.bluesky),
     ...extractMastodonHandles(split.mastodon),
     ...extractTikTokHandles(split.tiktok),
+    ...extractYouTubeHandles(split.youtube),
   ];
   const itemCount =
     split.twitter.length +
@@ -301,7 +316,8 @@ async function ingestApifyExport(
     split.reddit.length +
     split.bluesky.length +
     split.mastodon.length +
-    split.tiktok.length;
+    split.tiktok.length +
+    split.youtube.length;
   const now = new Date().toISOString();
   const jobId = `job_${crypto.randomUUID()}`;
 
@@ -467,6 +483,19 @@ async function ingestApifyExport(
       await runTikTokIngestPipeline(pipelineEnv, {
         investigationId,
         payload: split.tiktok,
+        rawHash,
+        jobId,
+        now,
+        encKey,
+        skipComplete,
+      })
+    );
+  }
+  if (split.youtube.length > 0) {
+    results.push(
+      await runYouTubeIngestPipeline(pipelineEnv, {
+        investigationId,
+        payload: split.youtube,
         rawHash,
         jobId,
         now,
