@@ -22,10 +22,42 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
+/** Hosts we recognize but do not ingest. Must not fall through to Twitter. */
+const UNSUPPORTED_DOMAINS = [
+  'facebook.com',
+  'fb.com',
+  'fb.watch',
+  'tiktok.com',
+  'youtube.com',
+  'youtu.be',
+  'bsky.app',
+  'bsky.social',
+  'mastodon.social',
+] as const;
+
+const URL_KEYS = [
+  'url',
+  'link',
+  'inputUrl',
+  'source',
+  'twitterUrl',
+  'twitter_url',
+  'webVideoUrl',
+  'postUrl',
+  'permalink',
+  'facebookUrl',
+  'videoUrl',
+  'channelUrl',
+  'profileUrl',
+] as const;
+
 export function detectItemPlatform(item: unknown): DetectedPlatform | 'unknown' {
   if (!item || typeof item !== 'object') return 'unknown';
   const obj = item as Record<string, unknown>;
 
+  // Foreign hosts first: text+author Facebook/Bluesky/TikTok rows must not
+  // become twitter ingest.
+  if (isUnsupportedPlatformItem(obj)) return 'unknown';
   if (isRedditItem(obj)) return 'reddit';
   if (isInstagramItem(obj)) return 'instagram';
   if (isTwitterItem(obj)) return 'twitter';
@@ -112,13 +144,23 @@ function isInstagramItem(obj: Record<string, unknown>): boolean {
   );
 }
 
+function isUnsupportedPlatformItem(obj: Record<string, unknown>): boolean {
+  if (urlMatchesHost(obj, ...UNSUPPORTED_DOMAINS)) return true;
+  if (typeof obj.uri === 'string' && obj.uri.startsWith('at://')) return true;
+  if (typeof obj.facebookUrl === 'string' || typeof obj.facebookId === 'string') return true;
+  return false;
+}
+
 function isTwitterItem(obj: Record<string, unknown>): boolean {
+  if (isUnsupportedPlatformItem(obj)) return false;
   if (typeof obj.twitterUrl === 'string' || typeof obj.twitter_url === 'string') return true;
   if (urlMatchesHost(obj, 'twitter.com', 'x.com')) return true;
   if (obj.tweet && typeof obj.tweet === 'object') return true;
   if (typeof obj.full_text === 'string' && (typeof obj.id_str === 'string' || typeof obj.created_at === 'string')) {
     return true;
   }
+  // text + author/user is shared by Facebook, Bluesky, TikTok, YouTube.
+  // Only accept it when a Twitter/X URL is also present.
   if (
     typeof obj.text === 'string' &&
     (typeof obj.userName === 'string' ||
@@ -126,7 +168,7 @@ function isTwitterItem(obj: Record<string, unknown>): boolean {
       isRecord(obj.author) ||
       isRecord(obj.user))
   ) {
-    return !urlMatchesHost(obj, 'instagram.com') && !urlMatchesHost(obj, 'reddit.com', 'redd.it');
+    return urlMatchesHost(obj, 'twitter.com', 'x.com');
   }
   return false;
 }
@@ -136,7 +178,7 @@ function hasText(obj: Record<string, unknown>, key: string): boolean {
 }
 
 function urlMatchesHost(obj: Record<string, unknown>, ...domains: string[]): boolean {
-  for (const key of ['url', 'link', 'inputUrl', 'source', 'twitterUrl', 'twitter_url']) {
+  for (const key of URL_KEYS) {
     const raw = obj[key];
     if (typeof raw !== 'string') continue;
     const host = hostOf(raw);
