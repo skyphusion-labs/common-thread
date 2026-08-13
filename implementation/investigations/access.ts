@@ -56,8 +56,8 @@ export async function hashAccessToken(token: string): Promise<string> {
 
 export { timingSafeEqual } from '../crypto/timing-safe';
 
-/** Extract bearer token from Authorization, X-Investigation-Token, or ?access_token= */
-export function extractAccessToken(request: Request, url: URL): string | null {
+/** Extract bearer token from Authorization or X-Investigation-Token (#278). */
+export function extractAccessToken(request: Request, _url?: URL): string | null {
   const auth = request.headers.get('Authorization');
   if (auth?.startsWith('Bearer ')) {
     const token = auth.slice('Bearer '.length).trim();
@@ -66,9 +66,6 @@ export function extractAccessToken(request: Request, url: URL): string | null {
 
   const headerToken = request.headers.get('X-Investigation-Token')?.trim();
   if (headerToken) return headerToken;
-
-  const queryToken = url.searchParams.get('access_token')?.trim();
-  if (queryToken) return queryToken;
 
   return null;
 }
@@ -123,7 +120,7 @@ export async function authorizeInvestigation(
   if (!token) {
     throw new InvestigationAccessError(
       'missing_token',
-      'Investigation access token required. Pass Authorization: Bearer <token>, X-Investigation-Token, or ?access_token=.'
+      'Investigation access token required. Pass Authorization: Bearer <token> or X-Investigation-Token.'
     );
   }
 

@@ -381,10 +381,10 @@ function copyRevealedToken() {
 function copyShareLink() {
   if (!state.investigationId || !state.accessToken) return;
   var link = window.location.origin + window.location.pathname +
-    '?investigation=' + encodeURIComponent(state.investigationId) +
+    '#investigation=' + encodeURIComponent(state.investigationId) +
     '&token=' + encodeURIComponent(state.accessToken);
   navigator.clipboard.writeText(link).then(function() {
-    showAlert('Share link copied. Anyone with this link can access the investigation.', 'success');
+    showAlert('Share link copied. Anyone with this link can access the investigation. The token stays in the fragment and is not sent to the server.', 'success');
   });
 }
 
@@ -833,7 +833,8 @@ function init() {
   renderSavedInvestigations();
   updateWritableUi();
 
-  var params = new URLSearchParams(window.location.search);
+  var hash = window.location.hash.charAt(0) === '#' ? window.location.hash.slice(1) : '';
+  var params = new URLSearchParams(hash);
   var linkId = params.get('investigation');
   var linkToken = params.get('token');
   if (linkId && linkToken) {
