@@ -158,11 +158,6 @@ function isInstagramItem(obj: Record<string, unknown>): boolean {
 function isBlueskyItem(obj: Record<string, unknown>): boolean {
   if (typeof obj.uri === 'string' && obj.uri.startsWith('at://')) return true;
   if (urlMatchesHost(obj, 'bsky.app', 'bsky.social')) return true;
-  if (typeof obj.authorHandle === 'string' && typeof obj.text === 'string') return true;
-  const author = isRecord(obj.author) ? obj.author : null;
-  if (author && typeof author.handle === 'string' && typeof obj.text === 'string') {
-    return typeof obj.createdAt === 'string' || typeof obj.indexedAt === 'string';
-  }
   return false;
 }
 
@@ -214,9 +209,6 @@ function isTikTokItem(obj: Record<string, unknown>): boolean {
 
 function isYouTubeItem(obj: Record<string, unknown>): boolean {
   if (urlMatchesHost(obj, 'youtube.com', 'youtu.be')) return true;
-  if (typeof obj.comment === 'string' && (typeof obj.author === 'string' || typeof obj.videoId === 'string')) {
-    return true;
-  }
   if (
     typeof obj.channelUsername === 'string' &&
     (typeof obj.title === 'string' || typeof obj.text === 'string' || typeof obj.description === 'string')
@@ -228,14 +220,7 @@ function isYouTubeItem(obj: Record<string, unknown>): boolean {
 
 function isFacebookItem(obj: Record<string, unknown>): boolean {
   if (urlMatchesHost(obj, 'facebook.com', 'fb.com', 'fb.watch')) return true;
-  if (typeof obj.facebookUrl === 'string' || typeof obj.facebookId === 'string') return true;
-  if (
-    typeof obj.text === 'string' &&
-    isRecord(obj.user) &&
-    (typeof obj.time === 'string' || typeof obj.timestamp === 'number')
-  ) {
-    return true;
-  }
+  if (typeof obj.facebookUrl === 'string') return true;
   return false;
 }
 

@@ -213,7 +213,7 @@ export async function ingestApify(
   const provider = detectDominant(split);
   if (!provider) throw new EmptyApifyIngestError();
   if (provider === 'twitter') {
-    return ingestApifyTwitter(env, investigationId, payload, options);
+    return ingestApifyTwitter(env, investigationId, split.twitter, options);
   }
   return ingestApifyExport(env, investigationId, payload, provider, options);
 }

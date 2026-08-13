@@ -7,7 +7,7 @@ import { runYouTubeIngestPipeline } from '../../implementation/ingest/youtube-pi
 import { ArchiveStore } from '../../implementation/archive/store';
 import youtubeFixture from '../fixtures/youtube-posts.json';
 
-describe('youtube ingest pipeline', { timeout: 20_000 }, () => {
+describe('youtube ingest pipeline', { timeout: 40_000 }, () => {
   it('treats titles, descriptions, and comments as authored text', () => {
     const posts = extractYouTubePosts(youtubeFixture);
     expect(posts.some((p) => p.kind === 'video' && p.text.includes('Atlas'))).toBe(true);

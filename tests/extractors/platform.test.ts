@@ -261,6 +261,17 @@ describe('inferPlatform', () => {
     ).toBe('youtube');
   });
 
+  it('prefers collectionMethod.platform over a conflicting source host', () => {
+    expect(
+      inferPlatform(
+        entry({
+          source: 'https://x.com/@ava',
+          collectionMethod: { tool: 'apify-mastodon-timeline', version: '1', platform: 'mastodon' },
+        })
+      )
+    ).toBe('mastodon');
+  });
+
   it('resolves facebook from facebook.com or the facebook tool hint', () => {
     expect(
       inferPlatform(

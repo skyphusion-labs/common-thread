@@ -27,6 +27,8 @@ export interface ManifestEntry {
   collectionMethod: {
     tool: string;
     version: string;
+    /** Set by ingest pipelines so inferPlatform does not trust attacker hosts. */
+    platform?: string;
     config?: Record<string, unknown>;
   };
 
