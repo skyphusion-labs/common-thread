@@ -95,10 +95,15 @@ export interface AuthorizeOptions {
   requireWrite?: boolean;
 }
 
+/** Dummy hash so a missing row still runs timingSafeEqual (#282 existence oracle). */
+const MISSING_INVESTIGATION_HASH = '0'.repeat(64);
+
 /**
  * Verify the request carries the investigation capability token.
- * Returns the investigation row on success.
+ * Missing investigations and bad tokens both return invalid_token so
+ * callers cannot enumerate ids (#282).
  */
+
 export async function authorizeInvestigation(
   db: Hyperdrive,
   request: Request,
@@ -106,16 +111,6 @@ export async function authorizeInvestigation(
   investigationId: string,
   options: AuthorizeOptions = {}
 ): Promise<InvestigationRow> {
-  const row = await queryOne<InvestigationRow>(
-    db,
-    'SELECT * FROM investigations WHERE id = ?',
-    [investigationId]
-  );
-
-  if (!row) {
-    throw new InvestigationAccessError('not_found', `Investigation not found: ${investigationId}`);
-  }
-
   const token = extractAccessToken(request, url);
   if (!token) {
     throw new InvestigationAccessError(
@@ -124,8 +119,15 @@ export async function authorizeInvestigation(
     );
   }
 
+  const row = await queryOne<InvestigationRow>(
+    db,
+    'SELECT * FROM investigations WHERE id = ?',
+    [investigationId]
+  );
+
   const presentedHash = await hashAccessToken(token);
-  if (!row.access_token_hash || !timingSafeEqual(presentedHash, row.access_token_hash)) {
+  const expectedHash = row?.access_token_hash ?? MISSING_INVESTIGATION_HASH;
+  if (!row || !row.access_token_hash || !timingSafeEqual(presentedHash, expectedHash)) {
     throw new InvestigationAccessError('invalid_token', 'Invalid investigation access token.');
   }
 

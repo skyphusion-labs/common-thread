@@ -9,6 +9,7 @@ import {
   canonicalPairCount,
   ingestCapExceeded,
   pairCapExceeded,
+  createCapExceeded,
   parsePositiveIntCap,
   resolveResourceCaps,
   seedCapExceeded,
@@ -77,6 +78,7 @@ describe('error bodies', () => {
     expect(seedCapExceeded(50, 50).error).toBe('seed_cap_exceeded');
     expect(ingestCapExceeded(5000, 5001).error).toBe('ingest_cap_exceeded');
     expect(pairCapExceeded(1225, 2000).error).toBe('pair_cap_exceeded');
+    expect(createCapExceeded(20, 21).error).toBe('create_cap_exceeded');
     expect(seedCapExceeded(50, 50).limit).toBe(50);
     expect(ingestCapExceeded(5000, 5001).attempted).toBe(5001);
   });

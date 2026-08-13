@@ -11,6 +11,7 @@ import http from 'node:http';
 import { hostname } from 'node:os';
 import { timingSafeEqual } from 'node:crypto';
 import type { PdfRenderHandoff } from '../../implementation/reporting/pdf-handoff';
+import { packetPdfFilename } from '../../implementation/archive/paths';
 import { renderHtmlToPdfA } from './render-pdfa';
 
 const PORT = Number(process.env.PORT ?? 8081);
@@ -111,7 +112,7 @@ const server = http.createServer(async (req, res) => {
 
   try {
     const pdf = await renderHtmlToPdfA(handoff.html);
-    const filename = `common-thread-${handoff.investigationId}-run-${handoff.attributionRunId}.pdf`;
+    const filename = packetPdfFilename(handoff.investigationId, handoff.attributionRunId);
     res.writeHead(200, {
       'Content-Type': 'application/pdf',
       'Content-Disposition': `inline; filename="${filename}"`,
