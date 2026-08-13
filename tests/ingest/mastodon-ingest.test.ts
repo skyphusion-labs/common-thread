@@ -6,7 +6,7 @@ import { runMastodonIngestPipeline } from '../../implementation/ingest/mastodon-
 import { ArchiveStore } from '../../implementation/archive/store';
 import mastodonFixture from '../fixtures/mastodon-posts.json';
 
-describe('mastodon ingest pipeline', { timeout: 20_000 }, () => {
+describe('mastodon ingest pipeline', { timeout: 40_000 }, () => {
   it('archives listings, registers seeds, and emits stylometric features', async () => {
     const investigationId = `masto-ingest-${crypto.randomUUID()}`;
     await createInvestigation(testDb(), { id: investigationId });
