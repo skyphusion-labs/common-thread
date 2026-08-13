@@ -53,7 +53,7 @@ describe('detectItemPlatform', () => {
         user: { name: 'Someone' },
         url: 'https://www.facebook.com/someone/posts/123',
       })
-    ).toBe('unknown');
+    ).toBe('facebook');
     expect(
       detectItemPlatform({
         text: 'a bluesky post',
@@ -193,6 +193,25 @@ describe('splitApifyPayload', () => {
     ]);
     expect(split.twitter).toHaveLength(1);
     expect(split.youtube).toHaveLength(1);
+    expect(dominantProvider(split)).toBe('mixed');
+  });
+
+  it('splits a mixed Twitter + Facebook upload', () => {
+    const split = splitApifyPayload([
+      {
+        text: 'a tweet',
+        userName: 'ava_loomis',
+        twitterUrl: 'https://x.com/ava_loomis/status/1',
+      },
+      {
+        text: 'a page post',
+        time: '2026-01-01T12:00:00.000Z',
+        user: { name: 'Ava' },
+        url: 'https://www.facebook.com/ava/posts/1',
+      },
+    ]);
+    expect(split.twitter).toHaveLength(1);
+    expect(split.facebook).toHaveLength(1);
     expect(dominantProvider(split)).toBe('mixed');
   });
 });

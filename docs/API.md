@@ -376,15 +376,15 @@ Supported actors (upload their dataset JSON):
 | Mastodon | `newpo/mastodon-scraper` (public API `text` / `createdAt` / `author.acct`; `mastodon.social` plus acct/instance hints, not every federated host) | stylometric + temporal Mastodon + shared pair extractors |
 | TikTok | `clockworks/tiktok-scraper` (caption `text` / `createTimeISO` / `authorMeta.name` / `webVideoUrl`) | stylometric + temporal TikTok + shared pair extractors |
 | YouTube | `streamers/youtube-scraper` + `streamers/youtube-comments-scraper` (titles, descriptions, and comments as text; not a tweet-like timeline) | stylometric + temporal YouTube + shared pair extractors |
+| Facebook | `apify/facebook-posts-scraper` (public-page `text` / `time` / `user.name`; no cookies, no personal profiles) | stylometric + temporal Facebook + shared pair extractors |
 
-Facebook has Apify scrapers but no extractor set in this repo yet.
-Those uploads return `400 unsupported_export`.
+LinkedIn, Telegram, and Discord stay `400 unsupported_export` unless added later.
 
 ### `POST /investigations/:id/ingest/apify`
 
 Requires capability token. Requires `status: active`.
 
-Auto-detects Twitter, Instagram, Reddit, Bluesky, Mastodon, TikTok, and YouTube items (mixed uploads split).
+Auto-detects Twitter, Instagram, Reddit, Bluesky, Mastodon, TikTok, YouTube, and Facebook items (mixed uploads split).
 Archives raw JSON and runs the matching extractor pipeline (container when
 `VPC_INGEST`, `INGEST_WORKER_URL`, and `INGEST_SECRET` are configured;
 inline otherwise).
@@ -430,6 +430,12 @@ Same contract as Twitter, forced YouTube parse. Authored text is video titles
 plus descriptions plus comments (`streamers/youtube-scraper` and
 `streamers/youtube-comments-scraper`). Comments without a parseable timestamp
 still contribute stylometric text.
+
+### `POST /investigations/:id/ingest/apify-facebook`
+
+Same contract as Twitter, forced Facebook public-page parse (`text` + `time` /
+`timestamp` + `user.name` / `pageName` + `facebookUrl`). Personal profiles,
+session cookies, likes, friends lists, and emails are out of scope.
 
 **Content types**
 

@@ -30,7 +30,8 @@ Implemented in `implementation/workers/index.ts`. Full reference:
 - [x] Apify Bluesky ingest (`/apify-bluesky`; stylometric + temporal).
 - [x] Apify Mastodon ingest (`/apify-mastodon`; stylometric + temporal; `mastodon.social` + acct/instance hints).
 - [x] Apify TikTok ingest (`/apify-tiktok`; stylometric + temporal; clockworks caption/timestamp/author).
-- [x] Apify YouTube ingest (`/apify-youtube`; stylometric + temporal; titles, descriptions, and comments as text). Facebook stays `400 unsupported_export`.
+- [x] Apify YouTube ingest (`/apify-youtube`; stylometric + temporal; titles, descriptions, and comments as text).
+- [x] Apify Facebook public-page ingest (`/apify-facebook`; stylometric + temporal; no cookies). LinkedIn / Telegram / Discord stay `400 unsupported_export`.
 - [x] Manifest, signatures, verify, debug endpoints
 
 Still queued:

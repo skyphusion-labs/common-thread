@@ -63,3 +63,11 @@ export const YOUTUBE_ACCOUNT_EXTRACTORS: AccountFeatureExtractor[] =
 
 export const YOUTUBE_PAIR_EXTRACTORS: PairFeatureExtractor[] =
   ALL_PAIR_EXTRACTORS.filter((e) => SHARED_PAIR_NAME.test(e.name));
+
+export const FACEBOOK_ACCOUNT_EXTRACTORS: AccountFeatureExtractor[] =
+  ALL_ACCOUNT_EXTRACTORS.filter(
+    (e) => /facebook/i.test(e.name) || e.name === 'background_corpus_stylometric'
+  );
+
+export const FACEBOOK_PAIR_EXTRACTORS: PairFeatureExtractor[] =
+  ALL_PAIR_EXTRACTORS.filter((e) => SHARED_PAIR_NAME.test(e.name));

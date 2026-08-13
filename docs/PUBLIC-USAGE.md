@@ -74,7 +74,7 @@ machine.
    modify) the investigation. It is a capability secret, not a password.
    New investigations are encrypted at rest under that token (§3.5).
 4. **Upload Data.** Drop Apify JSON exports for Twitter/X, Instagram, Reddit,
-   Bluesky, Mastodon, TikTok, or YouTube (profiles, timelines, posts, comments; YouTube uses titles, descriptions, and comments). Mixed files are split by platform.
+   Bluesky, Mastodon, TikTok, YouTube, or Facebook public pages (YouTube uses titles, descriptions, and comments). Mixed files are split by platform.
    The backend archives the raw data by content hash and runs extractors (VPC
    containers when configured, including key-on-dispatch for encrypted
    investigations). Watch the ingest job to completion.

@@ -81,6 +81,7 @@ export type InferredPlatform =
   | 'instagram'
   | 'tiktok'
   | 'youtube'
+  | 'facebook'
   | 'unknown';
 
 /**
@@ -107,6 +108,7 @@ export function inferPlatform(entry: ManifestEntry): InferredPlatform {
   if (tool.includes('instagram')) return 'instagram';
   if (tool.includes('tiktok')) return 'tiktok';
   if (tool.includes('youtube')) return 'youtube';
+  if (tool.includes('facebook')) return 'facebook';
 
   return 'unknown';
 }
@@ -125,5 +127,6 @@ function platformFromSourceHost(source: string): InferredPlatform {
   if (sourceMatchesHost(source, 'mastodon.social')) return 'mastodon';
   if (sourceMatchesHost(source, 'tiktok.com')) return 'tiktok';
   if (sourceMatchesHost(source, 'youtube.com', 'youtu.be')) return 'youtube';
+  if (sourceMatchesHost(source, 'facebook.com', 'fb.com', 'fb.watch')) return 'facebook';
   return 'unknown';
 }

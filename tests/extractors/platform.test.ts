@@ -260,4 +260,23 @@ describe('inferPlatform', () => {
       )
     ).toBe('youtube');
   });
+
+  it('resolves facebook from facebook.com or the facebook tool hint', () => {
+    expect(
+      inferPlatform(
+        entry({
+          source: 'https://www.facebook.com/ava',
+          collectionMethod: { tool: 'apify', version: '1' },
+        })
+      )
+    ).toBe('facebook');
+    expect(
+      inferPlatform(
+        entry({
+          source: 'not-a-url',
+          collectionMethod: { tool: 'apify-facebook-timeline', version: '1' },
+        })
+      )
+    ).toBe('facebook');
+  });
 });
