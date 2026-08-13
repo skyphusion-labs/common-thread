@@ -138,18 +138,27 @@ describe('investigation access API', () => {
     expect(ingestBody.code).toBe('read_only');
   });
 
-  it('authorizeInvestigation accepts Bearer and query tokens', async () => {
+  it('authorizeInvestigation accepts Bearer and rejects query tokens', async () => {
     const id = `api-bearer-${Date.now()}`;
     const { accessToken } = await createInvestigation(testDb(), { id });
-    const url = new URL(`http://localhost/investigations/${id}/summary?access_token=${accessToken}`);
 
+    const bearerUrl = new URL(`http://localhost/investigations/${id}/summary`);
     const row = await authorizeInvestigation(
       env.DB,
-      new Request(url.toString()),
-      url,
+      new Request(bearerUrl.toString(), {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }),
+      bearerUrl,
       id
     );
     expect(row.id).toBe(id);
+
+    const queryUrl = new URL(
+      `http://localhost/investigations/${id}/summary?access_token=${accessToken}`
+    );
+    await expect(
+      authorizeInvestigation(env.DB, new Request(queryUrl.toString()), queryUrl, id)
+    ).rejects.toMatchObject({ code: 'missing_token' });
   });
 
   it('rejects archive routes without investigation scope or token', async () => {
