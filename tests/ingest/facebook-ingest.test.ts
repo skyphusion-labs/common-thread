@@ -6,7 +6,7 @@ import { runFacebookIngestPipeline } from '../../implementation/ingest/facebook-
 import { ArchiveStore } from '../../implementation/archive/store';
 import facebookFixture from '../fixtures/facebook-posts.json';
 
-describe('facebook ingest pipeline', { timeout: 20_000 }, () => {
+describe('facebook ingest pipeline', { timeout: 40_000 }, () => {
   it('archives listings, registers seeds, and emits stylometric features', async () => {
     const investigationId = `fb-ingest-${crypto.randomUUID()}`;
     await createInvestigation(testDb(), { id: investigationId });

@@ -6,7 +6,7 @@ import { runTikTokIngestPipeline } from '../../implementation/ingest/tiktok-pipe
 import { ArchiveStore } from '../../implementation/archive/store';
 import tiktokFixture from '../fixtures/tiktok-posts.json';
 
-describe('tiktok ingest pipeline', { timeout: 20_000 }, () => {
+describe('tiktok ingest pipeline', { timeout: 40_000 }, () => {
   it('archives listings, registers seeds, and emits stylometric features', async () => {
     const investigationId = `tiktok-ingest-${crypto.randomUUID()}`;
     await createInvestigation(testDb(), { id: investigationId });

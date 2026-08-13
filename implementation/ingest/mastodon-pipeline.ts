@@ -51,10 +51,12 @@ function profileSource(account: string): string {
   const at = account.lastIndexOf('@');
   if (at > 0 && at < account.length - 1) {
     const user = account.slice(0, at);
-    const instance = account.slice(at + 1);
-    return `https://${instance}/@${user}`;
+    const instance = account.slice(at + 1).toLowerCase();
+    if (instance === 'mastodon.social') {
+      return `https://mastodon.social/@${user}`;
+    }
   }
-  return `https://mastodon.social/@${account}`;
+  return `apify-mastodon:${account}`;
 }
 
 export async function runMastodonIngestPipeline(
