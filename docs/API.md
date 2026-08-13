@@ -87,7 +87,7 @@ Health check.
 ```json
 {
   "name": "common-thread",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "environment": "production",
   "status": "ok",
   "hosted_api_notice": "The hosted API is not open for unsolicited third-party use. Contact common-thread@skyphusion.org before integrating it into your project.",
