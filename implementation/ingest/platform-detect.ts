@@ -2,20 +2,21 @@
  * Classify Apify (and native) export rows by platform.
  *
  * Used by the unified ingest door so a visitor can drop Twitter, Instagram,
- * or Reddit JSON without picking a route. Classification is per item so a
- * mixed upload splits into the matching pipelines.
+ * Reddit, Bluesky, or Mastodon JSON without picking a route. Classification
+ * is per item so a mixed upload splits into the matching pipelines.
  */
 
 import { hostOf, hostMatches } from '../extractors/platform';
 import { isInstagramPostLike } from './instagram-post-fields';
 
-export type DetectedPlatform = 'twitter' | 'instagram' | 'reddit' | 'bluesky';
+export type DetectedPlatform = 'twitter' | 'instagram' | 'reddit' | 'bluesky' | 'mastodon';
 
 export interface SplitApifyPayload {
   twitter: unknown[];
   instagram: unknown[];
   reddit: unknown[];
   bluesky: unknown[];
+  mastodon: unknown[];
   unknown: unknown[];
 }
 
@@ -31,7 +32,6 @@ const UNSUPPORTED_DOMAINS = [
   'tiktok.com',
   'youtube.com',
   'youtu.be',
-  'mastodon.social',
 ] as const;
 
 const URL_KEYS = [
@@ -48,6 +48,7 @@ const URL_KEYS = [
   'videoUrl',
   'channelUrl',
   'profileUrl',
+  'uri',
 ] as const;
 
 export function detectItemPlatform(item: unknown): DetectedPlatform | 'unknown' {
@@ -57,6 +58,7 @@ export function detectItemPlatform(item: unknown): DetectedPlatform | 'unknown' 
   // Foreign hosts first: text+author Facebook/Bluesky/TikTok rows must not
   // become twitter ingest.
   if (isBlueskyItem(obj)) return 'bluesky';
+  if (isMastodonItem(obj)) return 'mastodon';
   if (isUnsupportedPlatformItem(obj)) return 'unknown';
   if (isRedditItem(obj)) return 'reddit';
   if (isInstagramItem(obj)) return 'instagram';
@@ -71,6 +73,7 @@ export function splitApifyPayload(payload: unknown): SplitApifyPayload {
     instagram: [],
     reddit: [],
     bluesky: [],
+    mastodon: [],
     unknown: [],
   };
   for (const item of items) {
@@ -97,6 +100,7 @@ export function dominantProvider(
   if (split.instagram.length > 0) present.push('instagram');
   if (split.reddit.length > 0) present.push('reddit');
   if (split.bluesky.length > 0) present.push('bluesky');
+  if (split.mastodon.length > 0) present.push('mastodon');
   if (present.length === 0) return null;
   if (present.length === 1) return present[0];
   return 'mixed';
@@ -157,8 +161,38 @@ function isBlueskyItem(obj: Record<string, unknown>): boolean {
   return false;
 }
 
+function isMastodonItem(obj: Record<string, unknown>): boolean {
+  if (urlMatchesHost(obj, 'mastodon.social')) return true;
+  const uri = typeof obj.uri === 'string' ? obj.uri : '';
+  if (/\/users\/[^/]+\/statuses\//.test(uri) && hasAuthoredMastodonText(obj)) return true;
+  const acct =
+    (typeof obj.acct === 'string' && obj.acct) ||
+    (isRecord(obj.author) && typeof obj.author.acct === 'string' && obj.author.acct) ||
+    (isRecord(obj.account) && typeof obj.account.acct === 'string' && obj.account.acct) ||
+    '';
+  if (acct.includes('@') && hasAuthoredMastodonText(obj)) return true;
+  if (
+    typeof obj.instance === 'string' &&
+    hasAuthoredMastodonText(obj) &&
+    (typeof obj.createdAt === 'string' || typeof obj.created_at === 'string') &&
+    (typeof obj.username === 'string' ||
+      typeof obj.acct === 'string' ||
+      (isRecord(obj.author) && typeof obj.author.username === 'string'))
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function hasAuthoredMastodonText(obj: Record<string, unknown>): boolean {
+  return (
+    (typeof obj.text === 'string' && obj.text.length > 0) ||
+    (typeof obj.content === 'string' && obj.content.length > 0)
+  );
+}
+
 function isUnsupportedPlatformItem(obj: Record<string, unknown>): boolean {
-  if (isBlueskyItem(obj)) return false;
+  if (isBlueskyItem(obj) || isMastodonItem(obj)) return false;
   if (urlMatchesHost(obj, ...UNSUPPORTED_DOMAINS)) return true;
   if (typeof obj.facebookUrl === 'string' || typeof obj.facebookId === 'string') return true;
   return false;

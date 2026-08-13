@@ -70,6 +70,28 @@ describe('detectItemPlatform', () => {
       })
     ).toBe('unknown');
   });
+
+  it('classifies newpo Mastodon rows by acct and mastodon.social', () => {
+    expect(
+      detectItemPlatform({
+        text: 'a toot',
+        createdAt: '2026-01-01T12:00:00.000Z',
+        author: { acct: 'ava@mastodon.social', username: 'ava' },
+        instance: 'mastodon.social',
+        url: 'https://mastodon.social/@ava/1',
+      })
+    ).toBe('mastodon');
+  });
+
+  it('does not treat a foreign-instance URL alone as Mastodon', () => {
+    expect(
+      detectItemPlatform({
+        text: 'a toot on another instance',
+        user: { name: 'someone' },
+        url: 'https://fosstodon.org/@someone/123',
+      })
+    ).toBe('unknown');
+  });
 });
 
 describe('splitApifyPayload', () => {
@@ -112,6 +134,26 @@ describe('splitApifyPayload', () => {
     ]);
     expect(split.twitter).toHaveLength(1);
     expect(split.bluesky).toHaveLength(1);
+    expect(dominantProvider(split)).toBe('mixed');
+  });
+
+  it('splits a mixed Twitter + Mastodon upload', () => {
+    const split = splitApifyPayload([
+      {
+        text: 'a tweet',
+        userName: 'ava_loomis',
+        twitterUrl: 'https://x.com/ava_loomis/status/1',
+      },
+      {
+        text: 'hello from the fediverse',
+        createdAt: '2026-01-01T12:00:00.000Z',
+        author: { acct: 'ava@mastodon.social', username: 'ava' },
+        instance: 'mastodon.social',
+        url: 'https://mastodon.social/@ava/1',
+      },
+    ]);
+    expect(split.twitter).toHaveLength(1);
+    expect(split.mastodon).toHaveLength(1);
     expect(dominantProvider(split)).toBe('mixed');
   });
 });

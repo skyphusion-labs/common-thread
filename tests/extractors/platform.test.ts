@@ -187,4 +187,31 @@ describe('inferPlatform', () => {
       )
     ).toBe('unknown');
   });
+
+  it('resolves mastodon from mastodon.social or the mastodon tool hint', () => {
+    expect(
+      inferPlatform(
+        entry({
+          source: 'https://mastodon.social/@ava',
+          collectionMethod: { tool: 'apify', version: '1' },
+        })
+      )
+    ).toBe('mastodon');
+    expect(
+      inferPlatform(
+        entry({
+          source: 'https://fosstodon.org/@ava',
+          collectionMethod: { tool: 'apify-mastodon-timeline', version: '1' },
+        })
+      )
+    ).toBe('mastodon');
+    expect(
+      inferPlatform(
+        entry({
+          source: 'https://fosstodon.org/@ava',
+          collectionMethod: { tool: 'apify', version: '1' },
+        })
+      )
+    ).toBe('unknown');
+  });
 });

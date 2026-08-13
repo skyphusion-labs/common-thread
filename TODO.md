@@ -27,7 +27,8 @@ Implemented in `implementation/workers/index.ts`. Full reference:
 - [x] `GET /investigations/:id/packet/:run_id` (JSON, `?format=markdown`, `?format=pdf`)
 - [x] Apify Twitter ingest + ingest job status
 - [x] Apify Instagram + Reddit ingest (`POST /ingest/apify` auto-detect; dedicated `/apify-instagram` and `/apify-reddit`).
-- [x] Apify Bluesky ingest (`/apify-bluesky`; stylometric + temporal). TikTok / YouTube / Facebook / Mastodon stay `400 unsupported_export`.
+- [x] Apify Bluesky ingest (`/apify-bluesky`; stylometric + temporal).
+- [x] Apify Mastodon ingest (`/apify-mastodon`; stylometric + temporal; `mastodon.social` + acct/instance hints). TikTok / YouTube / Facebook stay `400 unsupported_export`.
 - [x] Manifest, signatures, verify, debug endpoints
 
 Still queued:

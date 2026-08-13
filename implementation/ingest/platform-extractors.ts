@@ -39,3 +39,11 @@ export const BLUESKY_ACCOUNT_EXTRACTORS: AccountFeatureExtractor[] =
 
 export const BLUESKY_PAIR_EXTRACTORS: PairFeatureExtractor[] =
   ALL_PAIR_EXTRACTORS.filter((e) => SHARED_PAIR_NAME.test(e.name));
+
+export const MASTODON_ACCOUNT_EXTRACTORS: AccountFeatureExtractor[] =
+  ALL_ACCOUNT_EXTRACTORS.filter(
+    (e) => /mastodon/i.test(e.name) || e.name === 'background_corpus_stylometric'
+  );
+
+export const MASTODON_PAIR_EXTRACTORS: PairFeatureExtractor[] =
+  ALL_PAIR_EXTRACTORS.filter((e) => SHARED_PAIR_NAME.test(e.name));
