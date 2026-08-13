@@ -47,3 +47,11 @@ export const MASTODON_ACCOUNT_EXTRACTORS: AccountFeatureExtractor[] =
 
 export const MASTODON_PAIR_EXTRACTORS: PairFeatureExtractor[] =
   ALL_PAIR_EXTRACTORS.filter((e) => SHARED_PAIR_NAME.test(e.name));
+
+export const TIKTOK_ACCOUNT_EXTRACTORS: AccountFeatureExtractor[] =
+  ALL_ACCOUNT_EXTRACTORS.filter(
+    (e) => /tiktok/i.test(e.name) || e.name === 'background_corpus_stylometric'
+  );
+
+export const TIKTOK_PAIR_EXTRACTORS: PairFeatureExtractor[] =
+  ALL_PAIR_EXTRACTORS.filter((e) => SHARED_PAIR_NAME.test(e.name));

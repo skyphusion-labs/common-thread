@@ -214,4 +214,23 @@ describe('inferPlatform', () => {
       )
     ).toBe('unknown');
   });
+
+  it('resolves tiktok from tiktok.com or the tiktok tool hint', () => {
+    expect(
+      inferPlatform(
+        entry({
+          source: 'https://www.tiktok.com/@ava',
+          collectionMethod: { tool: 'apify', version: '1' },
+        })
+      )
+    ).toBe('tiktok');
+    expect(
+      inferPlatform(
+        entry({
+          source: 'not-a-url',
+          collectionMethod: { tool: 'apify-tiktok-timeline', version: '1' },
+        })
+      )
+    ).toBe('tiktok');
+  });
 });

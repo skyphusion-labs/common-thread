@@ -79,6 +79,7 @@ export type InferredPlatform =
   | 'bluesky'
   | 'mastodon'
   | 'instagram'
+  | 'tiktok'
   | 'unknown';
 
 /**
@@ -103,6 +104,7 @@ export function inferPlatform(entry: ManifestEntry): InferredPlatform {
   if (tool.includes('bluesky') || tool.includes('atproto')) return 'bluesky';
   if (tool.includes('mastodon')) return 'mastodon';
   if (tool.includes('instagram')) return 'instagram';
+  if (tool.includes('tiktok')) return 'tiktok';
 
   return 'unknown';
 }
@@ -119,5 +121,6 @@ function platformFromSourceHost(source: string): InferredPlatform {
   if (sourceMatchesHost(source, 'instagram.com')) return 'instagram';
   // Federated; host match is best-effort until manifest carries platform.
   if (sourceMatchesHost(source, 'mastodon.social')) return 'mastodon';
+  if (sourceMatchesHost(source, 'tiktok.com')) return 'tiktok';
   return 'unknown';
 }
