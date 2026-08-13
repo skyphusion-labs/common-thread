@@ -233,4 +233,31 @@ describe('inferPlatform', () => {
       )
     ).toBe('tiktok');
   });
+
+  it('resolves youtube from youtube.com or the youtube tool hint', () => {
+    expect(
+      inferPlatform(
+        entry({
+          source: 'https://www.youtube.com/@ava',
+          collectionMethod: { tool: 'apify', version: '1' },
+        })
+      )
+    ).toBe('youtube');
+    expect(
+      inferPlatform(
+        entry({
+          source: 'https://youtu.be/abc',
+          collectionMethod: { tool: 'apify', version: '1' },
+        })
+      )
+    ).toBe('youtube');
+    expect(
+      inferPlatform(
+        entry({
+          source: 'not-a-url',
+          collectionMethod: { tool: 'apify-youtube-timeline', version: '1' },
+        })
+      )
+    ).toBe('youtube');
+  });
 });

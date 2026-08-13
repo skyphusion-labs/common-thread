@@ -29,6 +29,7 @@ import { InstagramStylometricExtractor } from './instagram';
 import { BlueskyStylometricExtractor } from './bluesky';
 import { MastodonStylometricExtractor } from './mastodon';
 import { TikTokStylometricExtractor } from './tiktok';
+import { YouTubeStylometricExtractor } from './youtube';
 import { BurrowsDeltaExtractor } from './burrows-delta';
 import { JsdCharacterBigramsExtractor } from './jsd-bigrams';
 import {
@@ -58,6 +59,7 @@ export const STYLOMETRIC_EXTRACTORS: AccountFeatureExtractor[] = [
   new BlueskyStylometricExtractor(),
   new MastodonStylometricExtractor(),
   new TikTokStylometricExtractor(),
+  new YouTubeStylometricExtractor(),
   new TwitterTopicPhraseExtractor(),
   new TwitterCodeSwitchingExtractor(),
   new TwitterTypoErrorExtractor(),
@@ -84,6 +86,7 @@ export { InstagramStylometricExtractor } from './instagram';
 export { BlueskyStylometricExtractor } from './bluesky';
 export { MastodonStylometricExtractor } from './mastodon';
 export { TikTokStylometricExtractor } from './tiktok';
+export { YouTubeStylometricExtractor } from './youtube';
 export { BurrowsDeltaExtractor } from './burrows-delta';
 export { JsdCharacterBigramsExtractor } from './jsd-bigrams';
 export { TwitterCodeSwitchingExtractor } from './code-switching';

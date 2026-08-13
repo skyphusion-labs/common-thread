@@ -2,14 +2,14 @@
  * Classify Apify (and native) export rows by platform.
  *
  * Used by the unified ingest door so a visitor can drop Twitter, Instagram,
- * Reddit, Bluesky, Mastodon, or TikTok JSON without picking a route. Classification
+ * Reddit, Bluesky, Mastodon, TikTok, or YouTube JSON without picking a route. Classification
  * is per item so a mixed upload splits into the matching pipelines.
  */
 
 import { hostOf, hostMatches } from '../extractors/platform';
 import { isInstagramPostLike } from './instagram-post-fields';
 
-export type DetectedPlatform = 'twitter' | 'instagram' | 'reddit' | 'bluesky' | 'mastodon' | 'tiktok';
+export type DetectedPlatform = 'twitter' | 'instagram' | 'reddit' | 'bluesky' | 'mastodon' | 'tiktok' | 'youtube';
 
 export interface SplitApifyPayload {
   twitter: unknown[];
@@ -18,6 +18,7 @@ export interface SplitApifyPayload {
   bluesky: unknown[];
   mastodon: unknown[];
   tiktok: unknown[];
+  youtube: unknown[];
   unknown: unknown[];
 }
 
@@ -30,8 +31,6 @@ const UNSUPPORTED_DOMAINS = [
   'facebook.com',
   'fb.com',
   'fb.watch',
-  'youtube.com',
-  'youtu.be',
 ] as const;
 
 const URL_KEYS = [
@@ -60,6 +59,7 @@ export function detectItemPlatform(item: unknown): DetectedPlatform | 'unknown' 
   if (isBlueskyItem(obj)) return 'bluesky';
   if (isMastodonItem(obj)) return 'mastodon';
   if (isTikTokItem(obj)) return 'tiktok';
+  if (isYouTubeItem(obj)) return 'youtube';
   if (isUnsupportedPlatformItem(obj)) return 'unknown';
   if (isRedditItem(obj)) return 'reddit';
   if (isInstagramItem(obj)) return 'instagram';
@@ -76,6 +76,7 @@ export function splitApifyPayload(payload: unknown): SplitApifyPayload {
     bluesky: [],
     mastodon: [],
     tiktok: [],
+    youtube: [],
     unknown: [],
   };
   for (const item of items) {
@@ -104,6 +105,7 @@ export function dominantProvider(
   if (split.bluesky.length > 0) present.push('bluesky');
   if (split.mastodon.length > 0) present.push('mastodon');
   if (split.tiktok.length > 0) present.push('tiktok');
+  if (split.youtube.length > 0) present.push('youtube');
   if (present.length === 0) return null;
   if (present.length === 1) return present[0];
   return 'mixed';
@@ -210,8 +212,22 @@ function isTikTokItem(obj: Record<string, unknown>): boolean {
   return false;
 }
 
+function isYouTubeItem(obj: Record<string, unknown>): boolean {
+  if (urlMatchesHost(obj, 'youtube.com', 'youtu.be')) return true;
+  if (typeof obj.comment === 'string' && (typeof obj.author === 'string' || typeof obj.videoId === 'string')) {
+    return true;
+  }
+  if (
+    typeof obj.channelUsername === 'string' &&
+    (typeof obj.title === 'string' || typeof obj.text === 'string' || typeof obj.description === 'string')
+  ) {
+    return true;
+  }
+  return false;
+}
+
 function isUnsupportedPlatformItem(obj: Record<string, unknown>): boolean {
-  if (isBlueskyItem(obj) || isMastodonItem(obj) || isTikTokItem(obj)) return false;
+  if (isBlueskyItem(obj) || isMastodonItem(obj) || isTikTokItem(obj) || isYouTubeItem(obj)) return false;
   if (urlMatchesHost(obj, ...UNSUPPORTED_DOMAINS)) return true;
   if (typeof obj.facebookUrl === 'string' || typeof obj.facebookId === 'string') return true;
   return false;

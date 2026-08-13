@@ -80,6 +80,7 @@ export type InferredPlatform =
   | 'mastodon'
   | 'instagram'
   | 'tiktok'
+  | 'youtube'
   | 'unknown';
 
 /**
@@ -105,6 +106,7 @@ export function inferPlatform(entry: ManifestEntry): InferredPlatform {
   if (tool.includes('mastodon')) return 'mastodon';
   if (tool.includes('instagram')) return 'instagram';
   if (tool.includes('tiktok')) return 'tiktok';
+  if (tool.includes('youtube')) return 'youtube';
 
   return 'unknown';
 }
@@ -122,5 +124,6 @@ function platformFromSourceHost(source: string): InferredPlatform {
   // Federated; host match is best-effort until manifest carries platform.
   if (sourceMatchesHost(source, 'mastodon.social')) return 'mastodon';
   if (sourceMatchesHost(source, 'tiktok.com')) return 'tiktok';
+  if (sourceMatchesHost(source, 'youtube.com', 'youtu.be')) return 'youtube';
   return 'unknown';
 }
