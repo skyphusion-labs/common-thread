@@ -18,7 +18,7 @@ commercial OSINT tooling. Read the paper's audience exclusions (§1.2) before
 applying the methodology.
 
 **Hosted public UI (BYOK):** https://common-thread.skyphusion.org  
-**Current release:** v0.4.0 (see [CHANGELOG.md](CHANGELOG.md)).
+**Current release:** v0.5.0 (see [CHANGELOG.md](CHANGELOG.md)).
 
 ## Repository layout
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.5.0
+
+MINOR (attribution-ready Apify ingest for five more platforms + audit fixes):
+
+- **Bluesky, Mastodon, TikTok, YouTube, Facebook (#272-#276):** ingest + schema-parallel stylometric/temporal extractors. Facebook is cookie-free public pages only. Auto-detect splits mixed uploads; unsupported hosts stay `400 unsupported_export`.
+- **Adverse audit close-out (#277-#283 / #284-#290):** Twitter image fetch allowlist; capability tokens out of query/share URLs; DELETE asserts active before archive purge; host-strict platform detect + Twitter split; nested ingest item/depth/body caps; seal-gated PATCH metadata and internal manifest append; investigation-id allowlist, CORS `X-CF-AIG-Token`, sanitized job errors, 401 existence oracle, create-rate cap.
+
+Tag-gated prod deploy: `v0.5.0` (Workers + GHCR image push/roll on `v*`).
+
 ## v0.4.0
 
 MINOR (Instagram + Reddit Apify ingest on the hosted path):

@@ -5,7 +5,7 @@ Go / no-go evaluation for opening the hosted instance to unsolicited public use
 Companion: `docs/COMPONENTS.md` (distribution), `docs/PUBLIC-USAGE.md` (stranger
 happy-path), `docs/PRIVACY.md` / `docs/ACCEPTABLE-USE.md` (policy).
 
-**Status: LIVE at v0.3.0 (2026-08-04); v0.4.0 tagged 2026-08-13 (Instagram/Reddit ingest).** Prod fail-closed BYOK; adverse-security
+**Status: LIVE at v0.3.0 (2026-08-04); v0.4.0 tagged 2026-08-13 (Instagram/Reddit ingest); v0.5.0 tagged 2026-08-13 (five more platforms + audit close-out).** Prod fail-closed BYOK; adverse-security
 pass complete (no open CRITICAL/HIGH); **#187 closed** as completed. Tag-gated
 deploy of Workers + fleet container images. **workers_dev closed** for prod/ops.
 **WAF + rate limits applied.** **npm** `@skyphusion/common-thread-verify@0.1.0`.
