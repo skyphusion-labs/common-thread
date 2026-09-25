@@ -49,9 +49,9 @@
     "mysql2": "^3.23.3"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.21.0",
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
     "@cloudflare/workers-types": "^5.20260810.1",
-    "@vitest/coverage-istanbul": "^4.1.10",
+    "@vitest/coverage-istanbul": "^4.1.11",
     "tsx": "^4.23.12",
     "typescript": "^7.0.2",
     "undici": "^8.10.0",
