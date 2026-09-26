@@ -62,6 +62,7 @@
     "node": ">=18.0.0"
   },
   "overrides": {
-    "undici": "$undici"
+    "undici": "$undici",
+    "sharp": "0.35.4"
   }
 }
