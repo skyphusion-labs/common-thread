@@ -3,7 +3,7 @@
  *
  * Pure-TypeScript parser for EXIF metadata embedded in JPEG files via
  * the APP1 segment. Operates on raw JPEG bytes and returns a
- * structured object with the diagnostic fields used by the §4.5.5
+ * structured object with the diagnostic fields used by the §4.7.1
  * metadata-leakage signal (camera make/model, lens, software, GPS).
  *
  * Reusability: this module is purposely written to be importable by

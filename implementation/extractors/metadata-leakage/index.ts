@@ -51,7 +51,7 @@
  *     require collection-layer cooperation to retain headers, which
  *     no current scraper does. Out of scope for v1.0.0.
  *
- * Cross-folder pair extractor: ExifOverlapExtractor (§4.5.5 in the
+ * Cross-folder pair extractor: ExifOverlapExtractor (§4.7.1 in the
  * paper's taxonomy, but emitting metadata_leakage category features)
  * lives in extractors/visual/exif-overlap.ts because the code is
  * tightly coupled to the EXIF parser and corpus extractor there.
@@ -77,7 +77,7 @@ export const METADATA_LEAKAGE_PAIR_EXTRACTORS: PairFeatureExtractor[] = [
   new TweetLanguageOverlapExtractor(),
   new ProfileLangOverlapExtractor(),
   new ShortenerFingerprintOverlapExtractor(),
-  new ExifOverlapExtractor(),  // §4.5.5; source in extractors/visual/
+  new ExifOverlapExtractor(),  // §4.7.1; source in extractors/visual/
 ];
 
 export { TwitterMetadataLeakageExtractor } from './twitter';

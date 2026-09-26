@@ -6,7 +6,7 @@
  * palette summary for human review.
  *
  * Architecture: same corpus-artifact pattern as posted-image-corpus
- * (§4.5.3) and exif-corpus (§4.5.5). The collection layer:
+ * (§4.5.3) and exif-corpus (§4.7.1). The collection layer:
  *
  *   1. Downloads each posted image (and optionally profile/banner).
  *   2. Decodes to RGBA pixels.

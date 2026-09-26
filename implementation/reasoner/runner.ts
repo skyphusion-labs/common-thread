@@ -86,7 +86,7 @@ export interface ReasonerRunnerEnv {
   CF_AIG_TOKEN?: string;
   /** Triage model identifier. Default 'claude-haiku-4-5'. */
   TRIAGE_MODEL: string;
-  /** Reasoning model identifier. Default 'claude-opus-4-7'. */
+  /** Reasoning model identifier. Default 'claude-opus-4-8'. */
   REASONING_MODEL: string;
 }
 
