@@ -53,7 +53,7 @@ rclone sync r2:common-thread-archive s3:common-thread-archive-backup \
   --checksum --transfers 8 --checkers 16
 ```
 
-Run on a schedule (cron on a fleet box, GitHub Actions with restricted
+Run on a schedule (cron on an operator-controlled host, GitHub Actions with restricted
 credentials, or Cloudflare Workflow calling a privileged sync Worker).
 
 ### 2. What to copy

@@ -1,7 +1,7 @@
 /**
  * EXIF overlap pair extractor.
  *
- * Per the methodology paper §4.5.5, this extractor compares EXIF
+ * Per the methodology paper §4.7.1, this extractor compares EXIF
  * metadata sets between two accounts. EXIF is platform-supplied
  * metadata embedded in image files (camera, lens, software, GPS,
  * timestamps); when it survives platform sanitization, it's
@@ -48,7 +48,7 @@
  *   exif_software_jaccard, exif_software_overlap_count
  *   exif_lens_model_jaccard, exif_lens_model_overlap_count
  *   exif_camera_fingerprint_jaccard,
- *     exif_camera_fingerprint_overlap_count (the headline §4.5.5
+ *     exif_camera_fingerprint_overlap_count (the headline §4.7.1
  *     signal: same physical kit detected across accounts)
  *
  *   exif_camera_fingerprint_shared (json, sorted array of shared
