@@ -96,6 +96,19 @@ jobs:
         run: npm run validate:pdfa
 
   coverage:
+    # SOLE PRODUCER of the required `coverage` status check (#292).
+    # `coverage` is a required context in the org ruleset
+    # (aviation-grade-main, ruleset 18677665), and branch protection matches a
+    # required check by NAME. A second workflow emitting a check also named
+    # `coverage` therefore makes the gate resolve to whichever row is read:
+    # measured 2026-09-26 on main 3275945, two `coverage` rows existed, one
+    # success and one still in_progress. The other producer was a generic
+    # .github/workflows/coverage.yml stub that ran `npm test` (this repo has no
+    # `coverage` npm script) and fell through to `echo coverage check present`
+    # when no manifest matched, i.e. a green that could not go red. It was
+    # deleted. Do not re-add a second `coverage` producer, and do not rename
+    # this check: the name below IS the gate.
+    name: coverage
     # Unified coverage across BOTH vitest projects in one process, so istanbul
     # merges per-file coverage maps (a line hit by the workers pool OR the
     # node-db project counts once). That needs the workers pool AND a real
