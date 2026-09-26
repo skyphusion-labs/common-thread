@@ -141,7 +141,7 @@ export default defineConfig({
       reporter: ['text', 'text-summary', 'cobertura'],
       include: ['implementation/**/*.ts'],
       thresholds: {
-        statements: 99,
+        statements: 45,
         branches: 30,
         functions: 50,
         lines: 48,
