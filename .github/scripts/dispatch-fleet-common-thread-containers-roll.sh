@@ -3,7 +3,51 @@
 # Args: <service> <image-repo-without-registry>
 #   service: ingest | pdf | attribution
 #   image: skyphusion-labs/common-thread-ingest | skyphusion-labs/common-thread-pdf | skyphusion-labs/common-thread-attribution
+#
+# DISABLED 2026-09-25, FAILS CLOSED. The roll dispatch below cannot deploy anything today.
+#
+# (Hostnames are deliberately absent from this file: this is a public repo and the estate does
+# not advertise fleet role or port structure in one. Roles are named instead.)
+#
+# WHAT IT NEEDED, both halves:
+#   1. A container host running the `common-thread-containers` Swarm stack, which is the
+#      ingest, pdf and attribution executors.
+#   2. The handler workflow `.github/workflows/common-thread-containers-roll.yml` in
+#      skyphusion-labs/fleet-chezmoi, listening `on: repository_dispatch` for
+#      `types: [common-thread-containers-roll]`, pinning the image into the stack env file and
+#      redeploying the stack.
+#
+# WHY IT IS OFF: the Swarm host that ran that stack was decommissioned 2026-09-24 with the
+# rest of the leased fleet (cost). The handler workflow went out in the same teardown: it is
+# 404 on fleet-chezmoi main (measured 2026-09-25), no workflow in that repo declares
+# `on: repository_dispatch` any more, and the handler's own `runs-on: [self-hosted, fleet,
+# <box>]` label matches no runner. GitHub answers POST /repos/{owner}/{repo}/dispatches with
+# HTTP 204 whether or not a workflow is listening, and the code below treats 204 as success,
+# so since the teardown this step has reported a GREEN roll on every run while deploying
+# nothing at all. That false green is the defect this guard closes: a deploy step that cannot
+# fail is not a control, it is decoration.
+#
+# The guard is the FIRST thing that runs, ahead of the argument checks, the GHCR token fetch
+# and the digest lookup, so it can never be misread as a registry hiccup or a network flake.
+#
+# NOT AFFECTED: the image build and the GHCR push. Those jobs are untouched and still publish
+# a real image. `dispatch-roll` is a leaf job in ingest-image.yml, pdf-image.yml and
+# attribution-image.yml (no other job declares `needs: dispatch-roll`), so this guard cannot
+# turn a build red. The common-thread Worker at common-thread.skyphusion.org is a separate
+# deploy path (deploy.yml) and is live; only the container tier lost its host.
+#
+# RE-ENABLING is deleting the one guard block below, nothing else. Everything after it is the
+# original recipe, unmodified and deliberately kept: common-thread is a live product whose
+# container tier lost its host, so the recipe is NOT removed. Re-enabling needs a container
+# host for the stack plus the fleet-chezmoi handler restored, which is a spend and topology
+# decision, and that decision is Conrad's. Refs fleet-chezmoi #2042 and the teardown in
+# fleet-chezmoi 4c36d29 (Refs #2066).
 set -euo pipefail
+
+# ---- FAIL-CLOSED GUARD: delete this block to re-enable (see the header). ----
+echo "::error::common-thread containers roll dispatch is DISABLED (2026-09-25), failing closed for service '${1:-unspecified}'. The handler workflow skyphusion-labs/fleet-chezmoi .github/workflows/common-thread-containers-roll.yml no longer exists on main (removed in the 2026-09-24 teardown of the leased fleet) and no workflow in that repo listens for repository_dispatch any more, so POST /repos/skyphusion-labs/fleet-chezmoi/dispatches is accepted with HTTP 204 and NOTHING deploys; this script treated 204 as success and reported a green roll. The Swarm host that ran the common-thread-containers stack (the ingest, pdf and attribution executors), and that was the handler's own runner, was decommissioned 2026-09-24. The image build and the GHCR push are unaffected, as is the common-thread Worker at common-thread.skyphusion.org. Re-enabling needs a container host plus the restored fleet-chezmoi handler: that is Conrad's spend and topology call, so the recipe below is kept intact rather than deleted."
+exit 1
+# ---- end fail-closed guard ----
 
 service="${1:?service required (ingest|pdf|attribution)}"
 image_path="${2:?image path required (e.g. skyphusion-labs/common-thread-ingest)}"
