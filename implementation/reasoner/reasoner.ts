@@ -35,7 +35,24 @@ import type {
 } from './types';
 
 const DEFAULT_MAX_ATTEMPTS = 3;
+/**
+ * Upper bound on §7.2.3 attempts per reasoning call. A caller-supplied
+ * `max_attempts` above this is clamped to it: each attempt is one model call.
+ */
+export const MAX_REASONING_ATTEMPTS = 5;
 const DEFAULT_MAX_TOKENS = 8192;
+
+/**
+ * Resolve a caller-supplied attempt count to a bounded positive integer.
+ * Unset, non-integer or non-positive values use {@link DEFAULT_MAX_ATTEMPTS};
+ * values above {@link MAX_REASONING_ATTEMPTS} are clamped to it.
+ */
+export function resolveMaxAttempts(value: number | undefined): number {
+  if (value === undefined || !Number.isInteger(value) || value < 1) {
+    return DEFAULT_MAX_ATTEMPTS;
+  }
+  return Math.min(value, MAX_REASONING_ATTEMPTS);
+}
 
 export interface RunReasoningOptions {
   apiKey?: string;
@@ -46,7 +63,7 @@ export interface RunReasoningOptions {
   model: string;
   /** Signal table for the pair (or pairs) under reasoning. */
   signal_table: SignalTable;
-  /** Maximum retry attempts per §7.2.3. Default 3. */
+  /** Maximum retry attempts per §7.2.3. Default 3; clamped to {@link MAX_REASONING_ATTEMPTS}. */
   max_attempts?: number;
   /** Optional. Maximum response tokens. Default 8192. */
   max_tokens?: number;
@@ -69,7 +86,7 @@ export interface RunReasoningResult {
 }
 
 export async function runReasoning(opts: RunReasoningOptions): Promise<RunReasoningResult> {
-  const maxAttempts = opts.max_attempts ?? DEFAULT_MAX_ATTEMPTS;
+  const maxAttempts = resolveMaxAttempts(opts.max_attempts);
   const maxTokens = opts.max_tokens ?? DEFAULT_MAX_TOKENS;
   const baseUserPrompt = buildReasoningUserPrompt({ signal_table: opts.signal_table });
   const basePromptSha = await promptSha256(REASONING_SYSTEM_PROMPT, baseUserPrompt);

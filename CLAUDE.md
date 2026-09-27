@@ -184,7 +184,7 @@ canonical ordered pair of seed accounts it:
    **format layer** (citations parse, cited signals exist, alternatives present,
    cluster composition) and a **content layer** (category coverage §7.3.1,
    citation directionality). On failure it **retries up to `maxRetries`
-   (default 3)** appending retry feedback; on exhaustion it returns the §7.2.3
+   (default 3, clamped to a maximum of 5)** appending retry feedback; on exhaustion it returns the §7.2.3
    **declination** default (no claims, `declined_pairs` populated).
 4. **Writes one `attribution_runs` row per pair regardless of outcome**, with the
    band chosen by `derivePairBand` (highest band among matching pair-scope
