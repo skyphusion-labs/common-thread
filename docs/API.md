@@ -490,7 +490,8 @@ Requires Anthropic credentials via **server secrets** or **request BYOK**
 | `randomizationSeed` | Reproducible signal-table shuffle (§7.4.1) |
 
 **Response `400` `pair_cap_exceeded`**: canonical pair count
-(`n*(n-1)/2` over active seeds, or the `accountFilter` subset) exceeds
+(`n*(n-1)/2` over active seeds, or over the accounts the `accountFilter` resolves
+to, which includes previously removed seeds) exceeds
 `MAX_ATTRIBUTION_PAIRS` (default 1225 = C(50,2); wrangler var). Checked
 before credential resolution / LLM work. Narrow the filter or raise the var.
 

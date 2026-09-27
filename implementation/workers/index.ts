@@ -1663,9 +1663,11 @@ function isTruthyFlag(value: string | undefined): boolean {
 
 /**
  * Count accounts that would enter the attribution pair loop (#189).
- * With accountFilter: distinct active seeds whose account_identifier is in
- * the filter. Without: all active seeds. Matches loadSeedAccounts /
- * resolveAccountPlatforms cardinality for the pair-ceiling check.
+ * With accountFilter: the distinct (platform, account) set the runner's
+ * resolveAccountPlatforms resolves, i.e. seeds of any removed_at, then the
+ * account_features fallback for identifiers that are not seeds. Identifiers
+ * that resolve to neither are not counted (the runner rejects them).
+ * Without: all active seeds, matching loadSeedAccounts.
  */
 async function countAttributionAccounts(
   env: Env,
@@ -1676,15 +1678,33 @@ async function countAttributionAccounts(
     const unique = [...new Set(accountFilter.map((s) => s.trim()).filter(Boolean))];
     if (unique.length === 0) return 0;
     const placeholders = unique.map(() => '?').join(', ');
-    const row = await queryOne<{ count: number }>(
+    const seedRows = await query<{ account_identifier: string; platform: string }>(
       env.DB,
-      `SELECT COUNT(*) AS count FROM seed_accounts
+      `SELECT DISTINCT account_identifier, platform FROM seed_accounts
        WHERE investigation_id = ?
-         AND removed_at IS NULL
          AND account_identifier IN (${placeholders})`,
       [investigationId, ...unique]
     );
-    return Number(row?.count ?? 0);
+    const resolved = new Set<string>();
+    const accounts = new Set<string>();
+    for (const r of seedRows) {
+      resolved.add(r.account_identifier);
+      accounts.add(`${r.platform}\0${r.account_identifier}`);
+    }
+    const unresolved = unique.filter((a) => !resolved.has(a));
+    if (unresolved.length > 0) {
+      const fallbackRows = await query<{ account_identifier: string; platform: string }>(
+        env.DB,
+        `SELECT DISTINCT account_identifier, platform FROM account_features
+         WHERE investigation_id = ?
+           AND account_identifier IN (${unresolved.map(() => '?').join(', ')})`,
+        [investigationId, ...unresolved]
+      );
+      for (const r of fallbackRows) {
+        accounts.add(`${r.platform}\0${r.account_identifier}`);
+      }
+    }
+    return accounts.size;
   }
 
   const row = await queryOne<{ count: number }>(
