@@ -486,7 +486,7 @@ Requires Anthropic credentials via **server secrets** or **request BYOK**
 |--------------|-------------|
 | `skipTriage=true` | Skip triage model |
 | `accountFilter=a,b` | Restrict to listed accounts |
-| `maxRetries` | Reasoning retry cap (default 3) |
+| `maxRetries` | Reasoning retry cap (default 3, maximum 5; larger values are clamped, non-positive or non-integer values use the default) |
 | `randomizationSeed` | Reproducible signal-table shuffle (§7.4.1) |
 
 **Response `400` `pair_cap_exceeded`**: canonical pair count
