@@ -153,6 +153,45 @@ Two consequences we would rather state than have you discover:
 
 **Do not upload anything you need to be erasable.**
 
+### Disclosure, 2026-09-26: what a rebuild left behind, and what we did with it
+
+This is a record of something that went wrong on the hosted instance. Times are UTC.
+
+**What happened.** The server that ran the database was shut down on 2026-09-24. The hosted
+instance was rebuilt on a new server on 2026-09-26, with an empty database. The database was
+not carried over. The archive was.
+
+**What was left behind.** 81 objects, 40,050,003 bytes (about 38 MiB): 8 investigation
+manifests and 73 archived artifacts. All of it was unencrypted, like everything in the archive
+(section 6). No database row pointed to any of it any more.
+
+**Whose it was.** All 8 investigations were the operator's own tests: health checks,
+end-to-end runs, a sample and smoke tests. The operator confirmed he created every one of
+them. None was a visitor's investigation. We did not open the material before deleting it, so
+we cannot tell you whether the test uploads contained posts from real accounts.
+
+**Why it mattered anyway.** While the rebuilt instance was running against that archive, the
+leftover material could have been reached through the service by someone who did not create
+it. That it turned out to be test data is luck about the contents. It is not a property of
+the system, and the same thing would have been true of a visitor's investigation.
+
+**How long.** The database was still down at 22:30 on 2026-09-26 (measured, #317), so the
+window opened after that. It closed when the archive was emptied, at about 00:43 on
+2026-09-27, which was still the evening of 2026-09-26 in the United States. That is at most
+about two and a quarter hours.
+
+**What we did.** On the operator's order the archive was emptied. It was checked afterwards:
+0 objects, 0 bytes. Nothing the rebuilt instance had created was in it.
+
+**What we do not know.** Whether anyone reached the material during the window.
+`[CONFIRM: whether the rebuilt instance's records show any sign that the material was reached
+during the window]`
+
+**What is not fixed.** Deleting the material removed what was exposed. It did not remove the
+defect that exposed it, which is open and tracked privately as `GHSA-94c2-9pmf-c765`. We will
+say what it was once it is fixed. Until then, treat the archive as the least protected part
+of this service, because it is.
+
 > **DECISION (Conrad, #318 section 8 item 3):** a fixed retention window, and whether unreferenced
 > artifacts should be collected.
 
