@@ -26,8 +26,9 @@ cover running and deploying the code.
 | [TESTING_SETUP.md](TESTING_SETUP.md) | Vitest, `TEST_MYSQL_URL`, LLM mocks |
 | [BACKGROUND-CORPUS.md](BACKGROUND-CORPUS.md) | Practitioner background corpus for §4.3.2-3 TF-IDF / novelty n-grams |
 | [contact.md](contact.md) | Issue tracker vs private email |
-| [PRIVACY.md](PRIVACY.md) | Hosted-instance privacy disclosure (DRAFT) |
-| [ACCEPTABLE-USE.md](ACCEPTABLE-USE.md) | Hosted-instance acceptable use / audience limits (DRAFT) |
+| [TERMS.md](TERMS.md) | Hosted-instance terms of service (DRAFT for review, NOT in force, #318) |
+| [PRIVACY.md](PRIVACY.md) | Hosted-instance privacy disclosure (DRAFT revision for review, #318) |
+| [ACCEPTABLE-USE.md](ACCEPTABLE-USE.md) | Hosted-instance acceptable use / audience limits (active policy) |
 | [LICENSE-POSTURE.md](LICENSE-POSTURE.md) | npm MIT packages vs AGPL implementation; NOTICE clarity (DRAFT) |
 | [API-OPENNESS-DECISION.md](API-OPENNESS-DECISION.md) | UI-public vs API-public decision note (DRAFT, pending) |
 
