@@ -505,3 +505,37 @@ describe('runReasoning: retry feedback wire-up', () => {
     expect(attempt2UserMsg).toMatch(/not parseable as a JSON object/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// max_attempts bound
+// ---------------------------------------------------------------------------
+
+describe('runReasoning: max_attempts bound', () => {
+  it('clamps an oversized max_attempts to MAX_REASONING_ATTEMPTS model calls', async () => {
+    // Exactly MAX_REASONING_ATTEMPTS (5) intercepts are queued; a sixth call
+    // would hit disableNetConnect and throw.
+    for (let i = 1; i <= 5; i++) mockReasoningMalformed(`attempt ${i}`);
+
+    const result = await runReasoning({
+      ...BASE_OPTS,
+      signal_table: makeMultiCategorySignalTable(),
+      max_attempts: 1000,
+    });
+
+    expect(result.attempts).toBe(5);
+    expect(result.declined).toBe(true);
+  });
+
+  it('falls back to the default attempt count for a non-positive max_attempts', async () => {
+    for (let i = 1; i <= 3; i++) mockReasoningMalformed(`attempt ${i}`);
+
+    const result = await runReasoning({
+      ...BASE_OPTS,
+      signal_table: makeMultiCategorySignalTable(),
+      max_attempts: 0,
+    });
+
+    expect(result.attempts).toBe(3);
+    expect(result.declined).toBe(true);
+  });
+});
