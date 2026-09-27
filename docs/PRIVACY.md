@@ -121,15 +121,15 @@ encryption shipped, if any remain, are not encrypted at all.
 | Where | What |
 |---|---|
 | **Cloudflare** | Runs the Workers, the archive (R2) and the database connection, and keeps request logs. |
-| **Our server host** | Runs the database and the ingest, PDF and attribution containers. The PDF container handles a fully decrypted evidence packet while it renders it. |
+| **Vultr** (our server host) | Runs the database and the ingest, PDF and attribution containers. The PDF container handles a fully decrypted evidence packet while it renders it. |
 | **The AI gateway you name, and the model provider behind it** | When you run attribution: the investigation id, handles and platforms, your basis statements, control accounts, time bounds, and the full signal table. |
 | **The platform's image CDN** | On Twitter/X ingest, **our** servers fetch the images referenced in your upload in order to hash them. The CDN sees our address, not yours. |
 
 We do not sell data, share it for advertising, or send it to data brokers. There is no email,
 webhook or analytics call anywhere in the code.
 
-> **DECISION (Conrad, #318 section 8 item 4):** name the server host and its region here, and
-> state whether provider snapshots are enabled. `[CONFIRM: provider and region]`
+> **DECISION (Conrad, #318 section 8 item 4):** state the region the server runs in, and whether
+> provider backups or snapshots are enabled. `[CONFIRM: region and backups]`
 
 ## 8. Retention and deletion
 
