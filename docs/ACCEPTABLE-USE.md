@@ -111,7 +111,9 @@ practitioner role.
 
 What the host **can** do, and will do, on credible reports of misuse:
 
-- **Revoke** the offending investigation's capability token and access.
+- **Cut off** the offending investigation by direct operator action on the database.
+  There is no revocation feature in the software today, so this is a manual step,
+  not a button.
 - **Rate-limit or block** abusive callers.
 - **Decline** to support the use and, where appropriate, disavow it publicly
   (section 10.8): a forked or altered deployment that strips these commitments is
