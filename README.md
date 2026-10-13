@@ -25,7 +25,7 @@ applying the methodology.
 | Path | Purpose |
 |------|---------|
 | `paper/` | Methodology paper (CC-BY-4.0) -- **the spec** |
-| `implementation/` | Backend reference implementation (AGPL-3.0) |
+| `implementation/` | Backend reference implementation (AGPL-3.0-only) |
 | `web/` | Browser UI Worker (proxies API, BYOK for attribution) |
 | `docs/` | Setup, deployment, API, testing |
 | `containers/` | Optional VPC ingest and PDF workers |
@@ -110,8 +110,9 @@ credentials). Self-host may set server `AI_GATEWAY_URL` + `CF_AIG_TOKEN` or
 
 ## Licensing
 
-- **Implementation:** AGPL-3.0
+- **Implementation:** AGPL-3.0-only
 - **Methodology paper:** CC-BY-4.0
+- **Offline npm tools** (`packages/common-thread-verify`): MIT; see [NOTICE](NOTICE) for the boundary
 
 ## Contributing
 

@@ -20,10 +20,11 @@ NCII bright line is the one stated exception.
 
 ## Why the pointer sits here, and why this repo is unusual
 
-**Common Thread is one of exactly two products Skyphusion Labs hosts** (the other is the Vivijure
-hosted instance). Everything else we make is strictly self-host, permanently. Both hosted instances
-are offered deliberately, **as a public good**: they exist so that someone who cannot stand up their
-own deployment is not thereby locked out. They are not the business model.
+**Common Thread is one of the few products Skyphusion Labs hosts.** The others are Prism, at
+`play.skyphusion.org`, and the Vivijure hosted tier, which is pre-launch; the canonical document
+carries the complete table. Everything else we make is strictly self-host, permanently. The hosted
+instances are offered deliberately, **as a public good**: they exist so that someone who cannot stand
+up their own deployment is not thereby locked out. They are not the business model.
 
 That puts this repository in a small minority: **we are actually in the data path here.** The
 commitment's self-host argument ("there is no hosted instance, so there is no user data at
@@ -54,12 +55,15 @@ credentials into a caller-driven request, or begins retaining investigation mate
 product needs to function, the commitment stops being true, and whoever ships it owns updating the
 canonical document in the same PR.** See the canonical copy for the full set of drift tripwires.
 
-## Status: the policy for this instance is still owed
+## Status: the policies for this instance, and what is still owed
 
-**The privacy policy and acceptable-use policy for the hosted instance are drafted but not merged**
-([#190](https://github.com/skyphusion-labs/common-thread/pull/190)), and the public-release
-readiness evaluation ([#187](https://github.com/skyphusion-labs/common-thread/issues/187)) is still
-open, while the instance itself is reachable now.
+**The acceptable-use policy is in force** ([ACCEPTABLE-USE.md](ACCEPTABLE-USE.md), landed in
+[#190](https://github.com/skyphusion-labs/common-thread/pull/190), active since v0.1.2). **The privacy
+disclosure is a draft revision under review** ([PRIVACY.md](PRIVACY.md)) and **the terms of service are
+drafted and not in force** ([TERMS.md](TERMS.md)); both landed in #319 for
+[#318](https://github.com/skyphusion-labs/common-thread/issues/318), and both carry DECISION and
+COUNSEL markers that are Conrad's and a licensed lawyer's to close. The public-release readiness
+evaluation ([#187](https://github.com/skyphusion-labs/common-thread/issues/187)) is closed.
 
-This file is a pointer to a commitment, not a substitute for that policy. Section 4.4 of the
-canonical copy states the same gap rather than hiding it, and both come out when #190 lands.
+This file is a pointer to a commitment, not a substitute for those policies. Where a policy and the
+code disagree, the code is what actually happens, and the policy is the defect.

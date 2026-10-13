@@ -4,3 +4,9 @@ Common Thread is dual-licensed:
   - Methodology paper (paper/): CC-BY-4.0. See paper/LICENSE.
 
 A labor of love, given freely. Run the implementation as a network service and the AGPL has you share your changes back, so it stays a commons; the paper you may share and adapt with attribution under CC-BY-4.0.
+
+Offline client tools published to npm under the @skyphusion scope are licensed MIT, not AGPL-3.0-only. They are self-contained utilities that interoperate with the Common Thread evidence-packet format without incorporating the AGPL Worker code:
+
+  - @skyphusion/common-thread-verify   (packages/common-thread-verify/, MIT)
+
+Each MIT package ships its own LICENSE, which governs that package. The AGPL-3.0-only terms continue to govern the reference implementation in implementation/ and everything else not explicitly published under a separate license.
