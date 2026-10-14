@@ -1,12 +1,17 @@
 name: publish-verify-npm
 
-# Publish @skyphusion/common-thread-verify on version tags.
-# Required secret: NPM_TOKEN (npmjs automation token with publish scope).
+# Auth is npm trusted publishing. npmjs.com trusts this filename
+# (publish-verify-npm.yml) and no GitHub environment. The publish job uses
+# the Actions OIDC token and does not read NPM_TOKEN. npm CLI 11.5.1 or newer
+# performs the exchange, so the publish step installs npm 11 first.
+# A verify-v* tag publishes @skyphusion/common-thread-verify. workflow_dispatch
+# is a trust probe only and never publishes a new version.
 
 on:
   push:
     tags:
       - "verify-v*"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -14,6 +19,9 @@ permissions:
 
 jobs:
   publish:
+    permissions:
+      contents: read
+      id-token: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -40,12 +48,49 @@ jobs:
           npm test
           npm run cleanroom
       - name: Set package version from tag
+        if: github.event_name == 'push'
         working-directory: packages/common-thread-verify
         run: |
           TAG="${GITHUB_REF_NAME#verify-v}"
           npm version "$TAG" --no-git-tag-version --allow-same-version
-      - name: Publish
+      - name: Publish to npm
         working-directory: packages/common-thread-verify
-        run: npm publish --access public --provenance
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          TRUST_PROBE: ${{ github.event_name == 'workflow_dispatch' && 'true' || 'false' }}
+        run: |
+          set -euo pipefail
+          npm install -g npm@^11.5.1
+          npm --version
+          pkg="$(node -p "require('./package.json').name")"
+          ver="$(node -p "require('./package.json').version")"
+          probe="${TRUST_PROBE:-false}"
+          on_registry=0
+          if npm view "${pkg}@${ver}" version >/dev/null 2>&1; then
+            on_registry=1
+          fi
+          # A probe must not mint a version. Rewrite the checkout's version to
+          # the one already on npm, then let publish refuse it. The refusal
+          # happens after the OIDC exchange and before the upload.
+          if [ "$probe" = "true" ] && [ "$on_registry" != "1" ]; then
+            ver="$(npm view "$pkg" version)"
+            node -e 'const fs=require("fs"); const p="package.json"; const j=JSON.parse(fs.readFileSync(p,"utf8")); j.version=process.argv[1]; fs.writeFileSync(p, JSON.stringify(j,null,2)+"\n");' "$ver"
+            on_registry=1
+          fi
+          if [ "$on_registry" = "1" ]; then
+            set +e
+            out="$(npm publish --access public --provenance 2>&1)"
+            rc=$?
+            set -e
+            printf '%s\n' "$out"
+            if printf '%s\n' "$out" | grep -F -q 'previously published versions'; then
+              echo "Trusted publisher accepted for ${pkg}@${ver} (already on the registry, nothing new published)"
+              exit 0
+            fi
+            echo "::error::trusted publisher was not accepted for ${pkg} (npm publish exit ${rc})" >&2
+            exit 1
+          fi
+          if [ "$probe" = "true" ]; then
+            echo "::error::trust probe refused to publish a new version of ${pkg}" >&2
+            exit 1
+          fi
+          npm publish --access public --provenance
