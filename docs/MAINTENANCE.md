@@ -14,6 +14,8 @@ and how practitioners should plan around both.
 [common-thread.skyphusion.org](https://common-thread.skyphusion.org) and the
 reference implementation on GitHub during the v1 stabilization period.
 
+The hosted database and container tier are suspended. The public page stays up and does not offer Create. Self-host is unchanged. There is no new host.
+
 ## Bounded commitment (v1 window)
 
 During the first **twelve months after v1 stabilization** (target: through

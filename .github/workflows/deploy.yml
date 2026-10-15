@@ -138,6 +138,13 @@ jobs:
             rm -f web/wrangler.ci.toml
             exit 1
           fi
+          # The public UI must not offer Create while the database and
+          # container tier are suspended. Operator deploy does not use this step.
+          if ! grep -E '^\s*HOSTED_MAINTENANCE\s*=' web/wrangler.ci.toml | grep -Eq '["'\'']?(1|true)["'\'']?'; then
+            echo "::error::COMMON_THREAD_WEB_WRANGLER must set HOSTED_MAINTENANCE=1 (or true) under [env.production.vars]"
+            rm -f web/wrangler.ci.toml
+            exit 1
+          fi
           npx wrangler deploy --env production -c web/wrangler.ci.toml
           rm -f web/wrangler.ci.toml
 

@@ -265,6 +265,10 @@ DEFAULT_BACKEND_URL = "http://127.0.0.1:8787"
 
 - Backend needs `VPC_PDF`, `PDF_WORKER_URL`, and `PDF_SECRET`. PDF is rendered
   on the VPC container, not in the browser.
+- The hosted container tier is suspended. The public web worker sets
+  `HOSTED_MAINTENANCE=1` under `[env.production.vars]` only. Self-host and
+  `env.operator` leave it unset. A tag deploy of the public web worker
+  refuses to ship unless `COMMON_THREAD_WEB_WRANGLER` sets that var.
 
 **Hyperdrive local dev**
 

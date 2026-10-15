@@ -17,7 +17,7 @@ researchers who need documented methodology without platform-internal data or
 commercial OSINT tooling. Read the paper's audience exclusions (§1.2) before
 applying the methodology.
 
-**Hosted public UI (BYOK):** https://common-thread.skyphusion.org  
+**Hosted public UI:** https://common-thread.skyphusion.org (suspended: the database and the container tier are not running, and Create is disabled. Self-host still works.)  
 **Current release:** v0.5.0 (see [CHANGELOG.md](CHANGELOG.md)).
 
 ## Repository layout
