@@ -22,6 +22,19 @@ describe('validateAiGatewayUrl', () => {
     });
   });
 
+  it('accepts the documented direct Anthropic host by default', () => {
+    expect(validateAiGatewayUrl('https://api.anthropic.com')).toEqual({
+      url: 'https://api.anthropic.com',
+    });
+  });
+
+  it('rejects an arbitrary host against the default list', () => {
+    expect(validateAiGatewayUrl('https://evil.example/anthropic')).toEqual({
+      error:
+        'AI Gateway URL host is not permitted. Allowed hosts: gateway.ai.cloudflare.com, api.anthropic.com.',
+    });
+  });
+
   it('rejects non-HTTPS schemes', () => {
     expect(validateAiGatewayUrl('http://gateway.ai.cloudflare.com/anthropic')).toEqual({
       error: 'AI Gateway URL must use HTTPS.',
@@ -92,6 +105,21 @@ describe('resolveAttributionCredentials', () => {
       aiGatewayUrl: 'https://gateway.example/anthropic',
       anthropicApiKey: 'env-key',
       source: 'environment',
+    });
+  });
+
+  it('accepts a direct Anthropic URL on the default allowlist', () => {
+    const result = resolveAttributionCredentials({
+      requestHeaders: new Headers({
+        'x-ai-gateway-url': 'https://api.anthropic.com',
+        'x-anthropic-api-key': 'user-key',
+      }),
+    });
+
+    expect(result).toEqual({
+      aiGatewayUrl: 'https://api.anthropic.com',
+      anthropicApiKey: 'user-key',
+      source: 'request',
     });
   });
 

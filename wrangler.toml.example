@@ -13,7 +13,8 @@
 #
 # Attribution (server-side keys OR user BYOK from web UI):
 #   Secrets: AI_GATEWAY_URL, ANTHROPIC_API_KEY (optional if all users BYOK)
-#   Vars: AI_GATEWAY_ALLOWED_HOSTS (optional; default gateway.ai.cloudflare.com)
+#   Vars: AI_GATEWAY_ALLOWED_HOSTS (optional; default
+#         gateway.ai.cloudflare.com, api.anthropic.com)
 #   Var:  PUBLIC_BYOK_ONLY = "1" on the PUBLIC hosted Worker (#187) forces
 #         visitor BYOK and ignores any server-side AI secret so it cannot be
 #         ridden; credential-less attribution then returns 400 byok_required.
