@@ -1,215 +1,222 @@
 # 5. Collection methodology
 
-This section specifies how investigations are scoped, how seed accounts are selected, what is collected, what is not, and how the collection process itself is documented. The methodology in §4 and the deterministic feature extraction in §6 assume the collection meets the requirements stated here. Investigations that do not meet these requirements may still produce useful internal exploration but cannot meet the reproducibility commitments of §3.
+This section specifies scope, seed selection, what to collect, what not to collect, and how to record the collection. §4 and §6 assume that collection meets these rules. An investigation that misses them can still be a private exploration. It cannot meet the reproducibility rules in §3.
 
-Collection is the operational predicate for everything that follows. Investigations that are poorly scoped at the collection stage produce signal tables that reflect collection bias rather than the underlying network behavior, and no amount of careful feature extraction or attribution reasoning later in the pipeline recovers from that. The discipline of getting collection right at the outset is the single highest-leverage decision in a Common Thread investigation.
+Collection is the predicate for everything later. A weak scope produces a signal table that shows collection bias, not the network. Later extraction and reasoning cannot repair that. The seed and the scope are the highest-leverage decisions in a Common Thread investigation.
 
 ## 5.1 Seed account selection
 
-The seed set is the set of accounts the investigation will examine. Every signal in §4 is computed within or across the seed set. Decisions about who is in the seed set therefore shape what the investigation can find, and care taken at the seed-selection stage pays for itself many times over downstream.
+The seed set is the set of accounts the investigation will examine. Every signal in §4 is computed inside that set or across pairs in that set. Who is in the seed decides what the investigation can find.
 
 ### 5.1.1 Basis statements
 
-For each account in the seed set, the investigation should produce a written basis statement: a brief factual statement of why the account was included. The basis statement is not an accusation. It is a record of the investigator's reason for paying attention to the account at the moment the seed set was assembled, before any signals have been computed.
+Write a basis statement for each seed account. The statement is a short factual reason for inclusion. It is not an accusation. Write it when you assemble the seed, before any signal is computed.
 
-A basis statement might say: "Account observed engaging with the named target on three occasions in the relevant time window, using language consistent with the target's claimed harassers." It might say: "Account identified by witness X as a member of the network." It might say: "Account flagged by automated tooling as having unusually high amplification of the target's content." It might say: "Account included as a control: not suspected of coordination, used to validate that the methodology does not false-positive."
+Examples of a basis statement:
 
-The discipline of writing the basis statement before any signal extraction has two effects. First, it forces the investigator to articulate the actual reason for inclusion, separating "this account caught my attention" from "this account is suspected of coordination." Second, it creates a record that downstream readers can evaluate. An investigation whose seed set was assembled from a single witness's accusations is more vulnerable to confirmation bias than one whose seed set includes accounts identified by multiple independent indicators; both are valid, but the difference is auditable only if the basis statements exist.
+- "The account engaged the named target three times in the time window. The language matched the target's description of the harassers."
+- "Witness X identified the account as a member of the network."
+- "An automated tool flagged unusually high amplification of the target's content."
+- "Control account. Not suspected of coordination. Used to check false positives."
 
-The reference implementation requires a basis statement field for every account added to a seed set. The statement is stored in the investigation manifest and is included in any output evidence packet.
+Write the statement before extraction. That forces a real reason, separate from "this account caught my attention." It also gives a later reader a record. A seed that comes from one witness is more exposed to confirmation bias than a seed with several independent indicators. Both can be valid. The difference is auditable only if the statements exist.
+
+The reference implementation requires a basis statement for every seed account. The statement is stored with the investigation. It is included in the evidence packet.
 
 ### 5.1.2 Sources for seed accounts
 
-Seed accounts come from a few common sources. None of them is inherently more reliable than the others; they have different failure modes that the methodology accommodates differently.
+Seed accounts come from a few common sources. No source is always more reliable. Each source has its own failure mode.
 
-**Witness identification.** A person with first-hand knowledge of the network identifies specific accounts. This is high signal but high bias: the witness has reasons for the identification that are not part of the platform record, and their accusations may reflect personal conflict rather than coordinated inauthenticity. Basis statements from witness identification should record the witness's relationship to the network and the witness's stated basis for the identification.
+**Witness identification.** A person with first-hand knowledge names specific accounts. The signal can be strong. The bias can also be strong. The witness may reflect a personal conflict, not coordinated inauthenticity. Record the witness's relation to the network and the witness's stated basis.
 
-**Observed coordinated activity.** The investigator notices accounts engaging with the same content in patterns that suggest coordination, or amplifying each other in ways that exceed organic engagement. This is the most common seed-selection source for investigative journalism and OSINT work. The risk is selection bias: the patterns that catch attention may not be the patterns that distinguish coordinated networks from organic ones.
+**Observed coordinated activity.** The investigator sees accounts that engage the same content, or that amplify each other beyond ordinary engagement. This is the usual source in journalism and OSINT. The risk is selection bias. The pattern that catches attention may not be the pattern that separates a coordinated network from an organic one.
 
-**Tip-line or community submission.** Some networks come to the investigator's attention through tip lines, community submissions, or third-party reporting. These tend to carry the biases of the reporting community and should be treated with the same caution as witness identification.
+**Tip line or community submission.** A tip, a community report, or a third-party report can name a network. Treat it with the same caution as a witness. The reporting community has its own bias.
 
-**Automated tooling output.** Existing tools (bot detectors, amplification analyzers, network-graph tools) sometimes flag accounts that warrant investigation. Tooling output is best treated as a hypothesis, not a verdict; the methodology is designed to evaluate the hypothesis using a broader signal set than any single tool considers.
+**Automated tool output.** A bot detector, an amplification analyzer, or a graph tool can flag an account. Treat the flag as a hypothesis, not a verdict. This method evaluates the hypothesis with a wider signal set than one tool uses.
 
-**Self-identification by the target.** A person who is the subject of a coordinated harassment campaign may identify the accounts attacking them. This source is biased in predictable ways (the target sees harassment, not coordination) but is also high signal in many cases (the target has more sustained attention to the relevant accounts than any outside investigator). Basis statements from self-identification should note that the source is the target and describe what the target observed.
+**The target names the accounts.** A person under a harassment campaign may name the accounts. The bias is predictable. The target sees harassment, not coordination. The signal is often high, because the target has watched the accounts longer than an outside investigator. Note that the source is the target, and record what the target observed.
 
 ### 5.1.3 Avoiding circular seed selection
 
-A common failure mode is to assemble the seed set from the accounts that an existing accusation identifies, then use the methodology to "confirm" the accusation. This is circular: the seed set already reflects the accusation, and the methodology's conclusion that the seed set is coordinated does not add information.
+A common failure is to build the seed from an existing accusation, then use the method to "confirm" that accusation. That is circular. The seed already contains the accusation. A conclusion that the seed is coordinated adds no information.
 
-The methodology mitigates this in two ways. First, basis statements make the circularity visible: a seed set whose basis statements all trace to the same accusation is recognizably narrow. Second, the inclusion of control accounts (§5.1.4) provides a check on whether the methodology is finding coordination because it is present in the network or because the seed selection guaranteed the appearance of coordination.
+The method limits this in two ways. Basis statements make a narrow seed visible. Control accounts (§5.1.4) check whether coordination is in the network, or only in the way the seed was chosen.
 
-Practitioners working in adversarial contexts (litigation, journalism with named subjects) should expect the seed-selection process to be challenged. Documented basis statements and the use of controls are the methodology's answer to that challenge.
+In litigation, or in journalism with named subjects, expect a challenge to the seed. Documented basis statements and control accounts are the answer to that challenge.
 
 ### 5.1.4 Control accounts
 
-Where possible, the seed set should include accounts that are not suspected of coordination. These control accounts serve as a check on the methodology: an investigation that returns "consistent with same operator" for accounts that are known not to share an operator has uncovered either a methodology defect or an unexpected real coordination.
+Where you can, include accounts that are not suspected of coordination. The method may return "consistent with one operator" for accounts that do not share an operator. That result is a method defect or an unexpected real coordination.
 
-Suitable control accounts are accounts in the same broad community as the suspected network (same niche, same platform usage patterns, same general topic interests) that are independently known not to be part of the operator's network. Practitioners with deep familiarity with the community can usually identify several plausible controls. Practitioners working in unfamiliar communities should consult with someone who has community knowledge.
+A suitable control is in the same broad community as the suspected network. Same niche, same platform habits, same general topics. The control is independently known to be outside the operator's network. A practitioner who knows the community can usually name several controls. In an unfamiliar community, ask someone who knows it.
 
-The reference implementation tags control accounts in the manifest and reports their signal-table comparisons separately in the output. Attribution claims that depend on signal patterns also present between targets and controls are flagged as unreliable.
+The reference implementation tags control accounts. It reports their signal comparisons separately. A claim that depends on a pattern also present between targets and controls is flagged as unreliable.
 
 ## 5.2 Scope definition
 
-After seed account selection, the next decision is the scope of collection: how far back in time, how far out from the seed accounts, and what types of content.
+After the seed, define the collection scope. Decide how far back in time, how far out from the seed, and which content types.
 
 ### 5.2.1 Time bounds
 
-Collection requires a start date and an end date. The default end date is the moment of collection; the start date requires justification.
+Set a start date and an end date. The default end date is the moment of collection. The start date needs a written reason.
 
-The start date is typically chosen to cover the period of activity relevant to the investigation. For a coordinated harassment campaign, the start date might be the earliest known event in the campaign. For a network suspected of disinformation activity, the start date might be the creation date of the oldest account in the seed set. For litigation contexts, the start date is often dictated by the events at issue in the case.
+Choose the start date to cover the activity that matters. For a harassment campaign, use the earliest known event. For a suspected disinformation network, you may use the creation date of the oldest seed account. In litigation, the events in the case often set the start date.
 
-The start date should be recorded in the investigation manifest with a justification. Different investigations will reach different defensible decisions about how far back to collect; the requirement is that the decision is documented.
+Record the start date and the reason in the investigation record. Different investigations will choose different defensible dates. The requirement is that the decision is documented.
 
-Collection deeper than the investigation requires is generally not harmful and may be useful later; collection shallower than the investigation requires forces re-collection (§5.5) when the gap is discovered, and re-collection may not recover content that has been deleted in the intervening period. The methodology errs toward more collection rather than less when the marginal cost is small.
+Extra history is usually harmless, and it can help later. Too little history forces re-collection (§5.5). Re-collection may not recover content deleted in the interval. When the extra cost is small, collect more rather than less.
 
 ### 5.2.2 Account scope
 
-The methodology's first published version is scoped to closed-world attribution: the analysis operates on the seed set and does not seek to discover new accounts beyond the seed. Account scope decisions are therefore about which adjacent accounts to collect data on for context, not about expanding the seed.
+v1 is closed-world. The analysis uses the seed. It does not discover new accounts. Account-scope decisions are about context, not about a larger seed.
 
-**Seeds-only.** The minimum collection scope. Each seed account's profile, timeline, and engagement history are collected. This is sufficient for signals from §4.1, §4.2, §4.3, §4.5, §4.6, and §4.7.
+**Seeds only.** Collect each seed account's profile, timeline, and engagement history. This supports §4.1, §4.2, §4.3, §4.5, §4.6, and §4.7.
 
-**Seeds plus first-degree network.** For signals from §4.4 (follower overlap, mutual-follow patterns, co-engagement timing), the methodology requires data about who follows and is followed by each seed account. The first-degree network is the set of accounts that follow or are followed by any account in the seed set. Collection of first-degree network data is typically limited to handles and follow timestamps; full profile and timeline collection of every first-degree account is rarely justified and expands the collection scope into territory that raises additional privacy concerns.
+**Seeds plus the first-degree network.** §4.4 needs data about who follows each seed account, and whom each seed account follows. The first-degree network is that set. Usually collect handles and follow timestamps only. Full profiles and timelines for every first-degree account are rarely justified, and they raise extra privacy concerns.
 
-**Seeds plus N-degree network.** Some advanced network analysis (which is out of scope for v1; see §1.3) requires data about second-degree or further accounts. Practitioners conducting such analysis should treat the expanded collection as a separate investigation with its own basis-statement requirements.
+**Seeds plus an N-degree network.** Some advanced graph work needs second-degree accounts or further. That work is out of scope for v1 (§1.3). If you do it, treat it as a separate investigation, with its own basis statements.
 
 ### 5.2.3 Content scope
 
-For each account in the collection scope, the following content types are typically collected:
+For each account in scope, typical collection includes:
 
-- Profile metadata (creation date, display name, bio, location, verification status, follower and followed counts)
-- Profile imagery (avatar, banner, pinned-post media)
-- Timeline (all posts within the time bound)
-- Reposts and quote-posts (treated as engagement records, not as authored content for §4.3 linguistic signals)
-- Likes and other engagement records, where the platform exposes them
-- Follower and followed lists (if first-degree network scope or larger)
-- Media attached to posts (images, video thumbnails, video where feasible)
-- External links shared by the account
+- Profile metadata (creation date, display name, bio, location, verification, follower count, followed count).
+- Profile images (avatar, banner, pinned-post media).
+- The timeline inside the time bound.
+- Reposts and quote posts, as engagement records. Do not treat them as authored text for the linguistic signals in §4.3.
+- Likes and other engagement records, where the platform shows them.
+- Follower and followed lists, when the scope includes the first-degree network or more.
+- Media on posts (images, video thumbnails, and video when feasible).
+- External links the account shared.
 
-The following are deliberately not collected:
+Do not collect:
 
-- Direct messages (per §4.8.4)
-- Any content that requires authentication beyond what the account naturally provides (the methodology operates on the public surface, not on data behind authentication)
-- Profile fields that are not publicly visible
-- Content from accounts adjacent to the network that are not in the collection scope
+- Direct messages (§4.8.4).
+- Content that needs authentication beyond the public surface.
+- Profile fields that are not public.
+- Content from accounts that are not in the collection scope.
 
-The reference implementation enforces these distinctions at the collection layer: the scraper is configured to fetch only the in-scope content types and to refuse out-of-scope requests.
+The reference implementation enforces these limits at the collection layer. The collector fetches in-scope types and refuses an out-of-scope request.
 
 ## 5.3 Collection tooling
 
-The choice of collection tooling is a practical decision shaped by the post-API-paywall environment, the platform under investigation, the available budget, and the practitioner's tolerance for operational complexity. The methodology does not require a specific tool; it requires that whatever tool is used produces artifacts that can be archived to the requirements in §5.4 and logged in the manifest.
+The tool is a practical choice. It depends on cost, the platform, the budget, and how much operational complexity you will accept. The method does not require one tool. The tool must produce artifacts that meet §5.4, and the manifest must log the tool.
 
 ### 5.3.1 Commercial scrapers
 
-Commercial scraping platforms (Apify is the largest, with several smaller competitors) offer pre-built actors for major platforms, handle rotation and anti-bot countermeasures, and charge per request or per actor run. They are the lowest-friction option for practitioners who can afford them.
+Commercial scraping platforms, of which Apify is the largest, offer ready collectors for major platforms. They handle rotation and anti-bot measures. They charge per request or per run. They are the lowest-friction option when you can pay.
 
-Trade-offs to be aware of:
+Know these tradeoffs:
 
-- The practitioner depends on the commercial provider's continued ability to scrape the target platform. When a platform updates anti-bot measures, commercial scrapers typically catch up within days to weeks; investigations that need uninterrupted collection should plan for these gaps.
-- The practitioner depends on the commercial provider's TOS compliance with the practitioner's intended use. Commercial scrapers vary in how restrictive their TOS are. Some prohibit use for investigative purposes against specific named individuals. Practitioners should read the TOS of the commercial provider they plan to use.
-- The cost scales with the scope of collection. Investigations with large seed sets or wide time windows can be expensive.
+- You depend on the vendor's ability to keep scraping the platform. After an anti-bot change, vendors often recover in days or weeks. Plan for the gap if collection must be continuous.
+- You depend on the vendor's terms. Some terms prohibit investigation of a named person. Read the terms before you use the vendor.
+- Cost grows with the seed size and the time window.
 
-The reference implementation includes adapters for at least one commercial scraping platform in the initial release. The adapter passes raw scraper output to the archival layer without transformation, in keeping with the immutable-archival requirement (§3.1.1).
+The reference implementation includes an adapter for at least one commercial platform in the initial release. The adapter passes raw output to the archive with no transform (§3.1.1).
 
 ### 5.3.2 Self-hosted scrapers
 
-Self-hosted scrapers, written and maintained by the practitioner or their organization, offer control at the cost of infrastructure burden. The practitioner is responsible for handling rotation, anti-bot countermeasures, retries, and the ongoing maintenance burden of keeping the scraper working as the target platform changes.
+A scraper you run yourself gives control and adds an infrastructure burden. You handle rotation, anti-bot measures, retries, and the changes the platform makes.
 
-Self-hosted scrapers are most suitable for practitioners with engineering resources, frequent collection needs, or strong reasons not to depend on commercial providers. Academic researchers, well-resourced newsrooms, and organizations doing repeated investigations are common users.
+This option fits a team with engineering capacity, frequent collection, or a strong reason not to depend on a vendor. Academic groups, larger newsrooms, and organizations that repeat investigations are the usual users.
 
-The reference implementation does not include a built-in self-hosted scraper. The collection layer accepts artifacts from any source as long as they meet the archival requirements; practitioners running self-hosted scrapers integrate by writing their scraper output to the archival layer directly.
+The reference implementation does not include a built-in self-hosted scraper. The collection layer accepts artifacts from any source that meets the archive rules. Write the scraper output straight to the archive.
 
 ### 5.3.3 Browser-based collection
 
-For investigations of small scope, manual or semi-automated browser-based collection is a viable option. The practitioner uses a normal browser session to view the target accounts and saves the resulting pages (full HTML, screenshots, or both) into the archive. Browser-based collection is slow and labor-intensive but resistant to anti-bot countermeasures in ways automated scrapers are not, and it produces artifacts that pass through fewer transformations than scraper output.
+For a small scope, a normal browser session is viable. View the accounts and save the pages (full HTML, screenshots, or both) into the archive. This is slow. It resists anti-bot measures better than many automated collectors. The artifacts pass through fewer transforms than scraper output.
 
-Practitioners using browser-based collection should be aware that the platform may attach the practitioner's identity to the views; logging into the target platform as oneself to investigate an adversarial network is a security consideration that the methodology does not address. Many practitioners use dedicated browsers or sessions with no logged-in account for this work.
+The platform may attach your identity to the views. The method does not address the security of logging in as yourself to watch an adversarial network. Many practitioners use a dedicated browser session with no logged-in account.
 
 ### 5.3.4 Hybrid approaches
 
-Many investigations use multiple tools: a commercial scraper for high-volume timeline collection, a self-hosted scraper for specific endpoints the commercial scraper does not cover, and browser-based collection for sensitive or low-volume artifacts. The manifest format supports recording the tool used per artifact, and the reference implementation does not assume a single tool across an investigation.
+Many investigations use more than one tool. A commercial scraper collects timelines at volume. A self-hosted scraper covers an endpoint the vendor misses. A browser saves a sensitive or low-volume artifact. The manifest records the tool for each artifact. The reference implementation does not assume one tool for the whole investigation.
 
 ### 5.3.5 Terms of service and legal considerations
 
-Scraping major social platforms is generally prohibited by the platforms' terms of service. The legal status of TOS violations under computer-fraud statutes varies by jurisdiction and has been the subject of substantial litigation in the United States, with the *hiQ Labs v. LinkedIn* line of cases narrowing CFAA liability for public-data scraping but not eliminating it. The methodology does not advise practitioners on the legal status of their collection in their jurisdiction. Practitioners using the methodology in contexts where TOS compliance or CFAA exposure is a concern should consult counsel before beginning collection.
+Major platforms generally prohibit scraping in their terms of service. The legal status of a terms breach under computer-fraud statutes varies by jurisdiction. In the United States, the *hiQ Labs v. LinkedIn* line of cases narrowed CFAA liability for scraping of public data. It did not remove that liability. This method does not advise you on the law of your jurisdiction.
 
-The methodology is designed to be usable by legitimate practitioners and to produce artifacts that are admissible and defensible. It cannot insulate practitioners from the legal questions associated with the collection layer; those questions are real, are jurisdiction-dependent, and require legal advice rather than methodological advice.
+If terms compliance or CFAA exposure matters, ask counsel before you collect.
+
+The method is for a legitimate practitioner, and it aims at artifacts that can be defended. It cannot shield you from the legal questions of collection. Those questions are real, they depend on jurisdiction, and they need legal advice.
 
 ## 5.4 Archival
 
-Archival is the operational implementation of the chain-of-custody commitments stated in §3.1. This subsection specifies the requirements; the manifest format itself is specified in Appendix D.
+Archival is the operational form of §3.1. This subsection states the requirements. v1.0 pointed at Appendix D for the manifest format. That file is not in this deposit. §3.1.2 states the format.
 
 ### 5.4.1 Content-addressed storage
 
-Every artifact collected enters the archive at a path derived from the SHA-256 hash of its bytes. The path convention used by the reference implementation is `sha256/ab/cd/<full-hash>.<ext>`, where `ab` and `cd` are the first two byte pairs of the hex hash. The two-level directory prefix avoids filesystem performance problems with directories containing millions of files.
+Every collected artifact enters the archive at a path from the SHA-256 hash of its bytes. The reference implementation uses `sha256/ab/cd/<full-hash>`, with an optional extension. `ab` and `cd` are the first two byte-pairs of the hex hash. The two-level prefix avoids a single directory with millions of objects.
 
-The extension is preserved for human convenience but is not part of the address. Two files with the same bytes but different extensions land at the same address and are stored once.
+The extension is for a human reader. It is not part of the hash. The method treats two files with the same bytes as one artifact. The reference implementation puts the extension in the path, so two extensions are two paths. See `paper/ERRATA.md`.
 
 ### 5.4.2 Atomic writes
 
-The write to the archive is atomic: either the artifact is fully present at its content-addressed path with the expected hash, or it is not present at all. The reference implementation enforces this by writing to a temporary path, computing the hash of the written bytes, verifying the hash matches the expected hash, and only then renaming to the final path. If any step fails, the temporary file is removed and the artifact is treated as not collected. Partial writes do not enter the archive.
+The write is atomic. The artifact is fully present at its content-addressed path, with the expected hash, or it is not present. A partial write does not enter the archive.
+
+The reference implementation uses a conditional put on the final path. It does not write a temporary file and then rename it. If the put fails, the artifact is not collected. See `paper/ERRATA.md`.
 
 ### 5.4.3 Manifest entries
 
-For every artifact written to the archive, a manifest entry is appended. The manifest is line-oriented JSON, append-only. Each entry records:
+Append a manifest entry for every archived artifact. The manifest is line-oriented JSON and append-only. Each entry records:
 
-- The SHA-256 hash of the artifact
-- The source URL or identifier from which the artifact was collected
-- The timestamp of collection, in UTC
-- The collection method used, including tool name and version
-- The investigation under which the artifact was collected
-- The seed account or first-degree account the artifact relates to, where applicable
-- Any platform-supplied metadata that came with the artifact (timestamps, identifiers, version information) that is not embedded in the artifact itself
+- The SHA-256 hash.
+- The source URL or identifier.
+- The collection time in UTC.
+- The collection method, including tool name and version.
+- The investigation.
+- The seed account or first-degree account, when one applies.
+- Platform metadata that came with the artifact and is not inside the artifact bytes (timestamps, identifiers, version information).
 
-The manifest is the index that makes the archive queryable. Without it, the archive is a directory of hashed files with no information about what each file contains or why it was collected.
+The manifest is the index. Without it, the archive is a directory of hashed files with no reason for each file.
 
-Mutations to manifest entries are not permitted. Corrections take the form of new entries that supersede prior entries, with a reference to the superseded entry's hash. This preserves the audit trail of corrections.
+Do not change a manifest entry. A correction is a new entry that supersedes the old entry and cites the old hash.
 
 ### 5.4.4 Backups
 
-The archive is the operational record of the investigation. If it is lost, the investigation is lost: the platform's record may have changed in the meantime, and signals computed from a missing archive are not reproducible.
+The archive is the operational record. If it is lost, the investigation is lost. The platform record may have changed, and signals from a missing archive are not reproducible.
 
-The methodology requires at least one backup of the archive on independent infrastructure. The reference implementation supports replicated storage to multiple Cloudflare R2 buckets or to one R2 bucket plus a separate S3-compatible store. Practitioners using other infrastructure should implement equivalent replication.
+The method requires at least one backup on independent infrastructure. The reference implementation can copy the archive to a second Cloudflare R2 bucket. It does not copy to a separate S3-compatible store. See `paper/ERRATA.md`. On other infrastructure, provide an equivalent copy.
 
-The manifest is included in the backup. The signature on the manifest, if present, must be backed up alongside the manifest itself.
+Include the manifest in the backup. If the manifest is signed, back up the signature with the manifest.
 
 ### 5.4.5 Retention
 
-Retention of the archive is the practitioner's decision and depends on the context of the investigation. Litigation contexts may have hold requirements that the practitioner is independently aware of. Journalistic and research contexts typically retain archives indefinitely as part of the documentary record. The methodology does not impose retention requirements beyond the duration of the investigation; archives should not be deleted while the investigation's outputs are still being relied on.
+Retention is the practitioner's decision, and it depends on context. Litigation may have a hold that you must already know. Journalism and research often keep an archive for as long as the documentary record matters. The method does not set a retention period beyond the investigation. Do not delete the archive while someone still relies on the outputs.
 
 ## 5.5 Re-collection
 
-Re-collection is the practice of returning to the target accounts at a later time and collecting again. Investigations frequently require re-collection: for extension as new accounts are added to the seed, for verification when signal patterns change unexpectedly, for monitoring when an investigation has an ongoing posture, or for response to challenges that question the integrity of the original collection.
+Re-collection means you return to the accounts later and collect again. You may need it when the seed grows, when a signal looks wrong, when the investigation stays open, or when someone challenges the first collection.
 
 ### 5.5.1 When to re-collect
 
-Common triggers for re-collection:
+**The seed grows.** New accounts need collection. Re-collect the existing accounts at the same time so the time bound matches across the seed.
 
-**Seed expansion.** When the investigation adds accounts to the seed, the new accounts require collection. Existing accounts also benefit from re-collection at the same time, to align the time bound across the seed set.
+**A signal looks anomalous.** Re-collect the relevant accounts. If the anomaly disappears, the cause is likely the collection layer, not a real signal.
 
-**Signal anomalies.** When feature extraction surfaces signal patterns that look anomalous, re-collection of the relevant accounts can confirm or refute the pattern. An anomaly that disappears on re-collection points to a collection-layer artifact rather than a real signal.
+**The investigation stays open.** You expect the network to stay active, and you want the later activity. Re-collect on an interval that matches the network's activity rate.
 
-**Monitoring posture.** Some investigations have an ongoing monitoring posture: the practitioner expects the network to remain active and wants to capture continued activity. Periodic re-collection at intervals appropriate to the network's activity rate supports this posture.
-
-**Adversarial challenge.** When the integrity of the original collection is challenged, fresh collection from the same source can corroborate the original. The original archive remains the canonical record; the fresh collection is documented as a separate event and compared to the original.
+**Someone challenges the first collection.** A fresh collection from the same source can corroborate the original. The original archive stays the canonical record. Document the fresh collection as a separate event, and compare it to the original.
 
 ### 5.5.2 Handling deletions
 
-A common observation during re-collection is that content visible at the first collection is no longer accessible at the second. This is evidentially important. The deleted content itself is preserved in the original archive; the fact of deletion is a new piece of evidence about the operator's behavior.
+Content from the first collection is often gone at the second. That fact matters. The original archive still has the bytes. The deletion is new evidence about the operator.
 
-The methodology requires that deletions discovered during re-collection be recorded in the manifest. The recording specifies the hash of the artifact in the original archive, the source URL at which the artifact was found absent, the timestamp of the discovery, and the collection method that produced the absence.
+Record a deletion in the manifest. Record the hash from the original archive. Record the source URL where the artifact is now absent. Record the time of the discovery and the collection method that observed the absence.
 
-Tombstoning is the conventional term for marking an artifact as "previously present, now absent." The reference implementation supports tombstone manifest entries with the same structure as collection entries but with an "absent" status flag.
+A tombstone marks an artifact as previously present and now absent. The reference implementation supports a tombstone entry. It has the same structure as a collection entry, with status `absent`.
 
 ### 5.5.3 Preservation of vanished evidence
 
-When an operator deletes content that was previously collected, the operator's apparent intent is to make that content unavailable to investigators and to the broader audience. The methodology's archival posture preserves the content despite the deletion, making the original archive the only remaining record.
+When an operator deletes content you already collected, the apparent intent is to make that content unavailable. The archive keeps the content. The original archive is then the remaining record.
 
-The implication for investigators is that careful archival at first collection is the operational defense against subsequent deletion. Re-collection cannot recover content that has been deleted in the interval; only the original collection can.
+Careful archival at the first collection is the defense against a later deletion. Re-collection cannot recover bytes deleted in the interval.
 
-The implication for adversarial reporting is that tombstoned artifacts are particularly worth attention. An operator who deletes content selectively is signaling, by the act of deletion, that the content was important enough to suppress.
+A tombstone deserves attention in an adversarial report. Selective deletion is a signal that the operator treated the content as important enough to suppress.
 
 ## Closing
 
-Collection methodology is not glamorous, but it is the discipline that everything else in the methodology rests on. An investigation that meets the requirements stated here produces signal tables that are reproducible from the archive, attribution claims that are defensible under scrutiny, and evidence packets that are usable in adversarial contexts. An investigation that does not meet these requirements is, at best, a private exploration, and the methodology refuses to call it more than that.
+Collection is the discipline under the rest of the method. An investigation that meets these rules produces a signal table you can rebuild from the archive. It produces claims you can defend. It produces an evidence packet you can use in a dispute. An investigation that misses these rules is a private exploration. The method will not call it more than that.
 
-The next section (§6) addresses feature extraction: the deterministic transformation from the archived artifacts produced by the collection methodology specified here to the signal table that feeds attribution reasoning. The discipline of §5 is the precondition for the discipline of §6; the two together are the operational predicate for the LLM-assisted reasoning in §7 and the output format in §8.
+§6 is feature extraction. It turns the archived artifacts from this section into the signal table. §5 is the precondition for §6. Together they are the predicate for the reasoning in §7 and the output in §8.
