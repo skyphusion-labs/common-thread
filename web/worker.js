@@ -36,6 +36,9 @@ var INVESTIGATIONS_KEY = 'common-thread-investigations';
 // Public-mode gate (server-projected). When true, attribution is BYOK-only:
 // the host provides no AI credentials and the UI refuses to submit without a key.
 var PUBLIC_BYOK_ONLY = __PUBLIC_BYOK_ONLY__;
+// Public hosted tier only. When true, Create does not call the API and a
+// Worker GET / 200 is not reported as a healthy backend.
+var HOSTED_MAINTENANCE = __HOSTED_MAINTENANCE__;
 
 function loadSettingsFromStorage() {
   try {
@@ -278,6 +281,11 @@ async function api(method, path, options) {
 
 async function checkHealth() {
   var badge = document.getElementById('health-badge');
+  if (HOSTED_MAINTENANCE) {
+    badge.textContent = 'Hosted tier suspended';
+    badge.className = 'px-2 py-1 rounded-lg text-xs bg-amber-100 text-amber-900';
+    return;
+  }
   badge.textContent = 'Checking…';
   try {
     var data = await api('GET', '/');
@@ -296,6 +304,10 @@ function slugify(text) {
 }
 
 async function createInvestigation() {
+  if (HOSTED_MAINTENANCE) {
+    showAlert('The hosted instance is suspended. Create is unavailable. Self-host the reference implementation to run an investigation.', 'error');
+    return;
+  }
   var raw = document.getElementById('inv-id').value.trim() || ('inv-' + Date.now());
   var id = slugify(raw) || ('inv-' + Date.now());
   var name = document.getElementById('inv-name').value.trim() || id;
@@ -864,6 +876,11 @@ function init() {
     if (!idField.value.trim()) idField.placeholder = slugify(e.target.value) || 'investigation-id';
   });
 
+  if (HOSTED_MAINTENANCE) {
+    var createBtn = document.getElementById('create-investigation-btn');
+    if (createBtn) createBtn.disabled = true;
+  }
+
   checkHealth();
 }
 
@@ -893,6 +910,10 @@ const HTML = `<!DOCTYPE html>
       <a href="https://github.com/skyphusion-labs/common-thread" target="_blank" class="px-3 py-1.5 rounded-xl border hover:bg-slate-50">GitHub</a>
     </div>
   </header>
+
+  <div id="hosted-maintenance-banner" class="__MAINTENANCE_BANNER_CLASS__ mx-6 mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+    The hosted instance is suspended. The database and the container tier are not running. Self-hosting the reference implementation still works.
+  </div>
 
   <div class="flex">
     <aside class="w-64 bg-white border-r min-h-[calc(100vh-4rem)] p-4 shrink-0">
@@ -1000,7 +1021,7 @@ const HTML = `<!DOCTYPE html>
             <input id="inv-id" class="w-full border rounded-xl px-3 py-2 text-sm font-mono" placeholder="investigation-id">
             <input id="inv-name" class="w-full border rounded-xl px-3 py-2 text-sm" placeholder="Display name">
             <textarea id="inv-description" class="w-full border rounded-xl px-3 py-2 text-sm" rows="2" placeholder="Optional description"></textarea>
-            <button data-action="createInvestigation" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-sm hover:bg-black">Create</button>
+            <button id="create-investigation-btn" data-action="createInvestigation" __CREATE_DISABLED__ class="px-4 py-2 bg-slate-900 text-white rounded-xl text-sm hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed">Create</button>
           </div>
           <div class="bg-white rounded-2xl border p-5 space-y-3">
             <h3 class="font-semibold">Open with access token</h3>
@@ -1215,7 +1236,11 @@ function renderHtml(env) {
   const siteHeader = publicUrl
     ? '<a href="' + publicUrl + '" class="text-xs text-slate-500 hidden sm:inline hover:underline">' + publicUrl + '</a>'
     : '';
-  return HTML.replace('__SITE_HEADER__', siteHeader);
+  const maintenance = isTruthyFlag(env.HOSTED_MAINTENANCE);
+  return HTML
+    .replace('__SITE_HEADER__', siteHeader)
+    .replace('__MAINTENANCE_BANNER_CLASS__', maintenance ? '' : 'hidden')
+    .replace('__CREATE_DISABLED__', maintenance ? 'disabled' : '');
 }
 
 // The public-mode flag is projected into the EXTERNAL app.js (not the HTML), so
@@ -1229,7 +1254,10 @@ function isTruthyFlag(value) {
 
 function renderAppJs(env) {
   const byokOnly = isTruthyFlag(env.PUBLIC_BYOK_ONLY);
-  return APP_JS.replace('__PUBLIC_BYOK_ONLY__', byokOnly ? 'true' : 'false');
+  const maintenance = isTruthyFlag(env.HOSTED_MAINTENANCE);
+  return APP_JS
+    .replace('__PUBLIC_BYOK_ONLY__', byokOnly ? 'true' : 'false')
+    .replace('__HOSTED_MAINTENANCE__', maintenance ? 'true' : 'false');
 }
 
 function normalizeBase(value) {

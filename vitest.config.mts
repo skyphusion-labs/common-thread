@@ -105,6 +105,8 @@ const nodeSuites = [
   'tests/attribution/async-dispatch.test.ts',
   // Pure unit suites that import ingest/archive modules (avoid workers-pool mysql2 load).
   'tests/extractors/profile-banner-visual.test.ts',
+  // Web worker is plain JS with node:vm; workers pool cannot load node:fs.
+  'tests/web/hosted-maintenance.test.ts',
   // Pure stylometric unit suites (no Workers runtime / wrangler bindings).
   'tests/extractors/jsd-distributions.test.ts',
   'tests/extractors/code-switching.test.ts',

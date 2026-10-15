@@ -579,6 +579,8 @@ Build an evidence packet for one attribution run.
 
 **Response `503`** for `format=pdf` when PDF container is not configured.
 
+The hosted container tier is suspended, so `format=pdf` on the hosted API is not available. A self-hosted deploy still returns 503 when its own PDF container is not configured.
+
 The `markdown` field is the canonical form of the packet; PDF is a derived view.
 Per §8.1.3, when a signing key (`SIGNER_PRIVATE_KEY`) is configured the default
 JSON packet also carries a **detached Ed25519 signature** over that canonical

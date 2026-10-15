@@ -13,6 +13,8 @@ Positive BYOK E2E (CF AIG Run token) and encrypted VPC ingest smoke PASS.
 Optional later: legal controller/processor wording if scaled; UI-vs-API stays
 Option 1 (UI public; API contact-gated). Detail below.
 
+**Hosted tier (2026-10-15):** the public page stays up. The database and the container tier are suspended. There is no replacement host. `HOSTED_MAINTENANCE=1` on the public web worker disables Create and does not treat `GET /` as a healthy backend. Self-host and the operator instance leave the flag unset.
+
 > Product contract: Skyphusion hosts Workers / Hyperdrive / R2 / MySQL / VPC
 > containers. The §7 triage + attribution LLM calls are **visitor BYOK**
 > (Anthropic API key **or** AI Gateway Run token + gateway URL ending in
