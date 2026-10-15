@@ -1,13 +1,44 @@
 # 12. Conclusion
 
-This paper has specified a methodology for attributing coordinated inauthentic behavior across multiple online accounts to a common operator using signals observable from the public platform surface. The methodology rests on an evidentiary framework that requires immutable archival of raw artifacts, calibrated probabilistic outputs at coarse confidence bands, and reproducibility of the deterministic pipeline (§3). It operates over a signal taxonomy that surfaces account metadata, temporal patterns, linguistic style, network relationships, visual artifacts, cross-platform consistency, and metadata leakage, while deliberately excluding signals that primarily detect legitimate pseudonymity (§4). It specifies collection methodology with explicit basis statements and control accounts (§5), deterministic feature extraction with versioned extractors (§6), LLM-assisted attribution reasoning under structural constraints that require signal citation and alternative-explanation consideration (§7), and output conventions designed to support court filings, academic publication, and journalistic use (§8). The methodology's ethical posture is stated explicitly rather than buried (§1.4 and §10), with named audience exclusions and structural commitments against natural-person identification. The methodology's limitations are stated openly (§11), including the empirical validation gap, the linguistic and cultural calibration limits, the platform-model assumptions, and the eight named open problems that future work could address.
+This paper specifies a method. The method attributes coordinated inauthentic behavior across accounts to one operator. It uses signals that a person can observe on the public platform surface.
 
-The methodology was deliberately not built to do several things that adjacent tools attempt. It does not identify natural persons; cluster attribution is the limit. It does not discover sockpuppets in the wild from minimal seed sets; closed-world attribution is the scope. It does not detect automated accounts; bot detection is a different problem with mature tools that practitioners should use directly. It does not detect pseudonymity itself; legitimate pseudonymous use is a privacy practice that the methodology refuses to support attacks against. These exclusions are part of what the methodology is, not absences that future versions should fill.
+The method has these parts:
 
-The reference implementation lives at github.com/SkyPhusion/common-thread under AGPL-3.0. The methodology paper is licensed under CC-BY-4.0 and is intended to be citable as a documented methodology rather than treated as proprietary practice. The methodology's continuation depends on practitioners and researchers who find the work useful taking ownership of the open problems, the platform-specific extensions, the per-language calibrations, and the empirical validation that v1 leaves to community work. The author's commitment to maintenance is bounded; the methodology's value to its intended audience requires that the audience itself sustain the work.
+- The record is immutable before any transform (§3).
+- The output is a coarse confidence band, not a verdict (§3).
+- The signal list covers metadata, time, language, network, images, cross-platform matches, and leaked metadata (§4).
+- The signal list excludes signals that mainly detect lawful pseudonym use (§4).
+- Collection requires a basis statement and control accounts (§5).
+- Feature extraction is deterministic, and each extractor has a version (§6).
+- The language-model step must cite signals and must state an alternative explanation (§7).
+- The output form supports a court filing, a paper, or a news report (§8).
 
-The methodology serves practitioners who have been systematically underserved by the existing tooling landscape: pro se litigants documenting coordinated harassment in their cases, small-newsroom journalists investigating coordinated inauthentic behavior on budgets that commercial OSINT firms do not match, academic researchers studying coordinated networks without access to platform-internal data, and trust-and-safety teams at smaller platforms that cannot replicate the internal tooling of the largest platforms. The methodology does not promise that its publication eliminates the gap these practitioners face; it offers one documented, accessible methodology with explicit commitments, in a space where closed methodologies have operated without comparable accountability. Whether the methodology is useful in any specific case is determined by whether the practitioner applies it as the methodology requires. A methodology that is used outside its commitments is not the methodology, regardless of how its outputs are labeled.
+The ethical limits are in §1.4 and §10. The method does not name a natural person. The limits are in §11. Those limits include the missing empirical test, the language and culture limits, the platform assumptions, and the open problems.
 
-The work that this paper documents is published with the understanding that publication in this space involves real costs to populations the methodology cannot fully protect, alongside real benefits to practitioners the methodology is designed to serve. The argument for publication, developed at §10.6, rests on the position that the benefits outweigh the costs in the aggregate. The argument is open to challenge, and the methodology accepts that reasonable readers may reach different conclusions about whether publication was right. The methodology takes its position openly so that the disagreement, if it exists, is visible.
+The method does not do four jobs that nearby tools do:
 
-Practitioners who choose to use the methodology in their own work accept responsibility for whether their specific use makes the methodology better or worse for the world. The methodology in the abstract neither helps nor harms; it is the applications, conducted by practitioners who understand and honor the commitments or who do not, that determine the methodology's effect in any specific case. The discipline of the methodology lives in the discipline of its use. The paper has done what it can to document that discipline. What happens next belongs to the practitioners.
+- It does not name a natural person. A cluster is the limit.
+- It does not find sockpuppets in the open from a seed of one or two accounts. The scope is a closed set.
+- It does not detect automated accounts. Bot detection is a different job. Use a tool built for that job.
+- It does not treat pseudonym use as the target. Lawful pseudonym use is a privacy practice. The method refuses to support an attack on that practice.
+
+These exclusions are part of the method.
+
+The reference implementation is at github.com/skyphusion-labs/common-thread under AGPL-3.0-only. This paper is CC-BY-4.0. Cite the paper as a published method. Do not treat it as private practice.
+
+The open problems, the platform extensions, the per-language calibration, and the empirical test are work for later. v1 leaves that work to the community. The author does not promise unbounded maintenance. The audience has to sustain the work if the work is useful to them.
+
+The method is for practitioners that current tools serve poorly:
+
+- A pro se litigant who must document coordinated harassment.
+- A small newsroom that cannot buy a commercial OSINT firm.
+- A researcher who cannot get platform-internal data.
+- A trust-and-safety team on a small platform.
+
+Publication does not remove that gap. The paper offers one documented method, with explicit limits, in a field where closed methods have less public accountability.
+
+A case is useful only when the practitioner follows the method. Use outside those limits is not this method, even if the labels match.
+
+Publication has a cost for people the method cannot fully protect. It has a benefit for the practitioners above. §10.6 argues that the benefit is larger than the cost in total. A reader can reject that argument. The paper states the position so the disagreement is visible.
+
+A practitioner who uses the method is responsible for that use. The text does not help or harm by itself. The application does. The paper records the discipline. The next use belongs to the practitioner.

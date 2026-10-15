@@ -1,165 +1,165 @@
 # 11. Limitations and future work
 
-This section consolidates the methodology's limitations and identifies the open problems that future work could address. The limitations are not failures of the methodology; they are the honest acknowledgment of where the methodology's reach ends. The methodology paper has noted limits throughout (in §3.3 most directly, but also in §4.8, §5.3.5, §6.4, §7.6, and §10), and this section pulls those acknowledgments together in one place alongside additional limitations not previously surfaced.
+This section gathers the limits of the method and names open problems for later work. A limit is not a failure. It is an honest statement of where the method stops. The paper notes limits in §3.3, and also in §4.8, §5.3.5, §6.4, §7.6, and §10. This section puts those notes in one place and adds limits that were not stated before.
 
-Future work is framed as open problems for the community rather than as commitments by the author. Practitioners and researchers who find the methodology useful are invited to extend it; the publication of the methodology and the reference implementation under AGPL-3.0 is intended to support such extension. The author's commitment to maintenance is bounded; the sunset arrangement described in the project's repository governance documents specifies the path from sole maintainership to community ownership.
+Later work is an open problem for the community. It is not a commitment by the author. A practitioner or a researcher who finds the method useful is invited to extend it. Publication of the method, and of the reference implementation under AGPL-3.0-only, is meant to support that extension. The author's maintenance commitment is bounded. The sunset arrangement in the repository governance documents states the path from one maintainer to community ownership.
 
 ## 11.1 Scope limitations
 
-The methodology in its first published version is scoped narrowly. Several capabilities that practitioners might reasonably expect from a methodology in this space are deliberately out of scope.
+The first published version is narrow on purpose. Several capabilities a practitioner might expect are out of scope.
 
-**Closed-world only.** The methodology operates on a seed set provided by the practitioner. It does not discover new accounts to add to the seed. Open-world detection is much harder than closed-world attribution; it requires both larger collection scope and different reasoning patterns, and it produces false-positive casualties at higher rates than closed-world attribution. The methodology accepts the closed-world constraint as a price of producing reliable output at the current state of the art.
+**Closed world only.** The method works on a seed set the practitioner supplies. It does not discover a new account for the seed. Open-world detection is much harder. It needs a larger collection and a different kind of reasoning. It also produces more false inclusions. The method accepts the closed-world limit as the price of a reliable output at the current state of the art.
 
-**Cluster-level only.** The methodology produces attribution at the cluster level. It does not identify the natural person behind a cluster. This is a deliberate ethical commitment (§3.3.3, §4.8.3) rather than a limitation that future work should remove. Practitioners who need natural-person identification should do that work using offline investigative techniques outside the methodology's scope.
+**Cluster level only.** The method attributes at cluster level. It does not name the natural person behind a cluster. That limit is an ethical commitment (§3.3.3 and §4.8.3). It is not a gap for later work to remove. A practitioner who needs a natural-person name should do that work with offline technique, outside this method.
 
-**Single platform at a time.** The methodology supports cross-platform signals (§4.6) but conducts each investigation against a single primary platform with cross-platform extensions as supporting evidence. True multi-platform attribution at scale, where a single investigation operates symmetrically across multiple platforms, is not addressed in v1. The technical and methodological problems are tractable but were deferred.
+**One primary platform.** The method supports cross-platform signals (§4.6). Each investigation still has one primary platform. Cross-platform evidence is support. Symmetric attribution across several platforms, at scale, is not in v1. The technical problems and the method problems are tractable. They were deferred.
 
-**Batch processing.** The methodology is designed for batch investigations. Real-time monitoring of a network (continuous detection of new activity, alerts on triggering events, ongoing maintenance of the attribution against changing networks) is not the methodology's mode of operation. Practitioners with continuous-monitoring needs can rerun the methodology on a schedule, but the methodology does not provide native streaming or alerting.
+**Batch processing.** The method is for a batch investigation. It is not a real-time monitor. It does not continuously detect new activity, alert on a triggering event, or maintain an attribution while the network changes. A practitioner who needs continuous monitoring can rerun the method on a schedule. The method has no native stream and no native alert.
 
-**Cohort sizes in tens.** The methodology is designed for seed sets of up to approximately 50 accounts. Larger investigations are technically possible but the pairwise computation costs scale as N-squared (§6.5), and the reasoning quality at large N benefits from sharding the investigation into smaller pieces that the methodology can handle robustly. Practitioners conducting large-scale investigations should plan for this constraint rather than treating it as a defect to work around.
+**Cohorts of tens.** The method is designed for a seed set of up to about 50 accounts. A larger investigation is technically possible. Pairwise cost scales as N squared (§6.5). Reasoning quality at large N is better if you split the investigation into pieces the method can handle. Plan for that constraint. Do not treat it as a defect to route around.
 
 ## 11.2 Signal limitations
 
-The signal categories in §4 each carry known limitations that have been documented in their respective subsections. This subsection consolidates the limitations that bear on the methodology's overall reach.
+Each category in §4 has limits in its own subsection. This subsection gathers the limits that bound the whole method.
 
-**Stylometric signals require sufficient text.** The minimum corpus size for reliable Burrows' Delta and related stylometric methods is approximately several thousand words per account. Accounts with shorter active histories or that primarily post media or links rather than text are not amenable to stylometric attribution. The methodology flags these cases at the extraction layer (§6.4.1) and the reasoning layer treats stylometric absence as inability to assess rather than as evidence against attribution.
+**A stylometric signal needs enough text.** Reliable Burrows' Delta, and related methods, need about several thousand words per account. A short history, or an account that posts media or links rather than text, is not suited to stylometric attribution. The extraction layer flags these cases (§6.4.1). The reasoning layer treats a missing stylometric signal as an inability to assess. It does not treat the absence as evidence against attribution.
 
-**Response-latency signals require triggering events.** The strongest temporal signal (§4.2.2) requires events that the network has reason to respond to. Investigations of networks that do not engage with triggering events (purely outbound networks, networks that operate on a slow cadence) cannot use this signal. The methodology accepts the signal's contingent availability.
+**Response latency needs a triggering event.** The strongest temporal signal (§4.2.2) needs an event the network has a reason to answer. A purely outbound network, or a network on a slow cadence, cannot use this signal. The method accepts that the signal is available only in some investigations.
 
-**Network signals require collection beyond timelines.** Follower and engagement data may not be available at scale post-API-paywall. Practitioners using scraping techniques may not be able to collect follower lists for large networks, which limits the network signals' applicability. The reference implementation falls back to direct-observation engagement data when follower lists are not collectable.
+**A network signal needs more than a timeline.** Follower data and engagement data may be unavailable at scale after API prices rose. A scraping technique may not collect a follower list for a large network. That limit reduces the use of network signals. When a follower list cannot be collected, the reference implementation falls back to engagement that was observed directly.
 
-**Visual signals are often absent.** Many accounts post few or no images, and the platform's media stripping removes EXIF metadata from most uploaded images. Visual signals contribute most strongly when present but are absent in many investigations.
+**A visual signal is often absent.** Many accounts post few images or none. Platform processing removes EXIF metadata from most uploaded images. A visual signal contributes most when it is present. It is absent in many investigations.
 
-**Cross-platform signals require multi-platform collection.** Investigations limited to a single platform cannot use cross-platform signals (§4.6). The methodology degrades gracefully (the absence of these signals does not invalidate the investigation) but the strongest individual signal in the cross-platform category (timing correlation across platforms) is unavailable.
+**A cross-platform signal needs more than one platform.** An investigation of one platform cannot use §4.6. The method degrades in a controlled way. Absence of these signals does not invalidate the investigation. The strongest cross-platform signal, timing correlation across platforms, is then unavailable.
 
-**No platform-internal data.** The methodology operates exclusively on the public platform surface. Practitioners with access to platform-internal data through legitimate means (platform employees, law enforcement under appropriate legal process, security researchers under contract) have stronger tools available; the methodology is positioned for practitioners without such access.
+**No platform-internal data.** The method uses only the public platform surface. A practitioner with legitimate access to internal data has stronger tools. That practitioner may be a platform employee, law enforcement under legal process, or a security researcher under contract. The method is for practitioners without that access.
 
 ## 11.3 Adversarial adaptation
 
-Operators of investigated networks will read the methodology paper and the reference implementation. The methodology was designed with this expectation (§3.3.4, §8.4) and accepts the trade-off: publication degrades the methodology's effectiveness against sophisticated operators in exchange for the broader benefits of publication argued at §10.6.
+An operator of an investigated network will read this paper and the reference implementation. The method was designed with that expectation (§3.3.4 and §8.4). Publication reduces effectiveness against a sophisticated operator. That loss is the trade for the benefits of publication argued in §10.6.
 
-The specific adaptations operators may apply include:
+Adaptations an operator may apply include the following.
 
-**Randomized response latency.** Operators who read §4.2.2 may deliberately randomize their response timing to defeat the response-latency signal. The countermeasure is partial: maintaining consistent operational utility (amplifying content quickly when it matters) is difficult to fully randomize, and adaptation that defeats this signal in one direction often degrades it in another way that produces a different signal.
+**Randomized response latency.** An operator who reads §4.2.2 may randomize response time to defeat that signal. The countermeasure is partial. The network still needs to amplify quickly when speed matters. A change that defeats the signal in one way often creates a different signal.
 
-**Stylometric defense.** Operators with access to stylometric defense tools (the Anonymouth lineage of Brennan and Greenstadt) can defeat function-word-frequency signals. The defense is real and acknowledged; the methodology declines to overclaim against adapted authors.
+**Stylometric defense.** An operator with a defense tool in the Anonymouth line, from Brennan and Greenstadt, can defeat function-word frequency. The defense is real. The method does not overclaim against an adapted author.
 
-**Account aging.** Operators who let accounts age before deploying them defeat creation-date clustering. The countermeasure is patience that not all operators can sustain.
+**Account aging.** An operator who lets an account age before use defeats creation-date clustering. The countermeasure is patience. Not every operator can sustain it.
 
-**Platform separation.** Operators who maintain strict platform separation (different platforms entirely, with no cross-platform handle reuse or link references) defeat cross-platform signals. The countermeasure is real but operationally costly for operators who want their network to be visible across platforms.
+**Platform separation.** An operator who keeps platforms strictly separate defeats cross-platform signals. Separation means a different platform, no shared handle, and no cross-platform link. The countermeasure is real. It is costly for an operator who wants the network visible on several platforms.
 
-**Stylebook discipline.** Operators who maintain a stylebook across personas, with explicit guidance on word choice, punctuation, and sentence structure, can substantially defeat linguistic signals. The countermeasure is sustained discipline that few operators of small networks invest in.
+**Stylebook discipline.** An operator who keeps a stylebook across personas can substantially defeat a linguistic signal. The stylebook would govern word choice, punctuation, and sentence structure. Few operators of a small network invest in that discipline.
 
-The methodology accepts that determined, well-resourced operators can substantially defeat the methodology. The cohort the methodology is most useful against is operators who have not invested in countermeasures, which empirically appears to be the majority of operators of the small-to-medium networks the methodology's target practitioners typically encounter.
+The method accepts that a determined and well-resourced operator can defeat much of it. The method is most useful against operators who have not invested in a countermeasure. That group appears to be most operators of the small and medium networks that the target practitioners meet.
 
 ## 11.4 Linguistic and cultural calibration
 
-The methodology was developed with English-language investigations in mind. The signal taxonomy (§4) and the feature extraction (§6) generalize reasonably to other languages but have not been validated against non-English investigations at scale.
+The method was developed with English-language investigations in mind. The signal list (§4) and the extraction rules (§6) generalize reasonably to other languages. They have not been validated on non-English investigations at scale.
 
-The specific known issues:
+The known issues follow.
 
-**Function-word lists are language-specific.** The methodology's stylometric signals use language-specific function-word lists. Lists exist for major languages but vary in quality and coverage. Less-resourced languages may not have published function-word lists at the quality the methodology assumes.
+**Function-word lists depend on the language.** Stylometric signals use a list for one language. Lists exist for major languages. Quality and coverage vary. A less-resourced language may lack a published list at the quality the method assumes.
 
-**Reference corpora for background calibration vary by language.** The methodology's normalization against community baselines (for follower overlap, link corpus overlap, vocabulary distinctiveness) requires reference corpora in the relevant language. The Corpus of Contemporary American English is a defensible default for English; equivalent corpora for other languages exist but vary in accessibility.
+**Background corpora vary by language.** Normalization against a community baseline needs a reference corpus in the relevant language. The baselines include follower overlap, link-corpus overlap, and vocabulary distinctiveness. The Corpus of Contemporary American English is a defensible default for English. Equivalent corpora exist for other languages. Access varies.
 
-**LLM reasoning quality is uneven across languages.** The attribution-reasoning layer in §7 uses an LLM that performs better on English than on most other languages. The methodology's response (lower the achievable confidence band by one level for non-English investigations, per §7.6.5) is a coarse mitigation rather than a calibration.
+**LLM quality is uneven across languages.** The reasoning layer in §7 uses an LLM that performs better on English than on most other languages. The response is to lower the achievable band by one level for a non-English investigation (§7.6.5). That response is a coarse mitigation. It is not a calibration.
 
-**Cultural framings of pseudonymity vary.** The methodology's audience exclusions (§1.2, §10.2) are framed against a primarily Western legal and cultural context. The specific protected populations vary across cultures, and the methodology's exclusions may not map cleanly to non-Western contexts. Practitioners conducting investigations in cultures the methodology's author is not familiar with should consult locally-grounded ethics guidance in addition to the methodology's stated commitments.
+**Cultural frames of pseudonymity differ.** The audience limits (§1.2 and §10.2) are framed against a mainly Western legal context and cultural context. Protected populations differ across cultures. The exclusions may not map cleanly outside that frame. A practitioner in a culture the author does not know should consult local ethics guidance in addition to the commitments in this paper.
 
-Future work could produce per-language calibration data and could extend the audience-exclusion framework to additional cultural contexts. The methodology in v1 does not have these calibrations; practitioners conducting non-English investigations should be conservative in their interpretation of methodology output.
+Later work could produce calibration data per language and could extend the audience limits to more cultural contexts. Version 1 does not have those calibrations. Be conservative when you interpret a non-English output.
 
 ## 11.5 Empirical validation
 
-The methodology has not been validated against large labeled datasets of confirmed sockpuppet networks. Several factors explain this:
+The method has not been validated on a large labeled set of confirmed sockpuppet networks. Several facts explain that gap.
 
-**Labeled datasets are rare.** Confirmed sockpuppet attribution requires either platform-internal data that produces ground-truth attribution or external admissions that produce reliable labels. Both are rare. The labeled datasets that exist (some published by major platforms in coordinated-inauthentic-behavior removal reports) are limited in scope and may not be representative of the networks the methodology's target practitioners encounter.
+**Labeled data is rare.** A confirmed attribution needs platform-internal ground truth or an external admission that yields a reliable label. Both are rare. Labeled sets that exist, including some in platform removal reports, are limited in scope. They may not represent the networks the target practitioners meet.
 
-**Available datasets are contested.** The few datasets that exist have been subject to academic disagreement about labeling reliability and representativeness. Validation against contested datasets does not produce strong claims about the methodology's accuracy.
+**Available labels are contested.** The few sets that exist have drawn academic disagreement about label reliability and about representativeness. A test on a contested set does not yield a strong claim about accuracy.
 
-**Platform-internal validation is not externally accessible.** Major platforms maintain internal labeling and can validate methodologies against it, but the validation is not externally visible. The methodology cannot replicate this validation.
+**Platform-internal validation is not visible outside the platform.** A major platform can test a method against internal labels. That test is not visible outside. This method cannot repeat it.
 
-**The methodology's claims are defended through reproducibility rather than empirical accuracy.** The methodology in §3.4 commits to reproducibility (the deterministic parts produce the same outputs for the same inputs) rather than to specific accuracy numbers. This is a deliberate choice: empirical accuracy claims about adversarial attribution methodologies have historically aged poorly, and the methodology declines to make them.
+**The method defends its claims through reproducibility, not through an accuracy number.** Section 3.4 commits to reproducibility. The deterministic parts produce the same output for the same input. The method does not claim a specific accuracy number. That choice is deliberate. Accuracy claims about adversarial attribution have aged poorly. The method declines to make them.
 
-Practitioners and reviewers who require empirical accuracy data should treat the methodology's lack of such data as a real limitation. The methodology's response is that reproducibility and explicit confidence calibration are usable substitutes in the absence of validated accuracy numbers, not that accuracy data is unimportant.
+A practitioner or a reviewer who needs an accuracy number should treat the absence as a real limit. Reproducibility and explicit bands are usable substitutes while validated accuracy numbers do not exist. They are not a claim that accuracy data is unimportant.
 
-Future work could produce empirical validation against datasets that become available through legitimate channels. The methodology supports such validation: any researcher with access to a labeled dataset and to the reference implementation can apply the methodology and report results. The reference implementation's output format is designed to support such validation reporting.
+Later work could validate the method on a labeled set obtained through a legitimate channel. The method supports that test. A researcher with a labeled set and the reference implementation can apply the method and report the result. The output format is designed to support that report.
 
 ## 11.6 Inter-rater reliability and reasoning consistency
 
-The LLM-assisted reasoning layer (§7) produces outputs that vary across runs. The methodology's mitigations (citation requirements, randomized signal presentation, declination defaults, coarse confidence bands) constrain the variance but do not eliminate it. Two practitioners applying the methodology to the same investigation with the same parameters may receive somewhat different attribution narratives, although the methodology requires that the substantive claims agree.
+The reasoning layer (§7) varies across runs. The mitigations constrain the variance. They do not remove it. The mitigations are citation requirements, randomized signal order, declination by default, and coarse bands. Two practitioners may receive somewhat different narratives for the same investigation and the same parameters. The method still requires that the substantive claims agree.
 
-The methodology has not been empirically evaluated for inter-rater reliability. Several open problems:
+The method has not been tested empirically for inter-rater reliability. The open problems follow.
 
-**Cross-run consistency.** How often do two runs of the same investigation produce the same set of substantive claims at the same confidence bands? The methodology's structural commitments should produce high consistency, but the empirical question has not been answered.
+**Consistency across runs.** How often do two runs of the same investigation produce the same substantive claims at the same bands? The structural commitments should produce high consistency. The empirical question is unanswered.
 
-**Cross-practitioner consistency.** How often do two practitioners with similar training produce the same substantive claims when applying the methodology to the same archive? This is a different question from cross-run consistency because it involves practitioner judgment at the basis-statement and scope-definition stages (§5.1, §5.2) in addition to the LLM variability.
+**Consistency across practitioners.** How often do two practitioners with similar training produce the same substantive claims on the same archive? This question differs from consistency across runs. It includes practitioner judgment at the basis statement and at the scope (§5.1 and §5.2), plus LLM variability.
 
-**Cross-model consistency.** How does the methodology's output change when the LLM is upgraded? The methodology's posture (§3.4.2) is that LLM upgrades produce variation that should be measured rather than concealed, but the empirical work to characterize the variation has not been done.
+**Consistency across models.** How does the output change when the LLM is upgraded? Section 3.4.2 says an upgrade produces variation that should be measured, not hidden. The empirical work to characterize that variation has not been done.
 
-Future work on inter-rater reliability would substantially strengthen the methodology's claims to evidentiary use. Practitioners conducting investigations where inter-rater reliability matters should consider running the methodology multiple times and reporting the agreement rates explicitly.
+Later work on inter-rater reliability would strengthen the claim to evidentiary use. Where that reliability matters, run the method more than once and report the agreement rate.
 
 ## 11.7 Platform model assumptions
 
-The methodology assumes a generic platform model: accounts with profiles, timelines of posts, follower and followed lists, engagement records (likes, reposts, quotes), and direct messages (excluded). This model fits the major Western social platforms (Twitter, Facebook, Instagram, threads of similar structure) reasonably well.
+The method assumes a generic platform. An account has a profile, a timeline of posts, a follower list, a followed list, and engagement records such as likes, reposts, and quotes. Direct messages exist and are excluded. That model fits the major Western social platforms reasonably well. Examples are Twitter, Facebook, Instagram, and threads of a similar structure.
 
-The model fits less well to platforms with significantly different structures:
+The model fits less well where the structure differs.
 
-**Reddit.** The methodology's signal taxonomy maps imperfectly to Reddit's structure. Threaded discussion, subreddit-level identity, karma as an engagement metric, and the absence of follower lists all change which signals are available and how they are computed. The methodology can be applied to Reddit investigations but practitioners should expect to adapt the extraction layer.
+**Reddit.** The signal list maps imperfectly to Reddit. Several Reddit features change which signals exist and how they are computed. They are threaded discussion, identity at subreddit level, and karma as an engagement metric. The absence of a follower list is another. You can apply the method to Reddit. Expect to adapt the extraction layer.
 
-**Mastodon and the broader fediverse.** Federation produces structural differences that the methodology's model does not address: an account may exist across multiple instances, follower lists may be partial, and the platform's data architecture is fundamentally different from centralized platforms.
+**Mastodon and the wider fediverse.** Federation creates differences the model does not address. An account may exist across instances. A follower list may be partial. The data architecture differs from a centralized platform.
 
-**Bluesky.** The labeler architecture, the use of decentralized identifiers, and the AT Protocol's data model produce extraction challenges that the methodology does not specifically address.
+**Bluesky.** The labeler architecture, decentralized identifiers, and the AT Protocol data model create extraction problems the method does not specifically address.
 
-**Discord, Telegram, and chat platforms.** The methodology's primary unit of analysis is the public post; chat platforms have a different unit of analysis (the message within a channel or DM) that the methodology does not address directly.
+**Discord, Telegram, and chat platforms.** The primary unit in this method is the public post. A chat platform uses a message inside a channel or a direct message. The method does not address that unit directly.
 
-**Niche platforms.** Many platforms specific to particular communities (TikTok, BeReal, Truth Social, Gettr, smaller national platforms) have structural variations that may or may not fit the methodology's model. Practitioners working on niche platforms should expect to assess fit before assuming the methodology applies.
+**Niche platforms.** Platforms tied to one community may or may not fit the model. Examples are TikTok, BeReal, Truth Social, Gettr, and a smaller national platform. Assess the fit before you assume the method applies.
 
-Future work could produce platform-specific extensions of the methodology. The reference implementation's architecture supports adding platform adapters; the methodology paper's framework supports specifying platform-specific feature extractors that integrate with the general signal taxonomy.
+Later work could add a platform-specific extension. The reference implementation can take a platform adapter. The framework in this paper can specify an extractor that joins the general signal list.
 
 ## 11.8 Open problems for future work
 
-Several open problems are surfaced by the methodology's current scope. These are framed as community open problems rather than as author commitments.
+The current scope surfaces several open problems. They are problems for the community. They are not commitments by the author.
 
-**Open-world detection.** Extending the methodology from closed-world attribution to open-world discovery (finding new accounts to add to the seed set based on signal patterns) is a substantial extension. The challenges include managing the false-positive rate at scale, defining the discovery scope without prejudicing the investigation, and integrating the discovery step with the existing closed-world attribution pipeline.
+**Open-world detection.** A move from closed-world attribution to open-world discovery is a large extension. Discovery would add accounts to the seed from signal patterns. The problems include the false-positive rate at scale, a discovery scope that does not prejudge the investigation, and a join to the existing closed-world pipeline.
 
-**Multi-platform attribution at scale.** Conducting an investigation symmetrically across multiple platforms, with full feature extraction on each platform and integrated attribution reasoning, is technically tractable but methodologically underexplored. The reference implementation can be extended to support this; the methodology paper's framework supports it conceptually; the practitioner-facing work to produce a usable multi-platform investigation has not been done.
+**Multi-platform attribution at scale.** A symmetric investigation across platforms, with full extraction on each platform and integrated reasoning, is technically tractable and methodologically thin. The reference implementation can be extended. The framework supports the idea. The practitioner-facing work to make that investigation usable has not been done.
 
-**Real-time monitoring.** Extending the methodology from batch processing to continuous monitoring of a network has both technical challenges (incremental updates to the signal table, streaming reasoning runs, alert generation) and methodological challenges (how to handle a network whose composition is changing during the monitoring period).
+**Real-time monitoring.** A move from batch work to continuous monitoring has technical problems and method problems. The technical problems are an incremental signal table, a streaming reasoning run, and an alert. The method problem is a network whose membership changes during the monitoring period.
 
-**Per-language and per-culture calibration.** The methodology's English-language and Western-cultural defaults need extension to be reliably usable in other linguistic and cultural contexts. This is community work that requires collaborators in the relevant languages and cultures.
+**Calibration per language and per culture.** The English-language default and the Western cultural default need extension before the method is reliable in other contexts. That work needs collaborators in the relevant languages and cultures.
 
-**Empirical validation.** Empirical validation against labeled datasets as they become available is community work that the methodology supports but does not undertake. Researchers with access to suitable datasets are invited to apply the methodology and publish results.
+**Empirical validation.** Validation on a labeled set, as such sets become available, is community work. The method supports the test. It does not perform the test. A researcher with a suitable set is invited to apply the method and publish the result.
 
-**Integration with bot detection.** A combined methodology that handles networks containing both bots and human-operated accounts would be more useful than separate methodologies for each. The reference implementation supports the workflow (apply bot detection first, then the methodology), but a more integrated approach has not been developed.
+**A join with bot detection.** A method that handles a network of bots and human-operated accounts together would be more useful than two separate methods. The reference implementation supports a sequence. Apply bot detection first, then this method. A more integrated approach has not been developed.
 
-**Platform-specific extensions.** Adapters for Reddit, Mastodon, Bluesky, Discord, and other platforms with distinct structures would extend the methodology's reach. Each adapter is community work that requires familiarity with the specific platform's data model.
+**Platform-specific extensions.** An adapter for Reddit, Mastodon, Bluesky, Discord, or another distinct structure would extend the reach. Each adapter needs familiarity with that platform's data model.
 
-**Adversarial robustness.** Better mitigations against operators who specifically adapt to the methodology are an open problem. The methodology's current mitigations (combinations of signals, declination defaults, structural commitments) are partial; more sophisticated mitigations would be valuable.
+**Adversarial robustness.** Better mitigation against an operator who adapts to this method is an open problem. Current mitigations are partial. They are signal combinations, declination by default, and structural commitments. A more sophisticated mitigation would be valuable.
 
-**Inter-rater reliability studies.** Empirical work on how consistently practitioners apply the methodology, and how consistently the LLM reasoning layer produces equivalent outputs across runs and models, would substantially strengthen the methodology's evidentiary posture.
+**Inter-rater studies.** Empirical work on practitioner consistency, and on consistency of the reasoning layer across runs and across models, would strengthen the evidentiary posture.
 
 ## 11.9 What the methodology does not promise
 
-The methodology's commitments are stated throughout the paper. This subsection lists what the methodology does not promise, to prevent inferences that the methodology has not earned.
+Commitments are stated throughout the paper. This subsection lists what the method does not promise, so a reader does not infer a claim the method has not earned.
 
-**The methodology does not promise specific accuracy.** Reproducibility and confidence calibration are the operational commitments; specific accuracy numbers are not claimed.
+**The method does not promise a specific accuracy.** Reproducibility and confidence bands are the operational commitments. A specific accuracy number is not claimed.
 
-**The methodology does not promise to detect all coordinated networks.** It supports investigations of seeded networks. Networks not in the seed are not the methodology's concern.
+**The method does not promise to detect every coordinated network.** It supports an investigation of a seeded network. A network outside the seed is not its concern.
 
-**The methodology does not promise to identify specific operators.** Cluster-level attribution is the limit. Natural-person identification is out of scope.
+**The method does not promise to name a specific operator.** Cluster-level attribution is the limit. Natural-person identification is out of scope.
 
-**The methodology does not promise admissibility in court.** The structural commitments support admissibility arguments in jurisdictions that consider methodological reliability factors, but admissibility is jurisdiction-dependent and case-specific. Practitioners must consult counsel.
+**The method does not promise admissibility in court.** The structural commitments support an admissibility argument where a court considers method reliability. Admissibility depends on the jurisdiction and on the case. Consult counsel.
 
-**The methodology does not promise to remain useful indefinitely.** Platform changes will degrade the methodology's collection layer. Model changes will alter the reasoning layer's outputs. Adversarial adaptation will degrade the methodology's effectiveness against sophisticated operators. The methodology requires ongoing maintenance to remain current; the maintenance posture is the community's responsibility.
+**The method does not promise to stay useful without maintenance.** A platform change will degrade collection. A model change will alter reasoning output. Adversarial adaptation will degrade effectiveness against a sophisticated operator. The method needs ongoing maintenance to stay current. That maintenance is the community's responsibility.
 
-**The methodology does not promise to prevent misuse.** Practitioners using the methodology for purposes outside the audience the methodology serves are operating outside the methodology's commitments. The methodology disavows such use but cannot prevent it.
+**The method does not promise to prevent misuse.** A use outside the audience is outside the commitments. The method rejects that use. It cannot prevent it.
 
-**The methodology does not promise to substitute for legal advice, ethics review, or professional judgment.** Practitioners using the methodology in court contexts should consult counsel. Practitioners using the methodology in academic contexts should engage their ethics review process. Practitioners in any context exercise judgment that the methodology cannot replace.
+**The method does not promise to replace legal advice, an ethics review, or professional judgment.** In a court context, consult counsel. In an academic context, use the ethics-review process. In every context, the practitioner exercises judgment the method cannot replace.
 
 ## Closing
 
-The limitations identified in this section are real. The methodology is published with full acknowledgment that its reach is bounded by what its scope, its signal taxonomy, its calibration, and its adversarial posture support. Practitioners and researchers who find the methodology useful are operating within these bounds; practitioners and researchers who need capabilities beyond these bounds need other tools.
+The limits in this section are real. The method is published with a full statement that its reach is bounded by its scope, its signal list, its calibration, and its adversarial posture. A practitioner who finds the method useful works inside those bounds. A practitioner who needs more needs another tool.
 
-Future work as community open problems is the methodology's path forward. The author's commitment to maintenance is bounded; the methodology's continuation depends on practitioners and researchers who find the work useful taking ownership of the extensions, validations, and adaptations the methodology's bounded scope leaves open.
+Later work, as open problems for the community, is the path forward. The author's maintenance commitment is bounded. Continuation depends on practitioners and researchers who find the work useful. They take up the extensions, the validations, and the adaptations that the bounded scope leaves open.
 
-The final section (§12) offers a brief conclusion and the paper's closing posture.
+Section 12 is a short conclusion and the closing posture of the paper.

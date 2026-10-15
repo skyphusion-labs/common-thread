@@ -1,205 +1,233 @@
 # 6. Feature extraction
 
-This section specifies the deterministic transformation from the archived artifacts produced by the collection methodology (§5) to the signal table consumed by the attribution reasoning layer (§7). Feature extraction is the methodology's reproducibility primitive: given the same archive and the same extractor versions, every practitioner who runs the methodology arrives at the same signal table.
+This section specifies the change from archived artifacts (§5) to the signal table (§7). Feature extraction is the reproducibility step. The same archive and the same extractor versions produce the same signal table.
 
-The section is organized around the determinism requirement (§6.1), the extractor specifications for each signal category (§6.2), the signal table schema (§6.3), edge cases and known failure modes (§6.4), and performance considerations (§6.5). The reference implementation is one realization of these specifications; other implementations should be possible from the methodology alone, and the methodology's commitment to reproducibility includes commitment to specifications that another implementer could follow.
+The section covers five topics. They are the determinism rule (§6.1) and the extractor rules (§6.2). They are the signal table schema (§6.3), known failures (§6.4), and performance (§6.5). The reference implementation is one realization. Another implementer can follow these rules.
 
 ## 6.1 Determinism requirement
 
-Feature extractors in Common Thread are pure functions of the archived artifacts and the extractor configuration. They produce the same output every time they run against the same input. The methodology requires this discipline at the implementation level, and the reference implementation enforces it through several technical choices.
+A feature extractor is a pure function of the archived artifacts and the extractor configuration. The same input produces the same output on every run. The reference implementation enforces this rule.
 
 ### 6.1.1 What "pure function" means here
 
-A feature extractor in Common Thread reads archived artifacts and produces rows in the signal table. It has no other inputs and no other outputs. Specifically, an extractor does not:
+A feature extractor reads archived artifacts. It writes rows in the signal table. It has no other input and no other output.
 
-- Call any LLM or other non-deterministic external service
-- Make any network request not necessary to read the archive
-- Use any library that produces non-deterministic output (random sampling, non-deterministic ML inference, system clock as a feature input)
-- Write any side effects beyond the signal table rows it is producing
-- Read any configuration that varies between practitioners running the same investigation against the same archive
+An extractor does not do any of the following.
 
-The intent is that any practitioner with access to the archive, the extractor code at a specific version, and the extractor configuration can recompute the signal table and verify that the rows match. This is the strongest form of reproducibility the methodology promises and is the foundation for everything in §7 and §8.
+- It does not call an LLM or any other non-deterministic service.
+- It does not make a network request except to read the archive.
+- It does not use random sampling, non-deterministic inference, or the system clock as a feature input.
+- It does not write a side effect beyond the signal table rows.
+- It does not read configuration that differs between practitioners who run the same investigation on the same archive.
+
+A practitioner with the archive, one extractor version, and the extractor configuration can recompute the signal table. The practitioner can then check that the rows match. This is the strongest reproducibility the method promises. Sections 7 and 8 depend on it.
 
 ### 6.1.2 Versioning
 
-Each extractor is versioned. Signal table rows record the version of the extractor that produced them. When an extractor is updated (a new feature is added, a calculation is improved, a bug is fixed), the version is incremented. Signal table rows from prior versions remain valid records of what the prior version computed; rows from the new version supersede them for any analysis that prefers current extractor output.
+Each extractor has a version. Each signal table row records that version. A new feature, a better calculation, or a bug fix increments the version. Rows from an older version stay valid records of that version. Rows from the new version replace them when the analysis prefers current output.
 
-The methodology permits an investigation to use rows from multiple extractor versions, as long as the version is recorded per row. A practitioner re-running an investigation after an extractor update can choose to recompute the affected signals or to leave the prior signals in place. The choice is the practitioner's; the methodology requires only that the choice is recorded.
+An investigation may use rows from more than one extractor version. Each row must record its version. After an update, the practitioner may recompute the affected signals or keep the prior rows. The practitioner chooses. The method requires only that the choice is recorded.
 
-The reference implementation stores extractor versions in the signal table schema and refuses to overwrite rows from a different extractor version without an explicit operation. This prevents accidental silent updates that would break reproducibility.
+The reference implementation stores extractor versions in the schema. It refuses to replace a row from a different version without an explicit operation. That rule blocks a silent update.
 
 ### 6.1.3 No LLM at this layer
 
-The exclusion of LLM calls from feature extraction is a structural commitment of the methodology, not an implementation detail. The attribution reasoning layer in §7 uses an LLM and is non-deterministic; the feature extraction layer is deterministic. Mixing the two would defeat the reproducibility properties on which the methodology's evidentiary posture depends.
+The ban on LLM calls at extraction is a structural rule. It is not an implementation detail. Section 7 uses an LLM and is non-deterministic. This layer is deterministic. A mix of the two would defeat the evidentiary posture in §3.
 
-This exclusion has practical consequences. Some signals that would benefit from LLM-assisted extraction are computed in less sophisticated ways at the extraction layer to preserve determinism. Topic clustering, for example, could be improved with LLM-assisted topic identification; the methodology uses deterministic clustering (TF-IDF based) instead. The trade-off is intentional: the methodology accepts slightly lower extraction quality in exchange for full reproducibility at this layer, and recovers reasoning quality at the §7 layer where the LLM operates over the deterministic signals rather than within them.
+The ban has practical effects. Some signals would be better with an LLM. The method computes them in a simpler way so the result stays deterministic. Topic groups are one example. An LLM could name topics. The method uses TF-IDF clustering instead.
+
+The method accepts lower extraction quality here. It recovers reasoning quality in §7. There the LLM reads the deterministic signals. It does not sit inside them.
 
 ## 6.2 Extractor specifications
 
-This subsection specifies the extraction requirements for each signal category. The level of specificity varies: where the choice of algorithm is load-bearing for reproducibility or for signal quality, the methodology specifies the algorithm. Where the choice is incidental, the methodology specifies the result and leaves the implementation to the practitioner.
+This subsection states the extraction rule for each signal category. Where the algorithm affects reproducibility or signal quality, the method names the algorithm. Where the choice is incidental, the method states the result. The practitioner chooses the implementation.
 
 ### 6.2.1 Account metadata extractors
 
-The signals in §4.1 are extracted by parsing account profile data from the archive. The extraction is mechanical: each signal corresponds to a specific field in the platform's profile representation, and the extractor reads the field and writes a row to the signal table.
+The signals in §4.1 come from account profile data in the archive. Extraction is mechanical. Each signal maps to one field in the platform profile. The extractor reads the field and writes a row.
 
-For creation-date clustering (§4.1.1), the extractor computes pairwise time deltas across all account creation timestamps in the seed set and writes one row per pair. The clustering itself happens at the reasoning layer; the extractor is responsible only for producing the deltas.
+For creation-date clustering (§4.1.1), the extractor computes pairwise time deltas for every creation timestamp in the seed set. It writes one row per pair. Clustering happens in the reasoning layer. The extractor produces only the deltas.
 
-For display-name and handle patterns (§4.1.2), the extractor computes pairwise edit distances using the Levenshtein algorithm at the character level. The methodology requires Levenshtein specifically because it is the most widely implemented distance metric and produces consistent results across implementations. Practitioners using other distance metrics should document the choice; the methodology's reasoning layer is calibrated to Levenshtein output.
+For display names and handles (§4.1.2), the extractor computes pairwise edit distance with the Levenshtein algorithm at character level. The method requires Levenshtein. Many implementations share it, and the results stay consistent. A practitioner who uses another metric must document the choice. The reasoning layer is calibrated to Levenshtein output.
 
-For bio template matching (§4.1.3), the extractor parses bios into typed slots using a regex-based slot identifier that the methodology specifies as a configuration file. The slot set is conventional (location, occupation, identifier tokens, link patterns) and is published in the reference implementation as a default. Practitioners can extend the slot set, but the extractor version is incremented when they do, so downstream consumers can see that a non-standard slot set was used.
+For bio template matching (§4.1.3), the extractor parses bios into typed slots. A regex slot identifier does this work. The method specifies that identifier as a configuration file. The default slot set is conventional. It covers location, occupation, identifier tokens, and link patterns. The reference implementation publishes that default.
 
-The remaining metadata signals (verification status, profile customization, stated location) are extracted by direct field reading. No algorithmic specification is needed; the extractor reads the platform's profile representation and writes the corresponding fields to the signal table.
+A practitioner may extend the slot set. The extractor version increments when they do. A later reader can see that the slot set was non-standard.
+
+The other metadata signals are verification status, profile customization, and stated location. The extractor reads those fields directly. No algorithm specification is required.
 
 ### 6.2.2 Temporal extractors
 
-The signals in §4.2 require parsing post timestamps and computing distributional statistics over them.
+The signals in §4.2 require post timestamps and distributional statistics.
 
-For posting-cadence correlation (§4.2.1), the extractor bins posts by hour-of-day and day-of-week per account, producing a 168-bin distribution (24 hours times 7 days). Pairwise comparison uses Jensen-Shannon divergence, which the methodology specifies as the distance metric because it is bounded, symmetric, and produces output in a consistent range (zero to one in the base-two formulation). The extractor writes the per-account distribution and the pairwise divergences to the signal table.
+For posting-cadence correlation (§4.2.1), the extractor bins posts by hour of day and day of week for each account. The result is a 168-bin distribution. That is 24 hours times 7 days. Pairwise comparison uses Jensen-Shannon divergence. The method names that metric because it is bounded and symmetric. In the base-two form the output runs from zero to one.
 
-For response-latency correlation (§4.2.2), the extractor requires triggering-event annotations as input. Triggering events are specified by the practitioner during investigation setup (which posts, news events, or external actions count as triggers). The extractor computes, for each event and each account, the time delta between the event timestamp and the account's first engagement with content related to the event. The methodology specifies "first engagement" as the earliest post by the account that references the event in a way the extractor can detect (URL, hashtag, named reference, or amplification of an event-related post). The extractor writes per-event-per-account latencies and per-account latency distributions to the signal table.
+The extractor writes the per-account distribution and the pairwise divergences.
 
-For active-hour distribution (§4.2.3), the extractor produces a 24-bin distribution per account and computes pairwise Jensen-Shannon divergences. The methodology specifies that timezone normalization is performed at the platform's native timezone if exposed, and at UTC otherwise. Practitioners working across timezones should document the normalization choice.
+For response-latency correlation (§4.2.2), the extractor needs triggering-event annotations. The practitioner names those events during investigation setup. An event may be a post, a news event, or an external action. For each event and each account, the extractor computes the time from the event to the first related engagement. First engagement is the earliest post by that account that the extractor can link to the event. The link may be a URL, a hashtag, a named reference, or amplification of a related post.
 
-For quiet-period correlation (§4.2.4), the extractor identifies silence periods longer than a configurable threshold (the methodology's default is 24 hours) per account, and writes overlap statistics for pairs. The threshold is a parameter, and the signal table records which threshold was used.
+The extractor writes per-event latencies and per-account latency distributions.
 
-For burst correlation (§4.2.5), the extractor identifies burst periods using a configurable threshold expressed in standard deviations above the account's baseline posting rate (the methodology's default is 2 standard deviations over a 14-day rolling baseline). The signal table records burst-overlap statistics per pair and the threshold parameters.
+For active-hour distribution (§4.2.3), the extractor produces a 24-bin distribution per account. It then computes pairwise Jensen-Shannon divergences. Timezone normalization uses the platform timezone when the platform exposes it. Otherwise the extractor uses UTC. A practitioner who works across timezones must document the choice.
+
+For quiet-period correlation (§4.2.4), the extractor finds silence longer than a configurable threshold. The default is 24 hours. It writes overlap statistics for pairs. The signal table records the threshold.
+
+For burst correlation (§4.2.5), the extractor finds bursts above a configurable threshold. The threshold is a count of standard deviations above the account baseline rate. The default is 2 standard deviations on a 14-day rolling baseline. The signal table records burst-overlap statistics per pair and the threshold parameters.
 
 ### 6.2.3 Linguistic extractors
 
-Linguistic extraction is the most algorithmically prescriptive of the categories, both because the prior literature provides clear guidance and because variations in algorithm choice produce meaningfully different results.
+Linguistic extraction is the most prescriptive category. Prior literature gives clear guidance. A different algorithm produces a different result.
 
-The reference implementation records all §4.3 linguistic features under the signal-table category name `stylometric`, matching the stylometrics terminology used in §4.3.1 and the attribution-reasoning validation rules (§7.3.1). Paper text uses *linguistic* for the taxonomy category; implementation output and prompts use `stylometric` for the same category.
+The reference implementation records all §4.3 features under the category name `stylometric`. That name matches §4.3.1 and the validation rules in §7.3.1. Paper text uses linguistic for the taxonomy category. Implementation output and prompts use `stylometric` for the same category.
 
-For stylometric markers (§4.3.1), the methodology specifies Burrows' Delta as the baseline distance metric. The implementation follows the formulation in Burrows (2002): compute the frequency of each function word per author (here, per account), z-score the frequencies against the corpus of all authors in the seed set, and compute the mean absolute difference of z-scores between author pairs. The methodology specifies a function-word list of the top 150 most-frequent words in the language of the corpus, identified from a reference corpus appropriate to the language (the Corpus of Contemporary American English for English-language investigations is a defensible default).
+For stylometric markers (§4.3.1), the method specifies Burrows' Delta as the baseline distance. The implementation follows Burrows (2002). It computes the frequency of each function word per account. It computes z-scores against all accounts in the seed set. It then computes the mean absolute difference of z-scores between account pairs. The function-word list is the 150 most frequent words in the corpus language.
 
-The choice of 150 words is the methodology's default and is not load-bearing; the literature supports values from 50 to 500. Practitioners can change the count; the signal table records the choice.
+The practitioner takes that list from a reference corpus for the language. The Corpus of Contemporary American English is a defensible default for English.
 
-The extractor also computes sentence-length distribution per account (binned by sentence length in tokens), punctuation rates (per-token frequency of major punctuation marks), and capitalization rates (fraction of words capitalized in non-sentence-initial position). Each of these is recorded as a per-account distribution and as pairwise distances using the same Jensen-Shannon divergence used for temporal signals.
+The count of 150 words is the default. It is not load-bearing. The literature supports counts from 50 to 500. The practitioner may change the count. The signal table records the choice.
 
-For topic vocabulary overlap (§4.3.2), the extractor computes TF-IDF per account against a background corpus that is either specified by the practitioner or derived from a control corpus the reference implementation provides for major languages. The extractor identifies the top N distinctive terms per account (the methodology's default is N=100) and computes pairwise weighted overlap using term rarity weights. Higher overlap on rarer terms produces stronger signal.
+The extractor also computes three more distributions per account. They are sentence length in tokens, punctuation rate per token, and the share of words capitalized outside a sentence start. Each is stored as a per-account distribution. Pairwise distance uses the same Jensen-Shannon divergence as the temporal signals.
 
-For idiosyncratic phrase reuse (§4.3.3), the extractor computes n-grams from 3-grams through 7-grams per account, with novelty weighting against the background corpus. The methodology specifies that the n-gram weighting use TF-IDF analogously to the topic-overlap signal but applied to n-gram frequencies. The extractor surfaces n-grams that are rare in the background and appear in multiple seed accounts, ranked by combined rarity and seed-set frequency.
+For topic vocabulary overlap (§4.3.2), the extractor computes TF-IDF per account against a background corpus. The practitioner supplies that corpus. The reference implementation does not ship one. The practitioner uploads `application/x-background-corpus` on a control seed. See `docs/BACKGROUND-CORPUS.md` and `paper/ERRATA.md`. Without that artifact the signal stays dormant.
 
-For code-switching patterns (§4.3.4) and typo-and-error patterns (§4.3.5), the extractor relies on auxiliary tooling (language detection libraries for code-switching, rule-based pattern matchers for typo categories). The methodology does not specify the auxiliary tooling but requires that the version and configuration of the tooling be recorded in the signal table.
+The extractor takes the top N distinctive terms per account. The default is N = 100. It computes pairwise weighted overlap with term-rarity weights. Higher overlap on rarer terms is a stronger signal.
+
+For idiosyncratic phrase reuse (§4.3.3), the extractor computes n-grams from 3-grams through 7-grams per account. It weights novelty against the same background corpus. The n-gram weight uses TF-IDF in the same way as topic overlap, applied to n-gram frequency. The extractor lists n-grams that are rare in the background and that appear in more than one seed account. Rank uses rarity and seed-set frequency together. Without the background artifact this signal also stays dormant.
+
+For code-switching (§4.3.4) and typo patterns (§4.3.5), the extractor uses auxiliary tools. A language detector supports code-switching. A rule-based matcher supports typo categories. The method does not name the tool. The signal table must record the tool version and the configuration.
 
 ### 6.2.4 Network extractors
 
-Network extraction operates on follower and engagement data from the archive.
+Network extraction reads follower data and engagement data from the archive.
 
-For follower overlap (§4.4.1), the extractor computes Jaccard similarity of follower sets pairwise. The methodology requires normalization against a community baseline: the same Jaccard computation is performed for pairs of control accounts in the seed set (§5.1.4), and the raw similarity is reported alongside the normalized similarity (raw value minus community baseline mean, divided by community baseline standard deviation). The signal table records both raw and normalized values.
+For follower overlap (§4.4.1), the extractor computes pairwise Jaccard similarity of follower sets. The method requires a community baseline. The same Jaccard computation runs on pairs of control accounts in the seed set (§5.1.4). The extractor reports raw similarity and normalized similarity. Normalized similarity is the raw value minus the baseline mean, divided by the baseline standard deviation. The signal table records both values.
 
-For mutual-follow patterns (§4.4.2), the extractor identifies pairs of accounts in the seed set that mutually follow each other, and records the time at which the mutual relationship was established (the later of the two follow timestamps). The signal table records per-pair mutual status and timing.
+For mutual-follow patterns (§4.4.2), the extractor finds seed accounts that follow each other. It records when the mutual relation started. That time is the later of the two follow timestamps. The signal table records mutual status and timing for each pair.
 
-For co-engagement timing on third-party content (§4.4.3), the extractor identifies posts engaged by two or more accounts in the seed set and computes pairwise time deltas. The signal table records per-pair distributions of co-engagement deltas.
+For co-engagement timing (§4.4.3), the extractor finds posts that two or more seed accounts engaged. It computes pairwise time deltas. The signal table records the distribution of those deltas for each pair.
 
-For cross-account amplification (§4.4.4), the extractor computes the fraction of each account's amplification (likes, reposts, quote-posts received) that comes from other accounts in the seed set, normalized against the same fraction for control accounts.
+For cross-account amplification (§4.4.4), the extractor computes one fraction per account. The fraction is amplification that comes from other seed accounts. Amplification means likes, reposts, and quote-posts received. The same fraction for control accounts is the normalizer.
 
 ### 6.2.5 Visual extractors
 
-Visual extraction relies on perceptual hashing libraries and image-processing tooling.
+Visual extraction uses perceptual-hash libraries and image tools.
 
-For perceptual hashing (§4.5.1 through §4.5.3), the methodology requires at least two hash families. The reference implementation uses pHash (perceptual hashing based on discrete cosine transform) and dHash (difference hash). The use of two families reduces single-method blind spots: an image edit that defeats pHash may not defeat dHash, and vice versa. The signal table records hashes from both families and pairwise Hamming distances.
+For perceptual hashing (§4.5.1 through §4.5.3), the method requires at least two hash families. The reference implementation uses pHash and dHash. pHash uses a discrete cosine transform. dHash is a difference hash. Two families reduce a blind spot in one family. An edit that defeats pHash may not defeat dHash.
 
-For image source tracing (§4.5.4), the extractor relies on reverse-image-search results which are non-deterministic across runs. To preserve determinism at the extractor layer, the reference implementation does not perform reverse image search in the extractor; instead, the practitioner performs reverse search manually and records the source class (stock, celebrity, scraped, AI-generated, original) in the manifest, which the extractor reads.
+The reverse is also true. The signal table records both hashes and the pairwise Hamming distances.
 
-For AI-generated face detection (§4.5.5), the extractor applies a detector library. The detector is non-deterministic in the sense that different detectors disagree on edge cases, but for any specific detector and version, the output is deterministic. The signal table records the detector identifier, version, and output per profile image.
+For image source tracing (§4.5.4), reverse image search changes between runs. The extractor does not run that search. The practitioner runs the search by hand and records the source class in the manifest. The classes are stock, celebrity, scraped, AI-generated, and original. The extractor reads that field.
 
-For color palette overlap (§4.5.6), the collection layer aggregates per-account quantized RGB histograms into a corpus artifact. The account extractor computes histogram bins, top-color summaries, and image counts; the pair extractor computes Jensen-Shannon divergence, cosine similarity, and top-color Jaccard on aligned histograms. See §6.4.6 for v1 collection-layer availability.
+For AI-generated face detection (§4.5.5), the method applies a detector library. Different detectors disagree on edge cases. One detector at one version has a deterministic output. The signal table records the detector name, the version, and the output for each profile image. Section 6.4.6 states that v1 has no Workers-hosted detector.
+
+For color palette overlap (§4.5.6), the collection layer stores per-account quantized RGB histograms in a corpus artifact. The account extractor computes histogram bins, top-color summaries, and image counts. The pair extractor computes Jensen-Shannon divergence, cosine similarity, and top-color Jaccard on aligned histograms. See §6.4.6 for availability in v1.
 
 ### 6.2.6 Cross-platform extractors
 
-Cross-platform extraction operates on artifacts collected from multiple platforms.
+Cross-platform extraction reads artifacts from more than one platform.
 
-For handle reuse (§4.6.1), the extractor performs exact and near-exact string matching across handles. The methodology specifies a small set of variant rules (numeric suffix addition, underscore insertion, dot insertion, year-suffix addition) and computes match scores for each pair. The signal table records the match score and the variant rule that produced the highest score.
+For handle reuse (§4.6.1), the extractor matches handles by exact string and by near-exact string. The method names a small set of variant rules. The rules are a numeric suffix, an inserted underscore, an inserted dot, and a year suffix. The extractor computes a match score for each pair. The signal table records the score and the rule with the highest score.
 
-For bio link patterns (§4.6.2) and external link corpus overlap (§4.6.3), the extractor normalizes URLs (resolving redirects, stripping tracking parameters) and computes pairwise overlap with rarity weighting. Per-account posted-URL lists are emitted by the platform stylometric extractors under the `content_artifacts` category (`posted_urls`, `posted_urls_unique_count`); pair-level Jaccard overlap is emitted under `cross_platform`.
+For bio link patterns (§4.6.2) and external link overlap (§4.6.3), the extractor normalizes URLs. It resolves redirects and removes tracking parameters. It then computes pairwise overlap with rarity weights. Per-account URL lists use the category `content_artifacts`. The feature names are `posted_urls` and `posted_urls_unique_count`. Pair-level Jaccard overlap uses the category `cross_platform`.
 
-For cross-platform timing correlation (§4.6.4), the extractor operates analogously to the within-platform temporal extractors (§6.2.2) but across artifacts from different platforms. The signal table records cross-platform timing distributions.
+For cross-platform timing (§4.6.4), the extractor follows §6.2.2 across platforms. The signal table records the cross-platform timing distributions.
 
 ### 6.2.7 Metadata-leakage extractors
 
-Metadata-leakage extraction parses technical metadata from collected artifacts.
+This extractor parses technical metadata from collected artifacts.
 
-For EXIF data (§4.7.1), the extractor uses standard EXIF parsing libraries (exiftool is the practitioner standard) to read metadata from image files in the archive. The signal table records per-image EXIF fields and pairwise consistency statistics.
+For EXIF data (§4.7.1), the extractor uses a standard EXIF library. exiftool is the practitioner standard. It reads metadata from image files in the archive. The signal table records EXIF fields per image and pairwise consistency.
 
-For timezone leakage from explicit metadata (§4.7.2), the extractor reads timezone fields from platform responses where exposed. The signal table records per-account timezone offsets and consistency.
+For timezone leakage (§4.7.2), the extractor reads timezone fields when the platform exposes them. The signal table records timezone offsets per account and their consistency.
 
-For client fingerprints (§4.7.3), the extractor reads the client field from platform-supplied post metadata and records per-account client distributions. The signal table records client-distribution similarity pairwise.
+For client fingerprints (§4.7.3), the extractor reads the client field from platform post metadata. It records the client distribution per account. The signal table records pairwise similarity of those distributions.
 
-For link shortener fingerprints (§4.7.4) and share-card metadata (§4.7.5), the extractor identifies the shorteners and embed sources used and records their distributions.
+For shortener fingerprints (§4.7.4) and share-card metadata (§4.7.5), the extractor names the shorteners and the embed sources. It records their distributions.
 
 ## 6.3 Signal table schema
 
-The signal table is the structured output that all feature extractors write to. The schema is designed to be queryable (typical questions a practitioner asks should be answerable in SQL or equivalent), versioned (extractor versions are recorded per row), and append-only (rows are not mutated after writing).
+The signal table is the structured output of every feature extractor. A practitioner can query it in SQL or an equivalent language. Each row records the extractor version. Rows are append-only. A written row is not changed.
 
-The schema has three primary tables. The reference implementation uses MySQL via Cloudflare Hyperdrive; other implementations can use any relational store.
+The schema has three primary tables. The reference implementation uses MySQL through Cloudflare Hyperdrive. Another implementation may use any relational store.
 
 ### 6.3.1 Per-account features
 
-The `account_features` table records features computed for individual accounts. Each row records:
+The `account_features` table records features for one account. Each row records these fields.
 
 - Investigation identifier
-- Account identifier (handle or platform-internal identifier)
-- Feature identifier (which extractor produced this feature)
+- Account identifier, a handle or a platform-internal identifier
+- Feature identifier, the extractor that produced the feature
 - Extractor version
-- Feature value (typed by the feature: numeric, string, distribution-as-JSON, blob)
-- Collection timestamp range over which the feature was computed
+- Feature value, as a number, a string, a JSON distribution, or a blob
+- Collection timestamp range for the feature
 - Computation timestamp
-- Provenance hash (hash of the archived artifacts that contributed to this feature)
+- Provenance hash of the archived artifacts that contributed
 
-The provenance hash is the critical reproducibility primitive at this layer. Given a row in `account_features` and the archive, any practitioner can verify that the same artifacts were used and recompute the feature.
+The provenance hash is the reproducibility check at this layer. A practitioner with one row and the archive can confirm the same artifacts. The practitioner can then recompute the feature.
 
 ### 6.3.2 Per-pair features
 
-The `pair_features` table records features computed for pairs of accounts. Schema parallels `account_features` but with two account identifiers per row. Pair features are symmetric: the methodology requires that swapping the two account identifiers produces an equivalent row, and the reference implementation enforces this by canonicalizing the account-identifier ordering.
+The `pair_features` table records features for two accounts. The schema matches `account_features`, with two account identifiers on each row. Pair features are symmetric. If the two identifiers swap, the row stays equivalent. The reference implementation enforces a canonical identifier order.
 
 ### 6.3.3 Per-event features
 
-The `event_features` table records features computed for specific events (triggering events for response-latency signals, burst windows for burst correlation, deletion discoveries for re-collection). Each row records the event identifier, the account or pair the feature is about, and the standard provenance fields.
+The `event_features` table records features for specific events. Examples are a triggering event, a burst window, and a deletion found on re-collection. Each row records the event identifier, the account or the pair, and the standard provenance fields.
 
 ### 6.3.4 Schema versioning
 
-The schema itself is versioned. The reference implementation includes schema migrations between versions. Signal tables produced under an older schema remain readable; the methodology does not require re-extraction when the schema is updated unless an old extractor relied on schema elements that have been removed.
+The schema has a version. The reference implementation includes migrations between versions. A signal table from an older schema stays readable. Re-extraction is not required after a schema update unless an old extractor used a removed element.
 
-The schema version, alongside extractor versions, is part of the reproducibility envelope. An investigation conducted under schema version X with extractors at versions Y1 through Yn can be exactly reproduced by another practitioner who replicates schema X and extractor versions Y1 through Yn against the original archive.
+The schema version and the extractor versions form the reproducibility envelope. Another practitioner can reproduce an investigation under schema X and extractor versions Y1 through Yn. That practitioner applies the same schema and the same versions to the original archive.
 
 ## 6.4 Edge cases and known failure modes
 
-Feature extractors operate at the level of signal computation, not signal interpretation. Edge cases that would confuse the interpretation layer (§7) should be flagged at the extraction layer so the interpretation layer can handle them appropriately.
+Extractors compute signals. They do not interpret signals. An edge case that would confuse §7 is flagged here. Section 7 can then handle it.
 
 ### 6.4.1 Insufficient data
 
-Some signals require a minimum amount of input data to be meaningful. Stylometric signals require thousands of words of text per account; temporal signals require dozens to hundreds of posts spanning weeks of activity; network signals require at least one follower-list collection per account.
+Some signals need a minimum amount of input. A stylometric signal needs thousands of words per account. A temporal signal needs dozens to hundreds of posts across weeks. A network signal needs at least one follower-list collection per account.
 
-The methodology specifies that extractors record a "confidence" flag per signal table row, indicating whether the input data was sufficient for the signal to be meaningful. The reference implementation uses three levels: sufficient (the signal is computed normally), marginal (the signal is computed but the data is at the lower bound of reliability), and insufficient (the signal cannot be reliably computed; a placeholder row is written with the insufficient flag set).
+Each signal table row has a confidence flag. The flag states whether the input supports a meaningful signal. The reference implementation uses three levels.
 
-The reasoning layer in §7 uses the confidence flag to weight signals appropriately. A signal with insufficient flag is not used in attribution; a signal with marginal flag is used but discounted.
+- Sufficient means the signal is computed in the normal way.
+- Marginal means the signal is computed, and the data is at the lower bound of reliability.
+- Insufficient means the signal cannot be computed with reliability. The extractor writes a placeholder row and sets the flag.
+
+Section 7 uses the flag to weight signals. An insufficient signal is not used for attribution. A marginal signal is used at a discount.
 
 ### 6.4.2 Bilingual or multilingual accounts
 
-Accounts that post in multiple languages produce stylometric signals that are not directly comparable across languages. The function-word distribution in English is different from the function-word distribution in Spanish, and Burrows' Delta computed across mixed-language corpora produces noisy results.
+An account that posts in more than one language produces stylometric signals that do not compare across languages. The English function-word distribution differs from the Spanish distribution. Burrows' Delta on a mixed-language corpus is noisy.
 
-The methodology specifies that linguistic extractors classify each post by language and either compute per-language signals separately or restrict computation to the dominant language per account. The reference implementation uses the dominant-language approach by default and records the language used per account in the signal table. Practitioners working with substantially multilingual networks should consider the per-language approach.
+A linguistic extractor classifies each post by language. It computes a signal per language, or it limits the computation to the dominant language. The reference implementation uses the dominant language by default. It records that language for each account. A practitioner with a multilingual network should consider the per-language approach.
 
 ### 6.4.3 Account-sharing within real communities
 
-Some accounts are operated by multiple legitimate users: married couples sharing an account, organizational accounts with multiple posters, PR firms posting on behalf of clients, volunteer-run community accounts. These accounts produce stylometric signal patterns that look like sockpuppet activity (multiple authorial voices) but are not coordinated inauthentic behavior.
+Some accounts have more than one legitimate user. Examples are a married couple, an organization, a public-relations firm, and a volunteer community account. These accounts show high stylometric variance inside the account. That pattern can look like a sockpuppet. It is not coordinated inauthentic behavior.
 
-The methodology cannot distinguish these cases from sockpuppetry at the extraction layer. The extractor flags accounts whose internal stylometric variance is unusually high relative to the account's length, surfacing them to the reasoning layer for treatment as edge cases. The reasoning layer in §7 is prompted to consider account-sharing as an alternative explanation for high internal variance.
+The extractor cannot separate these cases from sockpuppet activity. It flags an account whose internal variance is high for its length. Section 7 must treat account sharing as one alternative explanation.
 
 ### 6.4.4 Accounts that change behavior over time
 
-Accounts may change their behavior substantially over time. A user who experienced a major life event, changed their profession, joined or left a community, or simply matured may show distinct stylometric and temporal patterns across periods of their account's life.
+An account may change over time. A life event, a new profession, a community change, or ordinary maturity can change the stylometric pattern and the temporal pattern.
 
-The methodology specifies that extractors compute signals over the full collection window by default and additionally over the most recent third of the window when sufficient data is available. The signal table records both versions, allowing the reasoning layer to detect cases where comparisons within the recent window differ substantially from comparisons over the full history.
+An extractor computes signals on the full collection window by default. When enough data exists, it also computes signals on the most recent third of the window. The signal table records both. The reasoning layer can see when the recent window differs from the full history.
 
 ### 6.4.5 Deleted content discovered during re-collection
 
-When re-collection (§5.5) discovers that content present in earlier collection is now absent, the extractor must handle the absence appropriately. The methodology specifies that signals computed from the earlier collection remain valid (the archive preserves the deleted content), but signals computed from the later collection are computed only against the still-present content. The signal table records collection windows per signal so the reasoning layer can identify which signals were computed against which versions of the network's behavior.
+Re-collection (§5.5) may find that earlier content is now absent. A signal from the earlier collection stays valid. The archive keeps the deleted content. A signal from the later collection uses only content that is still present. The signal table records the collection window for each signal. The reasoning layer can see which version of the network each signal used.
 
 ### 6.4.6 Reference implementation v1 signal availability
 
-Extractors for the full §4 taxonomy are present in the reference implementation, but not every signal is populated on every ingest path. The table below states what practitioners should expect from a standard Apify Twitter ingest without additional configuration. Instagram, Reddit, Bluesky, Mastodon, TikTok, YouTube, and Facebook Apify exports (`POST /ingest/apify` plus `/apify-instagram`, `/apify-reddit`, `/apify-bluesky`, `/apify-mastodon`, `/apify-tiktok`, `/apify-youtube`, `/apify-facebook`) populate the platform-parallel stylometric and temporal account features (and Reddit account-metadata / subreddit overlap) plus the shared pair extractors; Twitter-only network, visual, and metadata-leakage signals stay dormant on those paths. Mastodon ingest resolves via `mastodon.social` or acct/instance/tool hints, not every federated host. YouTube authored text is titles, descriptions, and comments, not a tweet-like timeline. Facebook ingest is public-page posts only (no cookies, personal profiles, likes, friends lists, or emails). LinkedIn, Telegram, and Discord remain `400 unsupported_export`.
+Extractors for the full §4 list are present. Not every signal is filled on every ingest path. The table states the result of a standard Apify Twitter ingest with no extra configuration.
+
+Other Apify exports use `POST /ingest/apify` plus a platform path. The paths are `/apify-instagram`, `/apify-reddit`, `/apify-bluesky`, `/apify-mastodon`, `/apify-tiktok`, `/apify-youtube`, and `/apify-facebook`. Those paths fill the parallel stylometric features and the parallel temporal features. Reddit also fills account metadata and subreddit overlap. The shared pair extractors run on those paths. Network, visual, and metadata-leakage signals that exist only for Twitter stay dormant there.
+
+Mastodon ingest resolves through `mastodon.social`, or through an acct hint, an instance hint, or a tool hint. It does not resolve every federated host. YouTube text is titles, descriptions, and comments. It is not a tweet-like timeline. Facebook ingest is public-page posts only. It does not collect cookies, personal profiles, likes, friends lists, or emails.
+
+LinkedIn, Telegram, and Discord stay `400 unsupported_export`.
+
+The table below is the availability record. Its cell text is unchanged from v1.0.
 
 | Signal | Paper | v1 default ingest | Notes |
 |--------|-------|-------------------|-------|
@@ -221,18 +249,20 @@ Extractors for the full §4 taxonomy are present in the reference implementation
 | §4.1.6 stated location geocoding | **Active** | Offline bundled city table (`docs/GEOCODING.md`); account `location_lat` / `location_lon` when matched; pair `location_geo_distance_km` and `location_geo_near_match` when both accounts geocode. |
 | §5.5 re-collection / tombstones | **Active on re-ingest** | Second and later timeline ingests diff against the prior present collection; manifest tombstones and `tweet_deletion` event_features for absent tweets. Engagement extractors use the latest timeline per account and stamp `collection_window` on events (§6.4.5). |
 
-Practitioners auditing an investigation should treat the signal table as authoritative: a category listed in §4 but absent from the table for a given run was either not collected, not configured, or not applicable to that payload.
+A practitioner who audits an investigation treats the signal table as authoritative. A §4 category absent from the table for one run was not collected, was not configured, or did not apply to that payload.
 
 ## 6.5 Performance considerations
 
-The methodology requires that feature extraction be feasible on practitioner-grade hardware for investigations of typical scope. The reference implementation targets investigations of up to 50 accounts in the seed set on a laptop, completing within minutes to an hour depending on the data volume per account.
+Feature extraction must be practical on practitioner hardware for a typical investigation. The reference implementation targets a seed set of up to 50 accounts on a laptop. Runtime is minutes to one hour. It depends on the data volume per account.
 
-Pairwise computations scale as O(N^2) in seed-set size. For 50 accounts, this is 1,225 pairs, which is comfortable. For 500 accounts, it is approximately 125,000 pairs, which requires either batching strategies or longer running times. The methodology does not impose a hard upper bound on seed-set size but warns practitioners that pairwise computations dominate at large N.
+Pairwise work scales as O(N^2) with the size of the seed set. Fifty accounts give 1,225 pairs. That size is comfortable. Five hundred accounts give about 125,000 pairs. That size needs batching or a longer run. The method sets no hard upper bound.
 
-The reference implementation caches intermediate computations (function-word vectors per account, follower sets, link corpora) so re-computation after seed-set changes is incremental rather than full. The cache invalidation rule is conservative: any change to the underlying archive or to an extractor version invalidates the cache.
+Pairwise work dominates at large N.
+
+The reference implementation caches intermediate results. Examples are function-word vectors, follower sets, and link corpora. After a change to the seed set, recomputation is incremental. Cache invalidation is conservative. A change to the archive or to an extractor version clears the cache.
 
 ## Closing
 
-Feature extraction is the layer at which the methodology's reproducibility commitment is most concretely realized. Every claim in an attribution output is supposed to trace back to signals; every signal is supposed to trace back to the deterministic computation specified here; every deterministic computation is supposed to trace back to the archived artifacts collected per §5. The chain holds because each link is auditable.
+Feature extraction is the concrete form of the reproducibility rule. Each attribution claim traces to signals. Each signal traces to a computation in this section. Each computation traces to archived artifacts from §5. The chain holds because each link can be audited.
 
-The next section (§7) describes attribution reasoning: the LLM-assisted layer that operates over the deterministic signals produced here to produce qualitative attribution claims at the confidence bands specified in §3.2. The reasoning layer is the methodology's most distinctive component and its most ethically charged; the discipline of §6 is what makes the reasoning layer trustworthy at the level the methodology requires.
+Section 7 is attribution reasoning. An LLM reads the deterministic signals from this section. It writes qualitative claims at the bands in §3.2. That layer is the most distinctive part of the method. It is also the most ethically charged part. The discipline in §6 makes that layer trustworthy at the level the method requires.

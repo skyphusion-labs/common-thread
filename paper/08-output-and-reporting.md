@@ -1,183 +1,187 @@
 # 8. Output and reporting
 
-This section specifies how attribution outputs from §7 are assembled into evidence packets, how the packets are used in different downstream contexts (court filings, journalism, academic publication, internal investigation), and what conventions govern publication of methodology outputs in adversarial contexts where the operator of the attributed network may read the methodology and the published findings.
+This section states how outputs from §7 become evidence packets. It states how those packets are used in court, journalism, academic publication, and an internal investigation. It also states the rules for publication when the operator may read the paper and the findings.
 
-The section is more concrete and prescriptive than the earlier methodology sections. The structure of the evidence packet is specified rather than recommended; the practitioner conventions are stated as defaults that practitioners can deviate from with documentation.
+This section is more concrete than the earlier sections. The packet structure is a requirement. The practitioner rules are defaults. A practitioner may depart from a default if the departure is documented.
 
 ## 8.1 Evidence packet structure
 
-The evidence packet is the deliverable that comes out of a Common Thread investigation. It is self-contained at the level of being readable without access to the archive, while preserving the references that allow a reader with archive access to verify every claim back to the underlying artifacts.
+The evidence packet is the deliverable of a Common Thread investigation. A reader can read it without the archive. The packet still holds the references that let a reader with the archive check every claim against the artifacts.
 
 ### 8.1.1 Components
 
-A complete evidence packet has six components.
+A complete evidence packet has six parts.
 
-**Cover page.** Investigation identifier, date of investigation, date of evidence packet generation, practitioner identity, scope summary (seed set size, time window, platforms covered), and confidence-band summary (counts of pair claims at each band).
+**Cover page.** The cover page records the investigation identifier, the investigation date, and the packet date. It records the practitioner, the scope, and the band summary. Scope is the seed-set size, the time window, and the platforms. The band summary is the count of pair claims at each band.
 
-**Narrative.** The attribution claims with their reasoning, in the structured form produced by §7.4.2 but rendered for human reading rather than for machine consumption. The narrative includes pair-level claims, cluster-level claims, the alternative explanations the reasoning layer considered, and the declined pairs with brief notes on the reasons for declination.
+**Narrative.** The narrative holds the attribution claims and their reasons. The form comes from §7.4.2 and is written for a person to read. It includes pair claims, cluster claims, and the alternative explanations the reasoning layer considered. It includes declined pairs and a short note on each declination.
 
-**Signal appendix.** The rows from the signal table that the narrative cites, presented in a form readable without database access. Each cited row includes the feature identifier, the value, the confidence flag, the provenance hash linking back to the archive, the extractor version that produced it, and the timestamps that frame its computation window. Rows that are not cited in the narrative are not included in the appendix; the appendix is a witness reference for the narrative's claims, not a dump of the signal table.
+**Signal appendix.** The appendix holds the signal-table rows that the narrative cites. A reader can read the appendix without a database. Each cited row includes the feature identifier, the value, and the confidence flag. It includes the provenance hash, the extractor version, and the timestamps of the computation window. A row that the narrative does not cite is omitted. The appendix witnesses the narrative.
 
-**Manifest extract.** A subset of the investigation manifest containing the entries for artifacts that contributed to the cited signals. The full manifest may be large; the packet includes only the entries that are evidentially relevant to the cited claims. The extract preserves the manifest's signing if the original manifest is signed, so the signature still validates against the extracted entries.
+It is not a dump of the signal table.
 
-**Methodology metadata.** The extractor versions, model identifier and version, prompt version, randomization seed (where applicable), and any other parameters required to reproduce the attribution run. This is the reproducibility envelope; a reader with the archive and these parameters can recompute the same signal table and run the same reasoning.
+**Manifest extract.** The extract is the manifest entries for artifacts that contributed to the cited signals. The full manifest may be large. The packet includes only the entries that support the cited claims. If the original manifest is signed, the extract keeps that signing. The signature still validates against the extracted entries.
 
-**Methodology reference.** A pointer to this paper at a specific version and to the reference implementation at a specific commit. The reference is by identifier rather than by inclusion: the evidence packet does not embed the methodology paper or implementation, but the reader can retrieve them from cited locations.
+**Method metadata.** This part records the extractor versions, the model name, and the model version. It records the prompt version and the randomization seed, where a seed applies. It records every other parameter needed to reproduce the attribution run. This part is the reproducibility envelope. A reader with the archive and these parameters can recompute the signal table and run the same reasoning.
+
+**Method reference.** This part points to this paper at one version and to the reference implementation at one commit. The pointer is an identifier. The packet does not embed the paper or the implementation. The reader can retrieve both from the cited locations.
 
 ### 8.1.2 Format
 
-The reference implementation produces the evidence packet in both Markdown and PDF. The Markdown is the canonical source; the PDF is the rendered form suitable for court filings and other contexts where rendered output is required.
+The reference implementation writes the packet as Markdown and as PDF. Markdown is the canonical source. The PDF is the rendered form for a court filing and for any context that needs a rendered file.
 
-The PDF is built from the Markdown source through a standard pipeline (wkhtmltopdf with stylesheets is the reference implementation's choice). Other practitioners may use alternative rendering pipelines; the methodology requires only that the rendered output preserves the structure of the Markdown source and that the rendering is reproducible from the source.
+The PDF is built from the Markdown source. The reference choice is wkhtmltopdf with stylesheets. Another practitioner may use another renderer. The rendered file must keep the structure of the Markdown source. The rendering must be reproducible from that source.
 
-Practitioners producing evidence packets for court filings should be aware that court systems vary in their accepted formats. The PDF should comply with the filing system's requirements (PDF/A for systems that require archival-format compliance, specific font and margin conventions where required, embedded fonts where required).
+A court filing system may require a specific PDF form. Examples are PDF/A, a required font, a required margin, and embedded fonts. The PDF should meet the rules of that filing system.
 
 ### 8.1.3 Signing
 
-The evidence packet is signed when the underlying manifest is signed. The signature attests that the packet's contents are authentic to the investigation as conducted by the named practitioner at the named time. The methodology requires signing for packets used in court filings and for packets published in adversarial contexts; signing is recommended but not required for internal investigations.
+The packet is signed when the manifest is signed. The signature states that the packet matches the investigation by the named practitioner at the named time. A court packet must be signed. A packet published in an adversarial context must be signed. A signature is recommended for an internal investigation. It is not required there.
 
-The reference implementation supports detached signatures using Ed25519 keypairs, with the signature on the canonical Markdown form of the packet. The signature can be verified against the rendered PDF only when the rendering pipeline is itself reproducible; practitioners using non-reproducible rendering should sign the source rather than the output.
+The reference implementation supports a detached Ed25519 signature. The signature covers the canonical Markdown form. A reader can check that signature against the PDF only when the renderer is reproducible. If the renderer is not reproducible, sign the source. Do not sign the output.
 
 ### 8.1.4 Self-containment versus archive reference
 
-The evidence packet is intended to be readable in adversarial contexts without access to the underlying archive. The narrative can be read, the signals can be reviewed, and the methodology can be evaluated, all without the archive being available.
+A reader in an adversarial context can read the packet without the archive. The reader can read the narrative, review the signals, and evaluate the method.
 
-Verification of the narrative's claims, however, requires the archive. A reader who wants to confirm that a cited signal-table row is supported by the artifacts has to retrieve the artifacts from the archive by their provenance hashes. The methodology requires that the archive be available for verification on reasonable terms; in court contexts, this typically means the archive is produced under subpoena or under the discovery rules of the relevant jurisdiction.
+A check of the claims still needs the archive. The reader retrieves artifacts by their provenance hashes. The archive must be available for a check on reasonable terms. In court, that usually means production under subpoena or under the discovery rules of that jurisdiction.
 
-Practitioners should plan for archive accessibility from the beginning of the investigation. An archive stored on infrastructure that the practitioner does not control, or on infrastructure that will not exist for the duration of the relevant proceedings, undermines the methodology's reproducibility commitments.
+Plan archive access at the start of the investigation. An archive on infrastructure the practitioner does not control can fail the reproducibility rule. The same failure occurs if the infrastructure will not last for the relevant proceeding.
 
 ## 8.2 Court filings and internal investigation
 
-The methodology produces outputs that may or may not be appropriate for inclusion in court filings, journalistic publication, or other adversarial contexts. The decision about what to include is the practitioner's, guided by the considerations in this subsection.
+A method output may or may not belong in a court filing, a news report, or another adversarial context. The practitioner decides what to include. This subsection states the considerations.
 
 ### 8.2.1 What is appropriate for court filings
 
-Attribution claims at the "consistent" or "strongly consistent" confidence bands are the methodology's substantive outputs and are appropriate for court filings when the case requires evidence about coordinated activity. Claims at the "insufficient" band are not findings and should not be presented as such; they are records that the methodology was applied to specific pairs and did not produce attribution.
+A claim at the consistent band or the strongly consistent band is a substantive output. It is appropriate in a filing when the case needs evidence of coordinated activity. A claim at the insufficient band is not a finding. Do not present it as a finding. It records that the method was applied to that pair and did not attribute.
 
-The narrative in the evidence packet should be cited as a methodology-produced output, not as the practitioner's standalone testimony. The practitioner is the witness who applied the methodology; the methodology is the tool whose output is being introduced. This distinction matters for evidentiary rules in many jurisdictions, particularly those that treat methodology-based testimony differently from lay opinion testimony.
+Cite the narrative as output of the method. Do not cite it as the practitioner's standalone testimony. The practitioner is the witness who applied the method. The method is the tool. The distinction matters where a court treats method testimony differently from lay opinion.
 
-Alternative explanations from the reasoning layer (§7.4.3) should be acknowledged in the filing rather than only in the methodology output. A filing that presents attribution claims without acknowledging the alternative explanations the methodology required the reasoning layer to consider is misrepresenting the methodology's output.
+State the alternative explanations from §7.4.3 in the filing. A filing that omits them misrepresents the output. The reasoning layer was required to consider them.
 
-The methodology's limits from §3.3 should be acknowledged. A filing that presents methodology outputs as if they were certainties, or that fails to acknowledge that the methodology produces cluster-level attribution rather than natural-person identification, is misrepresenting the methodology's commitments.
+State the limits in §3.3. A filing that presents the output as certainty misrepresents the method. The same is true of a filing that hides the cluster limit. The method does not identify a natural person.
 
 ### 8.2.2 Expert testimony considerations
 
-Practitioners testifying about Common Thread outputs in court face the question of who is qualified to do so. The methodology does not require a specific credential; the practitioner who conducted the investigation is in the best position to testify about how the methodology was applied in that investigation. For testimony about the methodology itself (what it does, why it works, what its limits are), familiarity with this paper and with the reference implementation is the relevant qualification.
+A practitioner who testifies about a Common Thread output faces a qualification question. The method does not require one credential. The practitioner who ran the investigation is best placed to testify about that application. Testimony about the method itself needs familiarity with this paper and with the reference implementation. That testimony covers what the method does, why it works, and where it stops.
 
-The methodology is published and freely available, which supports expert testimony in jurisdictions that consider the public availability of the methodology as a reliability factor. Practitioners testifying in jurisdictions that apply *Daubert* or similar reliability standards should be familiar with how those standards apply to published methodologies; the methodology meets the basic factors (testability, peer review through publication, known error mode through the declination rule, public availability) but the application of these factors to a specific case is jurisdiction-dependent and case-specific.
+The method is published and free to read. That fact supports expert testimony where public availability is a reliability factor. A *Daubert* jurisdiction, or a similar standard, needs its own analysis. The method meets the basic factors. They are testability, publication as review, a known error mode through declination, and public availability. Application to one case depends on the jurisdiction and on the case.
 
-Practitioners should consult counsel about expert testimony requirements in their specific jurisdiction before relying on methodology outputs in adversarial proceedings.
+Consult counsel before you rely on an output in an adversarial proceeding.
 
 ### 8.2.3 What stays internal
 
-Several categories of output from a Common Thread investigation are appropriate for internal use but not for external presentation.
+Some outputs belong in internal use and not in an external presentation.
 
-**Insufficient pair results** are records that the methodology was applied and did not produce attribution. They are useful for investigation completeness (showing that the practitioner did not selectively apply the methodology to favorable pairs) but they are not findings and should not be presented as if they were.
+**Insufficient pair results** record that the method was applied and did not attribute. They show that the practitioner did not select only favorable pairs. They are not findings. Do not present them as findings.
 
-**Working notes** that practitioners accumulate during investigation are not part of the evidence packet. They include drafts of narratives, exploratory queries against the signal table, notes about scraper behavior, and other materials that document the investigation process but are not the investigation's output.
+**Working notes** are not part of the packet. They include narrative drafts, exploratory queries, and notes on scraper behavior. They document the process. They are not the output.
 
-**Failed reasoning runs** are reasoning attempts that did not pass validation per §7.2.2. They are recorded for audit purposes (the reference implementation retains them in the investigation manifest) but they are not surfaced to the practitioner as findings and they should not appear in evidence packets.
+**Failed reasoning runs** did not pass validation under §7.2.2. The reference implementation keeps them in the manifest for audit. They are not shown to the practitioner as findings. They do not belong in a packet.
 
-**The raw archive** is typically not part of the evidence packet because it is too large. The manifest extract in the evidence packet provides the references that link to the archive; the archive itself is produced separately under whatever discovery or production rules apply.
+**The raw archive** is usually too large for the packet. The manifest extract points at the archive. The archive is produced under the discovery rules or the production rules that apply.
 
 ### 8.2.4 Adversarial party access
 
-In court contexts, adversarial parties will typically have access to the evidence packet and may seek access to the underlying archive. The methodology is designed for this exposure; the reproducibility properties of the deterministic layer mean that adversarial parties can recompute the signal table and verify that the methodology was applied correctly.
+In court, an adverse party will usually receive the packet. That party may also seek the archive. The method expects this exposure. The deterministic layer can be recomputed. An adverse party can rebuild the signal table and check that the method was applied correctly.
 
-What adversarial parties cannot easily do is recompute the attribution reasoning at §7 and produce identical narratives, because the reasoning layer is non-deterministic. The methodology in §3.4.2 acknowledged this. Adversarial parties can, however, run the reasoning layer against the same signal table with the same prompt version and compare outputs, which is the form of reproducibility the methodology promises at that layer.
+An adverse party cannot easily rebuild the §7 narrative and get the same text. That layer is non-deterministic. Section 3.4.2 states this limit. The party can still run the reasoning layer on the same signal table with the same prompt version. The party can then compare outputs. That comparison is the reproducibility the method promises at that layer.
 
-Practitioners should expect adversarial parties to challenge specific signals (the function-word list was inappropriate for the corpus, the response-latency threshold was too lenient, the perceptual hash threshold was too strict), and the practitioner should be prepared to defend these parameter choices. Documenting the parameter choices in the methodology metadata at §8.1.1 provides the basis for these defenses.
+Expect a challenge to specific choices. Examples are the function-word list, the response-latency threshold, and the perceptual-hash threshold. The practitioner should be ready to defend those choices. The metadata in §8.1.1 is the basis for that defense.
 
 ## 8.3 Publishing conventions
 
-When methodology outputs are published outside the court context (academic publication, journalism, community reporting, internal corporate disclosure), the publishing conventions of the relevant field apply alongside the methodology's commitments.
+Outside court, the conventions of the field apply together with the commitments of the method. The contexts are academic publication, journalism, community reporting, and an internal corporate disclosure.
 
 ### 8.3.1 Academic publication
 
-Academic publication of methodology outputs typically requires citation of this paper, citation of the reference implementation, and disclosure of the investigation parameters (extractor versions, model identifier and version, prompt version, signal-table schema version). The methodology supports academic publication conventions through the methodology metadata field in the evidence packet (§8.1.1).
+An academic report of a method output cites this paper and the reference implementation. It discloses the investigation parameters. Those parameters are the extractor versions, the model name, the model version, the prompt version, and the schema version. The metadata field in §8.1.1 supports that disclosure.
 
-Academic publications may also need to satisfy ethics-review requirements (IRB approval in the US; equivalent processes elsewhere). The methodology's commitments around natural-person identification (§3.3.3, §4.8.3) and the audience exclusions (§1.2) align with most ethics frameworks but do not substitute for the ethics review itself. Academic practitioners using the methodology should engage their ethics review process at the investigation-design stage, not at the publication stage.
+An academic publication may also need an ethics review. In the United States that review is often an IRB review. Other places use an equivalent process. The limits on natural-person identification (§3.3.3 and §4.8.3) and the audience limits in §1.2 fit most ethics frameworks. They do not replace the review. Start that review when you design the investigation.
 
-Peer review of methodology applications typically requires that another researcher could replicate the investigation from the published material. The methodology's reproducibility properties support this; the published material should include the evidence packet, the methodology metadata, and either the archive itself (where data-sharing requirements permit) or sufficient instructions for reconstructing the archive (where data-sharing requirements do not permit direct sharing).
+Do not wait for publication.
+
+Peer review usually requires that another researcher can repeat the investigation from the published material. The reproducibility rules support that requirement. Publish the packet and the metadata. Where data-sharing rules allow it, publish the archive. Where they do not, publish instructions that are sufficient to reconstruct the archive.
 
 ### 8.3.2 Journalism
 
-Journalism using methodology outputs typically operates under editorial review processes that include legal review for defamation exposure, source protection considerations, and the standard journalistic norm of approaching named subjects for comment before publication.
+A newsroom that uses a method output usually applies editorial review. That review includes legal review for defamation, source protection, and the practice of asking a named subject for comment before publication.
 
-The methodology's cluster-level attribution interacts with journalistic norms in specific ways. A cluster attribution that does not identify natural persons supports reporting that the network exhibits coordinated behavior but does not support reporting that specific individuals are operating the network. Journalism that goes from cluster attribution to natural-person identification is doing additional work outside the methodology (per §3.3.3) and is responsible for that additional work under journalistic standards rather than methodological ones.
+Cluster attribution does not name a natural person. It supports a report that the network shows coordinated behavior. It does not support a report that a named individual operates the network. A step from the cluster to a natural person is work outside the method (§3.3.3). Journalistic standards govern that extra work.
 
-The methodology supports journalistic verification: another journalist with access to the archive can recompute the signal table and reach the same conclusions about the cluster attribution. This is a useful property for collaborative journalism and for fact-checking after publication.
+Another journalist with the archive can recompute the signal table and reach the same cluster conclusion. That property supports collaborative reporting and a later fact check.
 
 ### 8.3.3 Pro se litigation
 
-Pro se litigants using the methodology in their own cases are publishing the methodology output by virtue of filing it. Filed materials are typically public record, and the evidence packet becomes part of the public docket.
+A pro se litigant publishes the output by filing it. A filed packet is usually a public record. It becomes part of the docket.
 
-The audience exclusions from §1.2 are particularly relevant in pro se litigation contexts. A pro se litigant who is in a position to file a Common Thread investigation against a former intimate partner, even when there is a legitimate dispute, should pause and consider whether the methodology is being applied to a use case it is not designed for. The methodology is designed for documenting coordinated inauthentic behavior, not for unmasking individuals whose pseudonymity is part of a safety mechanism.
+The audience limits in §1.2 matter here. A filing against a former intimate partner can be a real dispute and still be the wrong use. Pause and apply the test in §1.2. The method documents coordinated inauthentic behavior. It is not a tool to unmask a person whose pseudonym is a safety measure.
 
-When the use case is genuinely one of documenting coordinated harassment or coordinated inauthentic behavior in litigation, the methodology supports the filing. The chain of custody provided by the archival posture (§3.1, §5.4) is designed for the evidentiary standards of civil litigation; the published methodology supports cross-examination by opposing parties; the declination rule (§3.2.1, §7.3.2) provides a defensible position when signals do not support attribution.
+When the use really is coordinated harassment, or coordinated inauthentic behavior, in litigation, the method supports the filing. The archive rules in §3.1 and §5.4 support the custody standard of a civil case. The published method supports cross-examination. The declination rule (§3.2.1 and §7.3.2) is the position when the signals do not support a claim.
 
 ### 8.3.4 Internal investigation
 
-Trust and safety teams at smaller platforms, internal investigations at corporations, and similar contexts may use the methodology without external publication. The evidence packet still has value in these contexts as an audit trail; an internal investigation that produced attribution claims without documented methodology is less defensible than one that did.
+A trust and safety team, a corporate investigation, or a similar group may use the method with no external publication. The packet is still an audit trail. An attribution with no documented method is harder to defend.
 
-Internal use does not relax the methodology's commitments. The audience exclusions, the natural-person identification exclusion, and the declination rule apply regardless of whether the output is published externally.
+Internal use does not relax the commitments. The audience limits, the ban on natural-person identification, and the declination rule still apply.
 
 ### 8.3.5 Redaction conventions
 
-Across all publishing contexts, certain categories of information should be redacted from published evidence packets.
+In every publishing context, redact these categories from a published packet.
 
-**Identifiers of witnesses and victims** who are not the network operators should be redacted unless they have consented to disclosure. The methodology may use information from witnesses (basis statements, identification of seed accounts) but the witness's identity is typically not necessary for the methodology output and should not be exposed without consent.
+**Witnesses and victims** who are not the operators should be redacted unless they consent. The method may use a witness basis statement or a witness list of seed accounts. The witness identity is usually unnecessary. Do not expose it without consent.
 
-**Identifiers of accounts in legitimate communities** that were included in the seed set as controls (§5.1.4) should be redacted unless their inclusion is necessary for the published claim. Controls are methodology hygiene; their identity is typically not relevant to the substantive claim.
+**Control accounts** from §5.1.4 should be redacted unless the published claim needs them. A control is method hygiene. The identity is usually irrelevant to the claim.
 
-**Specific quotations from accounts** that would identify the natural person behind a cluster should be paraphrased or summarized. Quotation that uniquely identifies an individual through their phrasing crosses the cluster-to-natural-person boundary that §3.3.3 places out of scope.
+**A quotation** that would identify the natural person behind a cluster should be paraphrased or summarized. A unique phrase crosses the boundary in §3.3.3.
 
-**Personally identifying information visible in archived artifacts** (full names, addresses, phone numbers, financial information visible incidentally in the network's posts) should be redacted from any published evidence packet. The archive may contain this information for completeness, but the published packet should not.
+**Personal data in artifacts** should be redacted from a published packet. Examples are a full name, an address, a phone number, and financial data that appears in a post. The archive may keep that data for completeness. The published packet should not.
 
 ## 8.4 Adversarial disclosure
 
-The methodology assumes that operators of attributed networks will read the methodology paper, the reference implementation, and any published findings about their network. This assumption shapes the design of the output and the practitioner's posture in adversarial contexts.
+The method assumes that an operator of an attributed network will read this paper, the reference implementation, and a published finding. That assumption shapes the output and the practitioner's posture.
 
 ### 8.4.1 What operators learn from reading the methodology
 
-Operators reading this paper learn several things:
+An operator who reads this paper learns the following facts.
 
-- Which signals the methodology uses
-- Which signals the methodology explicitly excludes
-- The confidence thresholds and the declination rule
-- The format and verifiability of the evidence packet
-- The methodology's known failure modes (§7.6)
+- The operator learns which signals the method uses.
+- The operator learns which signals the method excludes.
+- The operator learns the band thresholds and the declination rule.
+- The operator learns the packet format and how a reader can check it.
+- The operator learns the known failure modes in §7.6.
 
-Some of this information helps operators adapt. The §3.3.4 acknowledgment that operators can adapt is the methodology's response to this learning. The mitigations from the same section apply at the output layer as well: many signals are difficult to defeat while maintaining the operational utility of the network, and the methodology's reproducibility properties mean that adapted behavior in one investigation can be detected in a subsequent investigation by examining how the signals changed.
+Some of that knowledge helps an operator adapt. Section 3.3.4 states that adaptation. The same section states the limits of adaptation. Many signals are hard to defeat while the network stays useful. A later investigation can compare signals and see the change.
 
-Some of this information helps reviewers, judges, and other downstream consumers of the evidence packet. Operators reading the methodology see the methodology's discipline around declination, the requirement for alternative-explanation consideration, the structural commitment against natural-person identification. This is the strongest argument for publishing the methodology rather than treating it as a trade secret: the methodology's defensibility against adversarial readers is itself part of the methodology, and concealing the methodology would reduce that defensibility.
+Some of that knowledge helps a reviewer, a judge, or another reader of the packet. The reader sees the declination rule, the duty to consider alternatives, and the ban on natural-person identification. That visibility is an argument for publication. A hidden method would be harder to defend.
 
 ### 8.4.2 Operator counter-narratives
 
-Operators may produce counter-narratives in response to published methodology outputs. Common patterns include:
+An operator may answer a published output with a counter-narrative. Common patterns follow.
 
-- **Challenging the methodology itself.** The operator argues that the methodology is unreliable. The methodology's response is the published paper, the reference implementation, and the chain-of-custody discipline that allows third parties to verify the application.
+**A challenge to the method.** The operator says the method is unreliable. The response is this paper, the reference implementation, and the custody chain. A third party can check the application.
 
-- **Challenging specific parameter choices.** The operator argues that the practitioner chose unfavorable thresholds. The methodology's response is the explicit parameter recording in the evidence packet metadata, which lets reviewers evaluate the choices independently.
+**A challenge to a parameter.** The operator says a threshold was unfavorable. The response is the recorded parameter in the packet metadata. A reviewer can evaluate the choice.
 
-- **Producing alternative explanations not considered by the reasoning layer.** The operator articulates an alternative explanation that fits the signals. The methodology's response is the alternative-explanation requirement (§7.4.3), which forces the reasoning layer to consider the most common alternatives in advance; new alternatives that the reasoning layer did not consider become inputs to future investigation rather than refutations of the current one.
+**A new alternative explanation.** The operator states an explanation that fits the signals and that the reasoning layer did not consider. Section 7.4.3 already requires the common alternatives. A new alternative is input to a later investigation. It is not, by itself, a refutation of the current one.
 
-- **Producing counter-investigations against the practitioner.** The operator publishes claims about the practitioner's bias, motives, or methods. The methodology's response is to remain focused on the signals and the methodology; the methodology is not a defense against personal attack and does not pretend to be.
+**A counter-investigation of the practitioner.** The operator publishes claims about bias, motive, or method. The response is to stay with the signals and the method. The method is not a defense against a personal attack.
 
 ### 8.4.3 Reading the methodology as design constraint
 
-The expectation of adversarial reading is one of the methodology's design constraints. Decisions throughout the methodology paper are shaped by this expectation:
+The expectation of an adversarial reader shapes decisions in this paper.
 
-- The declination rule (§3.2.1, §7.3.2) is calibrated knowing that operators will learn the rule and design behavior to avoid triggering attribution. The methodology accepts that a sophisticated operator can produce signals consistent with the lowest band; the methodology is more useful against the cohort of operators that does not invest in this sophistication.
+The declination rule (§3.2.1 and §7.3.2) assumes that an operator will learn the rule and will try to stay under it. A sophisticated operator can produce signals at the lowest band. The method is more useful against operators who do not invest in that work.
 
-- The signal exclusions (§4.8) are stated explicitly partly to refuse the operators of pseudonymous-but-legitimate accounts the false impression that the methodology is positioned against them. Operators of legitimate pseudonymous accounts who read §4.8 see that the methodology is not for them; this is the audience-targeting work that §1.2 does at the introduction level, applied at the signal level.
+The exclusions in §4.8 are explicit in part so a legitimate pseudonymous operator does not think the method targets them. A reader of §4.8 can see that the method is not for that use. That is the audience work of §1.2, applied to signals.
 
-- The reproducibility commitments (§3.4) support adversarial verification by operators who challenge attribution claims. The operator can verify that the methodology was applied correctly, which is more useful to the practitioner's credibility than the operator's inability to verify would be.
+The reproducibility rules in §3.4 let an operator who challenges a claim check the application. That check is more useful to the practitioner's credibility than a claim the operator cannot check.
 
-The methodology is designed to remain useful when read adversarially. This is not a defensive posture; it is the methodology's strongest argument for being published at all.
+The method is meant to stay useful when an adversary reads it. That property is the strongest argument for publication.
 
 ## Closing
 
-Output and reporting is where the methodology's discipline meets the practical demands of the contexts in which the methodology is applied. The evidence packet is the operational deliverable; the publishing conventions are the practical guidance; the adversarial-disclosure considerations are the design assumptions that shape both. Practitioners using the methodology should understand all three before producing outputs that they intend to rely on.
+Output and reporting is where the discipline of the method meets the context of use. The packet is the deliverable. The publishing rules are the practical guidance. Adversarial disclosure is a design assumption for both. Understand all three before you rely on an output.
 
-The remaining sections of the paper return to ethical considerations at greater depth (§10), document the methodology's limits and future work (§11), and offer a brief conclusion (§12). The methodology's substantive content is complete with this section; what follows is reflection on the methodology's character and limits rather than additional methodological specification.
+Section 10 returns to ethics in more depth. Section 11 states limits and later work. Section 12 is a short conclusion. The substantive specification ends with this section. What follows is reflection on the character of the method and on its limits.

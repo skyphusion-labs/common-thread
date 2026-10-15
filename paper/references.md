@@ -1,8 +1,10 @@
 # References
 
-This references list contains bibliographic details for the works cited in the paper, organized alphabetically by first author. Where citation details are uncertain, the entry is flagged `[verify]` and should be confirmed against the original source before publication. The flag does not indicate the work does not exist; it indicates that the author was uncertain about a specific publication detail (year, venue, exact title, page numbers) when drafting and the practitioner using this references list should confirm.
+This list gives bibliographic details for the works cited in the paper. Entries are alphabetical by first author. Where a detail is uncertain, the entry is marked `[verify]`. Confirm that detail against the original source before you publish. The mark does not mean the work is absent. It means the author was unsure of one detail when drafting.
 
-The list is comprehensive of the works cited in this paper but is not exhaustive of the literatures the paper surveys. Practitioners and researchers using the methodology should treat this list as a starting point for further reading.
+The detail may be the year, the venue, the exact title, or the page numbers.
+
+The list covers the works this paper cites. It does not exhaust the literatures the paper surveys. Treat it as a start for further reading. Citation titles below are unchanged from v1.0.
 
 ---
 
@@ -144,16 +146,18 @@ Zauner, C. (2010). *Implementation and Benchmarking of Perceptual Image Hash Fun
 
 ## Notes on this references list
 
-**Confidence flags.** Entries marked `[verify]` or `[retained 2026-08-13]` indicate that a specific publication detail was uncertain at draft time. The flag does not mean the work does not exist. Argamon (2009) and Hui et al. (2019) were confirmed against the original venue records on 2026-08-13. Remaining flagged entries are **consciously retained** for Conrad's reviewer pass; they are not silently dropped.
+**Confidence flags.** An entry marked `[verify]` or `[retained 2026-08-13]` had an uncertain publication detail at draft time. The mark does not mean the work is absent. Argamon (2009) and Hui et al. (2019) were confirmed against the original venue records on 2026-08-13. The other marked entries are **consciously retained** for a reviewer pass. They are not dropped in silence.
 
-**Coverage limits.** This list contains the works cited in §2 of this paper. It is not a comprehensive bibliography of any of the surveyed literatures. The following bodies of work are referenced in §2 but are not exhaustively cited here:
+**Coverage limits.** This list contains the works cited in §2. It is not a full bibliography of any surveyed literature. Section 2 also refers to bodies of work that are not cited one by one here.
 
-- The bot detection literature has grown substantially; Cresci (2020) is the recommended entry point and its bibliography provides the broader literature
-- The authorship attribution literature predates this paper by sixty years; Juola (2008) and Stamatatos (2009) provide entry-point surveys
-- The DFRLab, Stanford Internet Observatory, Berkman Klein Center, Oxford Internet Institute, and Shorenstein Center publish ongoing work that this paper references in aggregate but does not cite individually
-- The OSINT practitioner literature is largely community-maintained and is cited through canonical organizational references (Bellingcat, IntelTechniques) rather than through individual papers
-- Court cases beyond *hiQ v. LinkedIn* and *Van Buren v. United States* are not cited; practitioners working in court contexts should consult counsel for jurisdiction-specific case law
+- Bot-detection literature has grown past this list. Cresci (2020) is the recommended entry. Its bibliography is the wider literature.
+- Authorship attribution predates this paper by sixty years. Juola (2008) and Stamatatos (2009) are the entry surveys.
+- DFRLab, the Stanford Internet Observatory, the Berkman Klein Center, the Oxford Internet Institute, and the Shorenstein Center publish ongoing work. This paper refers to that work as a group. It does not cite each paper.
+- OSINT practitioner literature is largely kept by communities. This list cites it through organizations (Bellingcat, IntelTechniques), not through individual papers.
+- Court cases beyond *hiQ v. LinkedIn* and *Van Buren v. United States* are not cited. In a court context, consult counsel for the case law of that jurisdiction.
 
-**Format conventions.** This list uses a hybrid format that approximates APA style with adjustments for the mixed academic and practitioner literatures the methodology draws on. Books are cited with publisher. Conference papers are cited with proceedings name and (where confirmed) page numbers. Journal articles are cited with volume, issue, and page numbers. Reports from research institutes are cited with institute name. Cases are cited in standard legal-citation format. For formal academic publication of methodology outputs, the practitioner should reformat this list to the target venue's required citation style.
+**Format conventions.** The list approximates APA style, with adjustments for academic work and practitioner work. A book is cited with its publisher. A conference paper is cited with the proceedings name and, where confirmed, the page numbers. A journal article is cited with volume, issue, and page numbers. A report is cited with the institute name. A case uses standard legal citation.
 
-**Updates.** This references list is current to the date on the cover page of this paper. Several of the cited literatures are in active development, and practitioners should consult more recent publications in the relevant fields for current state of the art.
+For a formal academic publication, reformat the list to the style that venue requires.
+
+**Updates.** This list is current to the date on the cover page. Several cited literatures are still developing. For the current state of a field, read more recent work in that field.

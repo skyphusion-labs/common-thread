@@ -1,160 +1,199 @@
 # 3. Evidentiary Framework
 
-This section establishes the discipline that the rest of the methodology rests on. The signals in §4, the collection practices in §5, the feature extraction in §6, and the attribution reasoning in §7 all assume the framework below. Skip this section and the downstream sections lose their footing.
+This section is the discipline for the rest of the method. §4, §5, §6, and §7 assume the rules below. If you skip this section, the later sections have no base.
 
-The framework rests on four commitments: that raw artifacts are archived immutably before any transformation, that attribution outputs are probabilistic claims rather than verdicts, that the methodology is honest about what it cannot do, and that anyone with access to the archived artifacts can reproduce the deterministic parts of the pipeline.
+The framework has four commitments:
+
+- Archive the raw artifact before any transform, and do not change those bytes.
+- The attribution output is a probabilistic claim, not a verdict.
+- The method states what it cannot do.
+- A person who has the archive can reproduce the deterministic parts of the pipeline.
 
 ## 3.1 Chain of custody
 
-The methodology is designed to be auditable end to end. Every claim in an attribution output traces back to a signal in the signal table; every signal in the signal table traces back to an artifact in the archive; every artifact in the archive is content-addressed by cryptographic hash. An auditor who is handed the archive can verify that the bytes are the bytes, recompute the signals from the bytes, and recompute the attribution from the signals.
+The method is auditable from the claim back to the bytes. Each claim cites a signal. Each signal comes from an artifact. The SHA-256 hash of the artifact bytes is the address of that artifact. An auditor who receives the archive can check the bytes, recompute the signals, and recompute the attribution from the signals.
 
-This is not a theoretical commitment. It is the operational primitive that makes the methodology usable in adversarial settings, whether that means court filings, peer review, journalistic publication, or community fact-checking.
+This rule is operational. It is what makes the method usable in a court filing, in peer review, in a news report, or in a community check.
 
 ### 3.1.1 Immutable archival before any transformation
 
-When the collection layer pulls an artifact from a platform, the bytes of that artifact are written to content-addressed storage before any normalization, parsing, deduplication, or analysis. The path of the artifact in the archive is derived from the SHA-256 hash of its bytes: `sha256/ab/cd/abcd…full-hash`. Two collections that produce identical bytes land at the same path; collections that differ by a single byte land at different paths.
+The collection layer writes the artifact bytes to content-addressed storage before normalization, parsing, deduplication, or analysis. The path comes from the SHA-256 hash of the bytes: `sha256/ab/cd/<full-hash>`. Identical bytes land at the same path. A difference of one byte lands at a different path.
 
-The reason for this discipline is that any transformation, however benign, introduces an opportunity for inadvertent corruption or deliberate manipulation. Normalizing a JSON dump for readability rewrites whitespace and key ordering. Parsing HTML loses comments and CDATA sections. Even "neutral" steps like timezone normalization on timestamps lose information. The archive holds the bytes as the platform delivered them. Everything else is derived data, and derived data can be regenerated from the archive at any time. The archive itself cannot be regenerated; if it is lost, the investigation is lost.
+Any transform can corrupt the record, even a benign one. A readable JSON rewrite changes whitespace and key order. HTML parsing drops comments. A timezone conversion drops information. The archive keeps the bytes the platform sent. Everything else is derived.
 
-In practice, the collection layer does two things in one atomic operation: it computes the hash of the incoming bytes, and it writes the bytes to the content-addressed path. If either step fails, the artifact is treated as not collected. Partial writes are not permitted in the archive. The reference implementation enforces this by writing to a temporary path, verifying the hash matches expected, and renaming to the final path only on success.
+You can rebuild derived data from the archive. You cannot rebuild the archive. If the archive is lost, the investigation is lost.
+
+The collection step must do two things, and both must succeed. It computes the hash of the incoming bytes. It writes those bytes to the content-addressed path. If either step fails, the artifact is not collected. A partial write is not an archived artifact.
+
+The reference implementation does this with a conditional put on the final path (`onlyIf`). It does not write a temporary file and then rename it. See `paper/ERRATA.md`.
 
 ### 3.1.2 The manifest
 
-The archive is paired with a manifest. Each entry in the manifest records the hash of an archived artifact, the source URL or identifier from which it was collected, the timestamp of collection in UTC, the collection method used (scraper name, version, configuration), and the investigation under which the artifact was collected.
+The archive has a manifest. Each manifest entry records:
 
-The manifest is the index that makes the archive searchable. Looking up "everything collected for investigation X during time window T" returns a list of artifact hashes. Each hash resolves to a path in the archive.
+- The hash of one archived artifact.
+- The source URL or identifier.
+- The collection time in UTC.
+- The collection method (collector name, version, and configuration).
+- The investigation id.
 
-The manifest format is specified in Appendix D. It is line-oriented JSON, one record per line, append-only. Mutations to existing records are not permitted; corrections take the form of new records that supersede prior records, with a reference to the superseded record's hash. This preserves the audit trail of corrections themselves.
+The manifest is the index. A query for investigation X in time window T returns artifact hashes. Each hash resolves to a path.
+
+The manifest is line-oriented JSON. One record is one line. The log is append-only. Do not change an existing record. A correction is a new record that supersedes the old record and cites the old hash. The correction history stays visible.
+
+v1.0 called this format Appendix D. That file is not in this deposit.
 
 ### 3.1.3 Signing
 
-The manifest can be signed. The reference implementation supports detached signatures using Ed25519 keypairs. The intent of signing is twofold: to establish that a manifest was created by a specific investigator at a specific time, and to detect tampering with the manifest after the fact.
+The manifest can be signed. The reference implementation supports a detached Ed25519 signature. A signature shows that one investigator produced the manifest at one time. It also shows later tampering.
 
-Signing is recommended but not required by the methodology. It is required when the manifest will be relied on outside the original investigator's environment, including court filings, peer review submissions, and any publication that asks readers to trust the integrity of the underlying record. For private investigative work that will not be relied on externally, unsigned manifests are acceptable.
+The method recommends a signature. The method requires a signature when someone outside the original environment will rely on the manifest. That includes a court filing, a peer-review submission, and a publication that asks the reader to trust the record. An unsigned manifest is acceptable for private work that no outside party will rely on.
 
-The methodology does not specify a key management or distribution protocol; that is the investigator's responsibility. The minimum bar is that the public key used to sign a manifest is itself published in a way that resists post hoc substitution.
+The method does not specify key management or key distribution. That is the investigator's duty. The minimum is this: publish the public key in a way that resists a later substitution.
 
 ### 3.1.4 Why this matters
 
-The discipline above costs effort that an investigator working alone may be tempted to skip. The temptation is wrong. Three concrete reasons:
+The rules above take effort. An investigator who works alone may want to skip them. Do not skip them. Three reasons follow.
 
-First, platforms delete content. Tweets are deleted by their authors. Accounts are suspended. Profile images are replaced. An investigation that depends on platform content remaining available is fragile. An investigation backed by an immutable archive is robust to deletion. The archive becomes the evidentiary record even when the platform's record is gone.
+Platforms delete content. Authors delete posts. Platforms suspend accounts. Profile images change. An investigation that needs the platform to keep the content is fragile. An immutable archive survives deletion.
 
-Second, investigations are adversarial. The operator of an attributed network has incentives to challenge the integrity of the evidence. An archive with computed hashes and a signed manifest is much harder to challenge than an investigator's word that "I saw this on the platform last Tuesday." The hashes either match the artifact bytes or they do not. There is no room for the operator to claim the investigator misremembered, misquoted, or fabricated.
+The archive is the record after the platform record is gone.
 
-Third, the investigator's own work is more useful when it is auditable. A second pair of eyes can confirm a signal extraction. A peer reviewer can replicate an analysis. A community can build on prior work. None of these are possible if the investigator's evidence consists of screenshots in a private folder and notes in a private document.
+Investigations are adversarial. The operator of an attributed network has a reason to attack the evidence. Hashes plus a signed manifest are harder to attack than the sentence "I saw this last Tuesday." The hash matches the bytes, or it does not. The operator cannot say the investigator misremembered, misquoted, or invented the artifact.
+
+The investigator's own work is more useful when another person can audit it. A second reader can confirm an extraction. A reviewer can repeat an analysis. A community can build on the work. Screenshots in a private folder and notes in a private document do not support that.
 
 ## 3.2 Burden of proof
 
-The methodology produces attribution claims at calibrated confidence levels, not verdicts. The distinction is important and is enforced by the reference implementation's output format.
+The method produces a claim at a calibrated confidence band. It does not produce a verdict. The reference implementation's output form keeps that distinction.
 
 ### 3.2.1 What the methodology outputs
 
-A Common Thread attribution output is a statement of the form:
+A Common Thread output has this form:
 
-> The signals collected for accounts A and B are [insufficient | consistent | strongly consistent] with a common operator. The signals that bear most directly on this assessment are [signal IDs]. The signals that would weaken this assessment if present and absent that are not are [signal IDs].
+> The signals for accounts A and B are [insufficient | consistent | strongly consistent] with one operator. The signals that bear most directly on this assessment are [signal ids]. The signals that are absent, and that would weaken this assessment if present, are [signal ids].
 
-The three confidence levels are deliberately coarse. The methodology rejects finer-grained probability claims (eg "73% likely") because such claims imply a calibration the methodology has not earned. The qualitative confidence band is the honest expression of what the signals support.
+The three bands are coarse on purpose. The method rejects a fine probability, such as "73 percent." That number would imply a calibration the method has not earned. The band is the honest statement of what the signals support.
 
-Below the "insufficient" threshold, the methodology declines to attribute. Declination is the correct output when signals do not support a claim. Declination is not failure; it is the methodology working.
+Below the insufficient threshold, the method declines to attribute. Declination is the correct output when the signals do not support a claim. Declination is not a failure. It is the method at work.
 
 ### 3.2.2 What "strongly consistent" does not mean
 
-"Strongly consistent with a common operator" is not "proven by Common Thread to be the same operator." Two operators in close communication, sharing a stylebook, working from the same media diet, can produce signal patterns that the methodology would characterize as strongly consistent. The methodology cannot distinguish "same operator" from "tightly coordinated coauthors writing in the same voice." The output is honest about this.
+"Strongly consistent with one operator" does not mean "proved to be the same operator." Two operators in close contact can share a style guide and a media diet. Their signals can look strongly consistent. The method cannot separate "one operator" from "coauthors who write in one voice." The output says so.
 
-The narrative output is required to surface alternative explanations for the observed signals. If a signal pattern is consistent with same-operator and also consistent with editorial coordination by a team, the narrative says so. Practitioners who use the methodology in adversarial contexts will encounter the alternative explanations from their opposition; better to confront them in the output than to be surprised by them later.
+The narrative must state alternative explanations. If a pattern fits one operator and also fits a team with an editorial plan, the narrative says both. In a dispute, the other party will raise the alternative. State it in the output.
 
 ### 3.2.3 Court use
 
-Practitioners who intend to use Common Thread outputs in court filings need additional evidentiary predicates beyond what the methodology supplies. The methodology produces attribution claims at the cluster level: "the signals are consistent with these accounts being operated by a common hand." Identifying that hand as a specific natural person, and laying the foundation for admissibility under whatever evidentiary rules apply, is the practitioner's responsibility and is out of scope for this methodology.
+A court filing needs predicates that this method does not supply. The method says the signals are consistent with one operator for a cluster. It does not name that operator as a natural person. Admissibility under the rules of that court is the practitioner's duty. It is out of scope here.
 
-For court use in jurisdictions that follow the Daubert standard or similar reliability-focused tests for expert testimony, the methodology's reproducibility and the published signal taxonomy are designed to support a reliability showing. The methodology is testable (anyone can replicate the deterministic parts), subject to peer review (this paper), has a known error mode (the declination threshold), and is published and openly available. These properties are necessary but not sufficient for admissibility. The sufficient predicates depend on the specific court, the specific case, and the specific objections raised.
+In a jurisdiction that uses the Daubert standard, or a similar reliability test, the reproducibility rules and the published signal list support a reliability showing. The deterministic parts are testable. This paper is the peer-reviewed description. The error mode is the declination threshold. The method is published. Those properties are necessary.
 
-Practitioners in court contexts should consult with counsel about admissibility before relying on Common Thread outputs in filings.
+They are not sufficient. Sufficiency depends on the court, the case, and the objections.
+
+Ask counsel about admissibility before you rely on a Common Thread output in a filing.
 
 ## 3.3 What the methodology cannot do
 
-Honesty about limits is itself part of the methodology. A practitioner who treats Common Thread as a verdict machine will misuse it. A practitioner who understands its limits will use it well.
+The limits are part of the method. A practitioner who treats Common Thread as a verdict machine will misuse it. A practitioner who knows the limits can use it well.
 
 ### 3.3.1 Cannot prove same-operator with certainty
 
-The methodology produces probabilistic claims from public behavioral signals. Certainty is not available from this signal set. The signals that would establish certainty (platform-internal logs, device fingerprints, network telemetry) are not accessible to most investigators and would, if accessible, make the methodology unnecessary. The methodology is designed for the situation where certainty is not available and structured probabilistic reasoning is the best available substitute.
+The claims come from public behavioral signals. This signal set does not support certainty. The signals that would support certainty include platform-internal logs, device fingerprints, and network telemetry. Most investigators cannot get those signals. If they could, this method would be unnecessary. The method is for the case where certainty is unavailable and structured probabilistic reasoning is the best substitute.
 
 ### 3.3.2 Cannot rule out same-operator from absence of signals
 
-Two accounts may share an operator and produce signal patterns that the methodology characterizes as inconsistent. The operator may have deliberately varied behavior across accounts to defeat attribution. The operator may have changed behavior over time for reasons unrelated to evasion. The investigation may have collected too little material to surface signals that exist.
+Two accounts can share an operator and still show few of the listed signals. The operator may vary behavior across accounts to defeat attribution. The operator may change behavior for a reason other than evasion. The investigation may have too little material.
 
-The methodology returns "insufficient" or "inconsistent" in these cases. Neither is a positive claim that the accounts have different operators. The honest output is that the signals do not support attribution; investigators who require a positive negative claim need other tools.
+In these cases the output is insufficient. Insufficient is not a claim that the operators differ. Investigators who need a positive claim of different operators need another tool. v1.0 also said the output could be "inconsistent." That word is not a band. See `paper/ERRATA.md`.
 
 ### 3.3.3 Cannot identify natural persons
 
-The methodology attributes accounts to clusters. It does not identify the natural person behind a cluster. This is a deliberate exclusion, not an oversight.
+The method attributes accounts to clusters. It does not name the natural person behind a cluster. The exclusion is deliberate.
 
-The chain from "these accounts share an operator" to "that operator is John Smith" depends on offline investigation that is out of scope for the methodology and that has different ethical structure. The methodology refuses to support this chain because the abuse surface created by automating natural-person identification is much larger than the abuse surface of attribution alone. Practitioners who need natural-person identification should do that work using established offline investigative techniques, with the ethical considerations that come with that work, separate from the cluster attribution that Common Thread provides.
+The step from "these accounts share an operator" to "that operator is a named person" is offline investigation. It is out of scope, and its ethics are different. The method refuses to automate that step. The abuse surface of automated naming is larger than the abuse surface of cluster attribution. Do naming, if you must, with established offline technique, and keep it separate from the cluster result.
 
-The reference implementation enforces this exclusion in its output format. Attribution outputs reference accounts by handle and clusters by opaque identifier. The methodology has no input for natural-person identifiers and no output that produces them.
+Attribution outputs name accounts by handle. They name clusters by an opaque identifier. The method has no input field for a natural-person name and no output field that produces one. Free-text fields are not scanned for a personal name. See `paper/ERRATA.md`.
 
 ### 3.3.4 Cannot detect adversarially adapted operators
 
-Operators who read this paper, understand the methodology, and deliberately adapt their behavior to defeat the listed signals will be harder to detect than operators who have not adapted. This is the standard problem of any published security methodology. The mitigation is partial: many signals are difficult to vary while maintaining the operational utility of the account (eg, response latency to triggering events is hard to randomize without losing the ability to amplify content quickly), but no signal is completely immune to adaptation.
+An operator who reads this paper and changes behavior to defeat the listed signals will be harder to detect. That is the usual cost of a published security method. The mitigation is partial. Many signals are hard to vary without a loss of operational use. Response latency to a triggering event is one example. No signal is immune.
 
-The methodology is honest that publication degrades its effectiveness against sophisticated operators. The argument for publishing anyway is that the cohort of operators in scope (small networks, coordinated harassment campaigns, pro se litigation contexts) overwhelmingly does not include the sophisticated end of the spectrum, and the practitioners served by publication are more numerous than the operators harmed by publication.
+Publication reduces effectiveness against a sophisticated operator. The argument for publication is this. The operators in scope are mostly small networks, harassment campaigns, and the networks that appear in pro se litigation. They are not the sophisticated end of the spectrum. The practitioners who gain from publication outnumber the operators who gain from reading it.
 
 ### 3.3.5 Cannot account for shared editors, ghostwriters, or accountsharing
 
-Real communities share accounts. Married couples post from a shared account. PR firms post on behalf of clients. Volunteer-run nonprofits rotate authorship through a single account. Teenagers and parents share. The methodology cannot distinguish these legitimate cases from sockpuppetry.
+Real communities share accounts. A married couple posts from one account. A PR firm posts for a client. A volunteer nonprofit rotates authors through one account. A teenager and a parent share an account. The method cannot separate these lawful cases from sockpuppetry.
 
-The narrative output is required to flag these alternative explanations when the signal patterns are consistent with them. A practitioner using the methodology should treat "consistent with same operator" as compatible with "two coauthors with similar styles" and design the investigation accordingly.
+The narrative must flag these alternatives when the signals fit them. Treat "consistent with one operator" as also compatible with "two coauthors with similar styles," and design the investigation for that possibility.
 
 ## 3.4 Reproducibility
 
-The methodology has two parts with different reproducibility properties. The deterministic part (collection, archival, feature extraction) is exactly reproducible: anyone running the same code against the same archived artifacts produces the same signal table. The non-deterministic part (LLMassisted attribution reasoning) is reproducible in method but not in exact wording: anyone running the same prompts against the same model versions against the same signal table will produce outputs that agree on the qualitative conclusion but may vary in their specific phrasing.
+The method has two parts, and they reproduce differently.
 
-The methodology requires this distinction to be visible in published work. Signal tables are reproducible artifacts and can be published as such. Attribution narratives are not reproducible to the word; they should be published with the model identifier, the prompt version, and the date of generation, so that subsequent readers can rerun the reasoning step against the same inputs and compare outputs.
+The deterministic part is collection, the archive, and feature extraction. The same code on the same archive produces the same signal table.
+
+The other part is language-model attribution. The method is repeatable. The exact words are not. The same prompts, the same model versions, and the same signal table should agree on the qualitative conclusion. The sentences can differ.
+
+Published work must show this distinction. A signal table is a reproducible artifact. An attribution narrative is not reproducible word for word. Publish the model id, the prompt version, and the run date. A later reader can run the reasoning step again and compare.
 
 ### 3.4.1 Deterministic feature extraction
 
-Feature extractors are pure functions of the archived artifacts. They have no side effects beyond writing rows to the signal table, no network calls, no LLM calls, no nondeterministic libraries. Given the archive and the code, the signal table is determined.
+An extractor is a pure function of the archived artifacts. It writes rows to the signal table. It does not call the network. It does not call a language model. It does not use a nondeterministic library. Given the archive and the code, the signal table is fixed.
 
-This commitment has practical consequences for the reference implementation. Feature extraction code is held to a higher correctness standard than other parts of the pipeline. Changes to feature extractors are versioned; signal tables record the version of the extractor that produced each signal. An investigation that relied on extractor version 0.3.1 remains reproducible against the archived artifacts even after extractor version 0.4.0 is released.
+The reference implementation holds extraction code to a higher correctness standard than the rest of the pipeline. Extractor changes are versioned. Each signal row records the extractor version. An investigation that used extractor version 0.3.1 stays reproducible after version 0.4.0 exists.
 
 ### 3.4.2 Non-deterministic attribution reasoning
 
-The attribution reasoning step uses a language model. Language model outputs vary across runs even with identical inputs, and they change as the underlying model is updated by the provider. The methodology accepts this and requires that the variance be documented.
+The attribution step uses a language model. Outputs vary across runs with the same inputs. They also change when the provider updates the model. The method accepts that variance and requires a record of it.
 
-Specifically, the methodology requires that published attribution outputs identify the model, the prompt version, and the date of the attribution run. Any reader who wants to assess whether the conclusion is robust can rerun the reasoning step against the same model and prompt, or against a different model with the same prompt, and compare. The signal table is the anchor; the narrative is one rendering of the signals among many possible renderings, and the methodology does not pretend otherwise.
+A published attribution output must name the model, the prompt version, and the date of the run. A reader can repeat the step on the same model and prompt, or on another model with the same prompt, and compare. The signal table is the anchor. The narrative is one rendering of the signals. The method does not pretend otherwise.
 
-The reference implementation logs all attribution runs to the manifest, with model identifier, prompt version, full prompt text (or hash thereof if the prompt is sensitive), and the resulting narrative. This makes the attribution step auditable even though it is not exactly reproducible.
+The reference implementation logs each attribution run. The log has the model id and the prompt version. It has the full prompt text, or a hash of that text when the prompt is sensitive. It has the narrative. The step is auditable even though it is not exactly reproducible.
 
 ### 3.4.3 What reproducibility buys
 
-A skeptical reader of a Common Thread investigation can verify three things, in order of decreasing strength.
+A skeptical reader can check three things. The checks are in order from strongest to weakest.
 
-The artifact hashes either match the archive or they do not. This is a check that takes seconds and cannot be argued with.
+The artifact hashes match the archive, or they do not. The check takes seconds. It is not arguable.
 
-The signal table either follows from the artifacts when the published feature extractors are run, or it does not. This check takes minutes and is also not subject to argument; either the code produces the table or it does not.
+The published extractors produce the signal table from the artifacts, or they do not. The check takes minutes. It is not arguable.
 
-The attribution narrative either characterizes the signals in a manner that a different language model run on the same signal table would also produce, or it does not. This check is judgment-laden and not exactly reproducible, but it is constrained: the narrative cannot make claims that are absent from the signal table without the contradiction being immediately visible.
+The narrative characterizes the signals in a way that another model run on the same table would also produce, or it does not. This check needs judgment, and it is not exact. It is still constrained. A narrative claim that is absent from the signal table is immediately visible.
 
-These three layers of reproducibility, in combination, are what make the methodology usable for purposes beyond the investigator's own conviction. Without them, the methodology would be one person's opinion about some accounts. With them, it is a structured argument that anyone can follow, verify in part, and challenge in specific.
+Together, the three checks make the method usable for more than the investigator's own belief. Without them, the method is one opinion about some accounts. With them, it is a structured argument that another person can follow, check in part, and challenge at a specific point.
 
 ## 3.5 Confidentiality of the analysis at rest
 
-The framework at §3.1 governs the integrity of the record (what was collected, that it has not changed). It does not by itself govern the confidentiality of the analysis (who can read the conclusion). These are different properties. An investigation's raw artifacts are, by construction, public: they are posts collected from the public platform surface, and the methodology treats them as public data. The sensitive product of an investigation is not the posts but the analysis over them, above all the attribution conclusion, which links otherwise-separate public accounts to a common operator. A leak of that conclusion can harm the accounts named in it in ways that a leak of the underlying public posts does not.
+§3.1 governs integrity. It says what was collected, and that those bytes have not changed. It does not by itself govern confidentiality. Confidentiality is who can read the conclusion. The two properties differ.
 
-The reference implementation therefore encrypts the analytic conclusion **and the structured evidence inputs used to produce it** (account and pair feature values, event feature payloads, seed basis statements, and investigation metadata) at rest under a key that only the investigation's own secret can derive. Each investigation is created with a single unguessable capability secret, returned once and never stored by the server (§3.1.3 records only a one-way hash of it for authorization). That same secret derives, by a separate key-derivation path, an encryption key that is held only in memory for the duration of a request that presents the secret and is never written to storage. The server retains only ciphertext and the authorization hash. Two consequences follow, and the methodology states both plainly rather than overclaiming:
+The raw artifacts are public by construction. They are posts from the public platform surface. The sensitive product is the analysis, above all the attribution conclusion. That conclusion links separate public accounts to one operator. A leak of the conclusion can harm the named accounts in a way that a leak of the public posts does not.
 
-- **A database compromise yields ciphertext, not conclusions or reconstructable signal tables.** An adversary who exfiltrates the stored data cannot read the encrypted analysis or the encrypted feature/basis cells without a valid investigation secret, which the store does not contain.
-- **The secret is the only key, so there is no recovery.** Losing the secret makes an encrypted investigation permanently unreadable. This is a deliberate design choice, not a defect; an operator who requires a recovery path must arrange escrow of the secret out of band and should understand that doing so weakens the "only the secret can decrypt" property accordingly.
+The reference implementation therefore encrypts the conclusion and the structured inputs used to produce it. Those inputs are account feature values, pair feature values, event feature payloads, seed basis statements, and investigation metadata. The key comes from the investigation secret. Only that secret can derive the key.
 
-The scheme is scoped honestly. It protects the analysis and its structured inputs against exposure of data at rest. It does not defend against a compromise of the running service while a request holds the derived key in memory, and it does not conceal the structural facts that remain queryable by design: which public accounts an investigation examined, the coarse confidence band recorded for a pair, and timestamps. It also does not encrypt the public artifacts, whose value as verifiable evidence depends on the content-addressed, reproducible archival of §3.1 and §3.4, which this scheme leaves untouched. A practitioner who needs a stronger boundary than "protect the analysis against a data-at-rest breach" should run the reference implementation on infrastructure they control and harden it to their own requirements.
+Each investigation is created with one unguessable capability secret. The server returns the secret once. The server does not store the secret. §3.1.3's authorization record is a one-way hash of it. A separate derivation path turns the same secret into an encryption key. The key is in memory only while a request presents the secret.
 
-At the level of the methodology, confidentiality of the analysis at rest is a requirement; the specific derivation, cipher, and scope above are the reference implementation's realization of it. Practitioners operating on other infrastructure should provide an equivalent property, or document its absence, with the same candor the framework demands elsewhere.
+The key is never written to storage. The server keeps ciphertext and the authorization hash.
+
+Two consequences follow:
+
+- A database compromise yields ciphertext. It does not yield the conclusion or a reconstructable signal table. The store does not contain the investigation secret.
+- There is no recovery. Loss of the secret makes an encrypted investigation permanently unreadable. That is a design choice. An operator who needs recovery must escrow the secret out of band. Escrow weakens the property that only the secret can decrypt.
+
+The scheme is limited. It protects the analysis and its structured inputs against exposure of data at rest. It does not defend a compromise of the running service while a request holds the derived key in memory. It does not hide structural facts that stay queryable on purpose. Those facts are which public accounts an investigation examined, the coarse confidence band for a pair, and timestamps. It does not encrypt the public artifacts.
+
+Those artifacts stay content-addressed under §3.1 and §3.4.
+
+A practitioner who needs a stronger boundary should run the reference implementation on infrastructure they control, and should harden it to their own requirements.
+
+At the level of the method, confidentiality of the analysis at rest is a requirement. The derivation, the cipher, and the scope above are the reference implementation's realization. A practitioner on other infrastructure should provide an equivalent property, or should document its absence, with the same candor as the rest of this framework.
 
 ## Summary
 
-The framework requires four commitments: content-addressed archival of raw artifacts before any transformation, calibrated probabilistic outputs rather than verdicts, honest acknowledgment of what the methodology cannot do, and reproducibility of the deterministic pipeline with documented non-determinism in the LLM-assisted layer. To these the reference implementation adds confidentiality of the analysis at rest (§3.5): the attribution conclusion and the structured evidence inputs used to form it are encrypted under a key only the investigation's own secret can derive, so a data-at-rest breach yields ciphertext rather than conclusions or a reconstructable signal table.
+The framework requires four commitments. Archive raw artifacts at a content address before any transform. Use a calibrated probabilistic output, not a verdict. State what the method cannot do. Reproduce the deterministic pipeline, and document the nondeterminism of the language-model layer.
 
-These commitments are not optional. The signal taxonomy in §4, the collection methodology in §5, the feature extraction in §6, the attribution reasoning in §7, and the output format in §8 all assume that the framework holds. Practitioners who skip the framework should not expect the downstream sections to produce reliable results.
+The reference implementation adds §3.5. The conclusion and the structured inputs are encrypted under a key that only the investigation secret can derive. A data-at-rest breach yields ciphertext, not the conclusion and not a reconstructable signal table.
 
-The next section establishes the signal taxonomy. Each signal is presented with its detection capability, its known failure modes, its extraction method, and its position in the broader framework of evidentiary discipline established here.
+These commitments are not optional. §4, §5, §6, §7, and §8 assume that the framework holds. A practitioner who skips the framework should not expect reliable results from the later sections.
+
+The next section is the signal list. Each signal has a detection capability, known failure modes, an extraction method, and a place in this framework.
