@@ -7,7 +7,7 @@
  * are downloaded.
  */
 
-import { ArchiveStore } from '../archive/store';
+import { openArchiveStore } from '../archive/store';
 import { mergeHistograms } from '../extractors/visual/color-palette';
 import { manifestStoreFor, type ArchiveManifestBinding } from './manifest-env';
 import { fetchUrlImageFeatures } from '../collection/image-decode';
@@ -234,13 +234,14 @@ export async function archivePostedImageCorpora(
   env: ArchiveManifestBinding,
   options: {
     investigationId: string;
+    encKey?: CryptoKey | null;
     corpora: AccountPostedImageCorpus[];
     collectedAt: string;
     toolVersion?: string;
   }
 ): Promise<ArchivePostedImageCorporaResult> {
-  const archive = new ArchiveStore({ bucket: env.ARCHIVE });
-  const manifest = manifestStoreFor(env, options.investigationId);
+  const archive = openArchiveStore(env.ARCHIVE, options.investigationId, options.encKey);
+  const manifest = manifestStoreFor(env, options.investigationId, options.encKey);
   const toolVersion = options.toolVersion ?? '1';
   const manifestHashes: string[] = [];
 

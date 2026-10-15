@@ -98,7 +98,11 @@ export async function runPairExtractors(
   env: PairRunnerEnv,
   options: RunPairExtractorsOptions
 ): Promise<PairExtractorRunResult[]> {
-  const manifest = new ManifestStore({ bucket: env.ARCHIVE, investigationId: options.investigationId });
+  const manifest = new ManifestStore({
+    bucket: env.ARCHIVE,
+    investigationId: options.investigationId,
+    encKey: options.encKey ?? null,
+  });
   const manifestHash = await manifest.manifestHash();
   if (!manifestHash) {
     throw new Error(

@@ -15,6 +15,38 @@ export interface RemoteManifestAppendOptions {
   entry: ManifestEntry;
 }
 
+export interface RemoteManifestLineOptions {
+  appendUrl: string;
+  secret: string;
+  /** One JSONL record, including the trailing newline. May be an enc:1: cell. */
+  line: string;
+}
+
+/**
+ * Send one prepared manifest line to the Worker. The Worker stores the line
+ * as-is, so encryption happens before this call and the Worker does not need
+ * the investigation key.
+ */
+export async function appendManifestPreparedLine(
+  options: RemoteManifestLineOptions
+): Promise<void> {
+  const response = await fetch(options.appendUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${options.secret}`,
+    },
+    body: JSON.stringify({ line: options.line }),
+  });
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '');
+    throw new Error(
+      `Remote manifest append failed: ${response.status} ${detail}`.trim()
+    );
+  }
+}
+
 export async function appendManifestEntryRemote(
   options: RemoteManifestAppendOptions
 ): Promise<void> {

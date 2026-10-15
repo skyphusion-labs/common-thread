@@ -5,7 +5,7 @@
  * network_twitter extractor (§4.4.1).
  */
 
-import { ArchiveStore } from '../archive/store';
+import { openArchiveStore } from '../archive/store';
 import { manifestStoreFor, type ArchiveManifestBinding } from './manifest-env';
 
 export const APIFY_TWITTER_FOLLOWERS_TOOL = 'apify-twitter-followers';
@@ -157,12 +157,13 @@ export async function archiveNetworkLists(
   env: ArchiveManifestBinding,
   options: {
     investigationId: string;
+    encKey?: CryptoKey | null;
     lists: NetworkListArtifact[];
     collectedAt: string;
   }
 ): Promise<ArchiveNetworkListsResult> {
-  const archive = new ArchiveStore({ bucket: env.ARCHIVE });
-  const manifest = manifestStoreFor(env, options.investigationId);
+  const archive = openArchiveStore(env.ARCHIVE, options.investigationId, options.encKey);
+  const manifest = manifestStoreFor(env, options.investigationId, options.encKey);
   const manifestHashes: string[] = [];
   let artifactsCreated = 0;
 

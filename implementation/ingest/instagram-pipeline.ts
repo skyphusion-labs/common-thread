@@ -56,7 +56,7 @@ export async function runInstagramIngestPipeline(
   const now = ctx.now ?? new Date().toISOString();
   const handles = extractInstagramHandles(ctx.payload);
   const archiveEnv = manifestBinding(env);
-  const manifest = manifestStoreFor(archiveEnv, ctx.investigationId);
+  const manifest = manifestStoreFor(archiveEnv, ctx.investigationId, ctx.encKey ?? null);
 
   await manifest.append({
     hash: ctx.rawHash,
@@ -104,6 +104,7 @@ export async function runInstagramIngestPipeline(
 
   const timelineArchive = await archiveAccountTimelines(archiveEnv, {
     investigationId: ctx.investigationId,
+    encKey: ctx.encKey ?? null,
     timelines,
     collectedAt: now,
     timeBounds,

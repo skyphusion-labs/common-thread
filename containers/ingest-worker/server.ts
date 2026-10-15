@@ -16,7 +16,7 @@
 import http from 'node:http';
 import { hostname } from 'node:os';
 import { timingSafeEqual } from 'node:crypto';
-import { ArchiveStore } from '../../implementation/archive/store';
+import { openArchiveStore } from '../../implementation/archive/store';
 import {
   createR2BucketFromS3Config,
   r2S3ConfigFromEnv,
@@ -145,7 +145,7 @@ async function processJob(handoff: IngestJobHandoff): Promise<void> {
     }
   }
 
-  const store = new ArchiveStore({ bucket: archive });
+  const store = openArchiveStore(archive, handoff.investigationId, encKey);
   const raw = await store.get(handoff.rawFileHash, 'json');
   if (!raw) {
     throw new Error(`Raw export not found in R2: ${handoff.rawFileHash}`);

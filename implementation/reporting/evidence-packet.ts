@@ -268,7 +268,7 @@ export async function buildEvidencePacket(
     }
   }
 
-  const manifest = new ManifestStore({ bucket: archive, investigationId });
+  const manifest = new ManifestStore({ bucket: archive, investigationId, encKey });
   const allEntries = await manifest.list();
   const manifestExtract = allEntries.filter((e) => artifactHashes.has(e.hash));
 
@@ -471,7 +471,7 @@ export async function buildInvestigationEvidencePacket(
     }
   }
 
-  const manifest = new ManifestStore({ bucket: archive, investigationId });
+  const manifest = new ManifestStore({ bucket: archive, investigationId, encKey });
   const allEntries = await manifest.list();
   const manifestExtract = allEntries.filter((e) => artifactHashes.has(e.hash));
 

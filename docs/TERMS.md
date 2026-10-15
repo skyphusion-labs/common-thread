@@ -119,8 +119,9 @@ cluster-level claims; admissibility is your responsibility (paper section 3.2.3)
 - Nothing expires on its own.
 - You can delete an **active** investigation with your token. That removes its database rows and
   its manifest.
-- Deleting does **not** remove the archived artifacts themselves. They are stored by content hash
-  and shared across investigations.
+- Deleting removes that investigation's encrypted archive objects and its manifest. Legacy
+  plaintext objects at the old content-addressed paths are kept. An older investigation may
+  still share those paths.
 - A **sealed** investigation cannot be deleted or unsealed. Seal only when you mean it.
 
 > **DECISION (Conrad, #318 section 8 item 3):** whether the hosted instance adopts a fixed
@@ -155,10 +156,10 @@ issues with `[SECURITY]`. Do not send documents about the accounts involved; des
 If we are served with valid legal process, this is what we could and could not produce:
 
 - **We hold in readable form:** investigation ids, names and descriptions; the handles and
-  platforms of the accounts in an investigation; confidence bands; timestamps; and the archived
-  artifacts.
+  platforms of the accounts in an investigation; confidence bands; and timestamps.
 - **We cannot produce:** the encrypted content of an investigation (features, basis statements,
-  attribution output). We do not hold the key.
+  attribution output, archived artifact bytes, manifest lines). We do not hold the key.
+  Legacy plaintext archive objects, if any remain from before encryption, are readable.
 - **We do not know who you are.** There is no account, name or email on file, so we have nobody
   to notify.
 

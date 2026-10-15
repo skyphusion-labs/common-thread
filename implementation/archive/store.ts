@@ -10,7 +10,13 @@
  */
 
 import { sha256, isValidSha256Hex } from './hash';
-import { pathForHash, extensionForMimeType } from './paths';
+import {
+  pathForHash,
+  extensionForMimeType,
+  encryptedArtifactPath,
+  assertSafeInvestigationId,
+} from './paths';
+import { decryptArchiveObject, encryptArchiveObject } from './encryption';
 import type { ArchiveWriteResult, ArchiveReadResult } from './types';
 
 /**
@@ -29,11 +35,43 @@ export interface R2BucketLike {
       onlyIf?: { etagDoesNotMatch?: string };
     }
   ): Promise<unknown | null>;
+  /** Present on R2 and on the test fake. Purge uses it. */
+  delete?(key: string): Promise<void>;
+  /** Present on R2 and on the test fake. Purge uses it to enumerate a prefix. */
+  list?(options: { prefix?: string; cursor?: string }): Promise<{
+    objects: Array<{ key: string }>;
+    truncated: boolean;
+    cursor?: string;
+  }>;
 }
 
 export interface ArchiveStoreOptions {
   /** R2 bucket binding. */
   bucket: R2BucketLike;
+
+  /**
+   * When set together with encKey, artifact bytes are stored as ciphertext
+   * under this investigation. Omit both for a legacy plaintext archive.
+   */
+  investigationId?: string;
+
+  /** Investigation key from deriveInvestigationKey. Never persisted. */
+  encKey?: CryptoKey | null;
+}
+
+/**
+ * Open a store that encrypts when the investigation key is present and
+ * stays on the legacy plaintext paths when it is not.
+ */
+export function openArchiveStore(
+  bucket: R2BucketLike,
+  investigationId: string,
+  encKey?: CryptoKey | null
+): ArchiveStore {
+  if (encKey) {
+    return new ArchiveStore({ bucket, investigationId, encKey });
+  }
+  return new ArchiveStore({ bucket });
 }
 
 export interface PutOptions {
@@ -49,7 +87,21 @@ export interface PutOptions {
 }
 
 export class ArchiveStore {
-  constructor(private readonly options: ArchiveStoreOptions) {}
+  private readonly encKey: CryptoKey | null;
+
+  constructor(private readonly options: ArchiveStoreOptions) {
+    const hasKey = options.encKey != null;
+    const hasId = typeof options.investigationId === 'string' && options.investigationId.length > 0;
+    if (hasKey !== hasId) {
+      throw new Error('ArchiveStore requires encKey and investigationId together');
+    }
+    if (hasId) assertSafeInvestigationId(options.investigationId!);
+    this.encKey = options.encKey ?? null;
+  }
+
+  private get encrypted(): boolean {
+    return this.encKey != null;
+  }
 
   /**
    * Write bytes to the archive.
@@ -70,16 +122,17 @@ export class ArchiveStore {
    */
   async put(bytes: Uint8Array, options: PutOptions = {}): Promise<ArchiveWriteResult> {
     const hash = await sha256(bytes);
-    const path = pathForHash(hash, options.extension);
+    const path = this.storagePath(hash, options.extension);
 
-    // Fast path: artifact already present.
+    // Fast path: artifact already present. size is the plaintext length.
+    // A ciphertext object is larger than the artifact it holds.
     const existing = await this.options.bucket.head(path);
     if (existing) {
       return {
         hash,
         path,
         newlyWritten: false,
-        size: existing.size,
+        size: bytes.length,
       };
     }
 
@@ -87,26 +140,34 @@ export class ArchiveStore {
     // If another writer creates the same path between our head() and our put(),
     // the put() will return null and we treat it as not-newly-written.
     const httpMetadata: { contentType?: string } = {};
-    if (options.mimeType) {
+    let body: Uint8Array = bytes;
+    if (this.encrypted && this.encKey && this.options.investigationId) {
+      body = await encryptArchiveObject(
+        this.encKey,
+        this.options.investigationId,
+        hash,
+        options.extension,
+        bytes
+      );
+      httpMetadata.contentType = 'application/octet-stream';
+    } else if (options.mimeType) {
       httpMetadata.contentType = options.mimeType;
     }
 
-    const result = await this.options.bucket.put(path, bytes, {
+    const result = await this.options.bucket.put(path, body, {
       httpMetadata,
       onlyIf: { etagDoesNotMatch: '*' },
     });
 
     if (result === null) {
       // Race: another writer created the artifact between our head() and
-      // our put(). Since the artifact is content-addressed, the existing
-      // bytes are identical to ours by construction, so this is still
-      // operationally a success.
-      const existingAfterRace = await this.options.bucket.head(path);
+      // our put(). Same path means the same plaintext hash for this
+      // investigation, so the existing object is the artifact.
       return {
         hash,
         path,
         newlyWritten: false,
-        size: existingAfterRace?.size ?? bytes.length,
+        size: bytes.length,
       };
     }
 
@@ -133,6 +194,40 @@ export class ArchiveStore {
       throw new Error(`Invalid SHA-256 hash: ${hash}`);
     }
 
+    if (this.encrypted && this.encKey && this.options.investigationId) {
+      const encPath = encryptedArtifactPath(this.options.investigationId, hash, extension);
+      const encryptedObject = await this.options.bucket.get(encPath);
+      if (encryptedObject) {
+        const stored = new Uint8Array(await encryptedObject.arrayBuffer());
+        let plaintext: Uint8Array;
+        try {
+          plaintext = await decryptArchiveObject(
+            this.encKey,
+            this.options.investigationId,
+            hash,
+            extension,
+            stored
+          );
+        } catch {
+          throw new Error(
+            `Archive key error: artifact at ${encPath} did not decrypt`
+          );
+        }
+        const actualHash = await sha256(plaintext);
+        if (actualHash !== hash) {
+          throw new Error(
+            `Archive integrity error: artifact at ${encPath} hashes to ${actualHash}, expected ${hash}`
+          );
+        }
+        return {
+          bytes: plaintext,
+          path: encPath,
+          hash,
+          size: plaintext.length,
+        };
+      }
+    }
+
     const path = pathForHash(hash, extension);
     const object = await this.options.bucket.get(path);
     if (!object) {
@@ -145,6 +240,7 @@ export class ArchiveStore {
     // archive corruption (bit rot, mistaken upload, deliberate tampering).
     // The cost of verification is the cost of one SHA-256 over the bytes
     // we just read, which is fast and is the point of content-addressing.
+    // Legacy objects are plaintext. An encrypted object is read above.
     const actualHash = await sha256(bytes);
     if (actualHash !== hash) {
       throw new Error(
@@ -212,8 +308,21 @@ export class ArchiveStore {
       throw new Error(`Invalid SHA-256 hash: ${hash}`);
     }
 
+    if (this.encrypted && this.options.investigationId) {
+      const encPath = encryptedArtifactPath(this.options.investigationId, hash, extension);
+      const encHead = await this.options.bucket.head(encPath);
+      if (encHead) return true;
+    }
+
     const path = pathForHash(hash, extension);
     const head = await this.options.bucket.head(path);
     return head !== null;
+  }
+
+  private storagePath(hash: string, extension?: string): string {
+    if (this.encrypted && this.options.investigationId) {
+      return encryptedArtifactPath(this.options.investigationId, hash, extension);
+    }
+    return pathForHash(hash, extension);
   }
 }
