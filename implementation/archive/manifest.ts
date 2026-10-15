@@ -23,10 +23,19 @@
  */
 
 import { sha256 } from './hash';
-import { appendManifestEntryRemote } from './manifest-remote';
+import { appendManifestPreparedLine } from './manifest-remote';
 import { investigationManifestPath } from './paths';
+import { manifestLineAad } from './encryption';
+import { encryptCell, decryptCell, isEncryptedCell } from '../crypto/investigation-key';
 import type { R2BucketLike } from './store';
 import type { ManifestEntry, ManifestFilter } from './types';
+
+export class EncryptedManifestKeyError extends Error {
+  constructor(scope: string) {
+    super(`Manifest for ${scope} is encrypted and no investigation key was provided`);
+    this.name = 'EncryptedManifestKeyError';
+  }
+}
 
 export interface ManifestStoreOptions {
   /** R2 bucket binding. */
@@ -61,6 +70,13 @@ export interface ManifestStoreOptions {
     appendUrl: string;
     secret: string;
   };
+
+  /**
+   * When set, each new line is encrypted before it is stored. List decrypts
+   * those lines. Legacy plaintext lines still parse. The stored bytes, which
+   * manifestHash and the signature cover, are the ciphertext lines.
+   */
+  encKey?: CryptoKey | null;
 }
 
 export class ManifestStore {
@@ -93,15 +109,40 @@ export class ManifestStore {
         `Manifest entry investigationId ${entry.investigationId} does not match store scope ${this.investigationId}`
       );
     }
-    const line = JSON.stringify(entry) + '\n';
+    const payload = JSON.stringify(entry);
+    let line = payload + '\n';
+    if (this.options.encKey) {
+      if (!this.investigationId) {
+        throw new Error('ManifestStore: encKey requires investigationId');
+      }
+      const cell = await encryptCell(
+        this.options.encKey,
+        payload,
+        manifestLineAad(this.investigationId)
+      );
+      line = cell + '\n';
+    }
 
     if (this.options.remoteAppend) {
-      await appendManifestEntryRemote({
+      await appendManifestPreparedLine({
         appendUrl: this.options.remoteAppend.appendUrl,
         secret: this.options.remoteAppend.secret,
-        entry,
+        line,
       });
       return;
+    }
+
+    await this.writeLine(line);
+  }
+
+  /**
+   * Store one already-serialized JSONL line, including its trailing newline.
+   * The line may be a plaintext entry or an enc:1: cell. This does not
+   * encrypt again.
+   */
+  async writeLine(line: string): Promise<void> {
+    if (!line.endsWith('\n') || line.slice(0, -1).includes('\n')) {
+      throw new Error('ManifestStore.writeLine: line must be a single JSONL record');
     }
 
     // Serialized path (issue #70): route the append through the per-investigation
@@ -150,11 +191,13 @@ export class ManifestStore {
     const entries: ManifestEntry[] = [];
     for (const line of lines) {
       try {
-        const entry = JSON.parse(line) as ManifestEntry;
+        const entry = await this.parseLine(line);
         if (filter && !this.matches(entry, filter)) continue;
         entries.push(entry);
-      } catch {
-        // Skip malformed lines. Corruption is investigated separately.
+      } catch (err) {
+        if (err instanceof EncryptedManifestKeyError) throw err;
+        if (isEncryptedCell(line)) throw err;
+        // Skip malformed plaintext lines. Corruption is investigated separately.
       }
     }
 
@@ -247,6 +290,21 @@ export class ManifestStore {
     if (entry.supersedes && !/^[0-9a-f]{64}$/.test(entry.supersedes)) {
       throw new Error(`ManifestEntry.supersedes must be lowercase SHA-256 hex: ${entry.supersedes}`);
     }
+  }
+
+  private async parseLine(line: string): Promise<ManifestEntry> {
+    if (isEncryptedCell(line)) {
+      if (!this.options.encKey || !this.investigationId) {
+        throw new EncryptedManifestKeyError(this.investigationId ?? this.manifestPath);
+      }
+      const payload = await decryptCell(
+        this.options.encKey,
+        line,
+        manifestLineAad(this.investigationId)
+      );
+      return JSON.parse(payload) as ManifestEntry;
+    }
+    return JSON.parse(line) as ManifestEntry;
   }
 
   private matches(entry: ManifestEntry, filter: ManifestFilter): boolean {

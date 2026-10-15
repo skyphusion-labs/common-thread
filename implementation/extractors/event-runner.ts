@@ -6,7 +6,7 @@
  * (§3.4 reproducibility: manifest hash recorded per extractor run).
  */
 
-import { ArchiveStore } from '../archive/store';
+import { openArchiveStore } from '../archive/store';
 import { ManifestStore } from '../archive/manifest';
 import type { DatabaseClient } from '../db';
 import { packTextCell } from '../crypto/feature-cells';
@@ -46,8 +46,12 @@ export async function runEventExtractors(
   env: EventRunnerEnv,
   options: RunEventExtractorsOptions
 ): Promise<EventExtractorRunResult[]> {
-  const archive = new ArchiveStore({ bucket: env.ARCHIVE });
-  const manifest = new ManifestStore({ bucket: env.ARCHIVE, investigationId: options.investigationId });
+  const archive = openArchiveStore(env.ARCHIVE, options.investigationId, options.encKey);
+  const manifest = new ManifestStore({
+    bucket: env.ARCHIVE,
+    investigationId: options.investigationId,
+    encKey: options.encKey ?? null,
+  });
 
   const manifestHash = await manifest.manifestHash();
   if (!manifestHash) {

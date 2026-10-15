@@ -2,7 +2,7 @@
  * Color-palette corpus building for Apify Twitter ingest (§4.5.6).
  */
 
-import { ArchiveStore } from '../archive/store';
+import { openArchiveStore } from '../archive/store';
 import { manifestStoreFor, type ArchiveManifestBinding } from './manifest-env';
 
 export const APIFY_TWITTER_COLOR_PALETTE_CORPUS_TOOL = 'apify-twitter-color-palette-corpus';
@@ -25,13 +25,14 @@ export async function archiveColorPaletteCorpora(
   env: ArchiveManifestBinding,
   options: {
     investigationId: string;
+    encKey?: CryptoKey | null;
     corpora: AccountColorPaletteCorpus[];
     collectedAt: string;
     toolVersion?: string;
   }
 ): Promise<ArchiveColorPaletteCorporaResult> {
-  const archive = new ArchiveStore({ bucket: env.ARCHIVE });
-  const manifest = manifestStoreFor(env, options.investigationId);
+  const archive = openArchiveStore(env.ARCHIVE, options.investigationId, options.encKey);
+  const manifest = manifestStoreFor(env, options.investigationId, options.encKey);
   const toolVersion = options.toolVersion ?? '1';
   const manifestHashes: string[] = [];
 

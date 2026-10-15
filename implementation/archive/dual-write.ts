@@ -46,11 +46,9 @@ type PutOptions = {
 
 /**
  * Structural R2 surface used by ArchiveStore / ManifestStore / purge.
- * Extends R2BucketLike with delete for investigation purge.
+ * delete and list live on R2BucketLike. Purge uses both.
  */
-export interface DualWriteBucketLike extends R2BucketLike {
-  delete?(key: string): Promise<void>;
-}
+export type DualWriteBucketLike = R2BucketLike;
 
 export class DualWriteBucket implements DualWriteBucketLike {
   constructor(
@@ -103,5 +101,21 @@ export class DualWriteBucket implements DualWriteBucketLike {
     const replicaDelete = this.replica.delete?.bind(this.replica);
     if (primaryDelete) await primaryDelete(key);
     if (replicaDelete) await replicaDelete(key);
+  }
+
+  /**
+   * List the primary. Purge enumerates here, then delete() removes each key
+   * from both buckets. A primary that cannot list yields an empty page, and
+   * the prefix is left in place.
+   */
+  async list(options: { prefix?: string; cursor?: string }): Promise<{
+    objects: Array<{ key: string }>;
+    truncated: boolean;
+    cursor?: string;
+  }> {
+    if (!this.primary.list) {
+      return { objects: [], truncated: false };
+    }
+    return this.primary.list(options);
   }
 }

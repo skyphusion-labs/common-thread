@@ -107,10 +107,13 @@ database.
 | Your basis statements and removal reasons | Confidence band per pair |
 | Attribution output and summary | All timestamps, counts, feature names |
 | Investigation metadata | Job records, including error text |
-| | **Everything in the archive**: uploads, timelines, profiles, image metadata, follower lists, and the manifest |
+| Archive artifact bytes, and manifest lines | The plaintext hash in an archive object key |
 
 So a copy of the database shows **which accounts were examined, when, and with what result
-band**, but not the reasoning. A copy of the archive shows the collected material in full.
+band**, but not the reasoning. A copy of the archive shows ciphertext, not the collected
+material. The object key still contains the plaintext hash, so the host can test whether a
+known artifact was stored. The host cannot read the bytes. Legacy objects written before
+this encryption still read as plaintext.
 
 Two more limits. The key leaves the Worker, sealed, when work is handed to our own containers,
 and exists in their memory for the length of the job. And investigations created before
@@ -140,14 +143,14 @@ webhook or analytics call anywhere in the code.
 | Remove a seed | It is marked removed. The row stays. |
 | Seal an investigation | It becomes read-only, permanently. **It can no longer be deleted**, and there is no unseal. |
 | Delete an active investigation (needs your token) | Its database rows are deleted, and its manifest and signature log are deleted from the archive. |
-| Archived artifacts | **Never deleted by any code path.** They are stored by content hash and shared across investigations, so identical bytes are kept once. |
-| Lose your token | The encrypted content is unreadable for good. The unencrypted rows and the archived artifacts stay, and you can no longer delete them. |
+| Archived artifacts | Encrypted objects under that investigation are deleted with it. Legacy `sha256/` objects are kept, because an older investigation may share them. |
+| Lose your token | The encrypted content is unreadable for good. The unencrypted rows stay, and you can no longer delete them. |
 
 Two consequences we would rather state than have you discover:
 
-- **Deleting an investigation removes the index, not the material.** The manifest is the only
-  record of which artifacts belonged to which investigation. Once it is gone, the artifacts
-  remain and we can no longer tell whose they were.
+- **Deleting an investigation removes its encrypted archive and its manifest.** Legacy
+  plaintext objects at the old content-addressed paths are kept. Those paths can still be
+  shared with an older investigation.
 - **Backups are copies that deletion does not reach**: any backup of the database or the
   archive, and any snapshot of the server.
 

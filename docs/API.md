@@ -256,8 +256,9 @@ Refused when `status` is `sealed` or `archived` (immutable evidence records).
 - Removes all MySQL rows for the investigation (seeds, features, runs, jobs).
 - Deletes per-investigation R2 manifest and signature sidecars under
   `investigations/{id}/`.
-- **Retains** content-addressed `sha256/` blobs (global deduplicated storage; may
-  be shared across investigations).
+- **Deletes** encrypted artifacts under `investigations/{id}/artifacts/`.
+- **Retains** legacy content-addressed `sha256/` blobs. An older investigation
+  may still reference them.
 
 **Response `200`**
 
@@ -267,7 +268,7 @@ Refused when `status` is `sealed` or `archived` (immutable evidence records).
   "deleted": true,
   "tables_purged": ["account_features", "..."],
   "archive_keys_deleted": ["investigations/my-investigation-1/manifest.jsonl"],
-  "archive_policy": "Content-addressed sha256/ blobs are retained (global deduplicated storage)."
+  "archive_policy": "Encrypted artifacts under investigations/{id}/artifacts/ are deleted. Legacy sha256/ blobs are retained."
 }
 ```
 

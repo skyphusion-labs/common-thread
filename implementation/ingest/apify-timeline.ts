@@ -6,7 +6,7 @@
  * lists; this module groups them by author before archival.
  */
 
-import { ArchiveStore } from '../archive/store';
+import { openArchiveStore } from '../archive/store';
 import type { InvestigationTimeBounds } from '../investigations/metadata';
 import { manifestStoreFor, type ArchiveManifestBinding } from './manifest-env';
 import type { ParsedTweet } from './apify-twitter-parser';
@@ -127,6 +127,8 @@ export async function archiveAccountTimelines(
   env: ArchiveManifestBinding,
   options: {
     investigationId: string;
+    /** Set for an encrypted investigation. Omit for a legacy plaintext archive. */
+    encKey?: CryptoKey | null;
     timelines: AccountTimeline[];
     collectedAt: string;
     toolVersion?: string;
@@ -141,8 +143,8 @@ export async function archiveAccountTimelines(
     itemCountKey?: string;
   }
 ): Promise<ArchiveTimelinesResult> {
-  const archive = new ArchiveStore({ bucket: env.ARCHIVE });
-  const manifest = manifestStoreFor(env, options.investigationId);
+  const archive = openArchiveStore(env.ARCHIVE, options.investigationId, options.encKey);
+  const manifest = manifestStoreFor(env, options.investigationId, options.encKey);
   const toolVersion = options.toolVersion ?? '1';
   const tool = options.tool ?? APIFY_TWITTER_TIMELINE_TOOL;
   const platform = options.platform ?? 'twitter';

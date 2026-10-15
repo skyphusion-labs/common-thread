@@ -11,11 +11,13 @@ export interface ArchiveManifestBinding {
 
 export function manifestStoreFor(
   env: ArchiveManifestBinding,
-  investigationId: string
+  investigationId: string,
+  encKey?: CryptoKey | null
 ): ManifestStore {
   return new ManifestStore({
     bucket: env.ARCHIVE,
     investigationId,
+    encKey: encKey ?? null,
     coordinator: env.MANIFEST_COORDINATOR,
     remoteAppend: env.MANIFEST_REMOTE_APPEND,
   });

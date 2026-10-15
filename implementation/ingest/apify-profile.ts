@@ -6,7 +6,7 @@
  * account-metadata extractors (§4.1).
  */
 
-import { ArchiveStore } from '../archive/store';
+import { openArchiveStore } from '../archive/store';
 import { manifestStoreFor, type ArchiveManifestBinding } from './manifest-env';
 import type { ParsedTweet } from './apify-twitter-parser';
 import { APIFY_TWITTER_TIMELINE_TOOL } from './apify-timeline';
@@ -53,13 +53,14 @@ export async function archiveAccountProfiles(
   env: ArchiveManifestBinding,
   options: {
     investigationId: string;
+    encKey?: CryptoKey | null;
     profiles: AccountProfile[];
     collectedAt: string;
     toolVersion?: string;
   }
 ): Promise<ArchiveProfilesResult> {
-  const archive = new ArchiveStore({ bucket: env.ARCHIVE });
-  const manifest = manifestStoreFor(env, options.investigationId);
+  const archive = openArchiveStore(env.ARCHIVE, options.investigationId, options.encKey);
+  const manifest = manifestStoreFor(env, options.investigationId, options.encKey);
   const toolVersion = options.toolVersion ?? '1';
   const manifestHashes: string[] = [];
 

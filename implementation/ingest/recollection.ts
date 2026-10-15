@@ -5,7 +5,7 @@
  * timeline manifest entry and detects tweets absent at source.
  */
 
-import { ArchiveStore } from '../archive/store';
+import { openArchiveStore } from '../archive/store';
 import type { ManifestEntry } from '../archive/types';
 import type { DatabaseClient } from '../db';
 import { parsePosts } from '../extractors/network/engagement-parse';
@@ -175,13 +175,14 @@ export async function runTimelineRecollection(
   db: DatabaseClient,
   options: {
     investigationId: string;
+    encKey?: CryptoKey | null;
     timelines: AccountTimeline[];
     priorTimelineByAccount: Map<string, ManifestEntry>;
     discoveredAt: string;
   }
 ): Promise<RecollectionResult> {
-  const archive = new ArchiveStore({ bucket: archiveEnv.ARCHIVE });
-  const manifest = manifestStoreFor(archiveEnv, options.investigationId);
+  const archive = openArchiveStore(archiveEnv.ARCHIVE, options.investigationId, options.encKey);
+  const manifest = manifestStoreFor(archiveEnv, options.investigationId, options.encKey);
   const absentEntries = await manifest.list({ status: 'absent' });
 
   let tombstonesWritten = 0;

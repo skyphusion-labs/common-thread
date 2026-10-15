@@ -11,7 +11,7 @@
  * Default investigations are dormant for this signal.
  */
 
-import { ArchiveStore } from '../../archive/store';
+import { openArchiveStore } from '../../archive/store';
 import { ManifestStore } from '../../archive/manifest';
 import type { DatabaseClient } from '../../db';
 import { packFeatureCell, readTextCell } from '../../crypto/feature-cells';
@@ -65,7 +65,11 @@ export async function runResponseLatencyExtraction(
     return { featuresWritten: 0, extractorRunId: 0 };
   }
 
-  const manifest = new ManifestStore({ bucket: env.ARCHIVE, investigationId: options.investigationId });
+  const manifest = new ManifestStore({
+    bucket: env.ARCHIVE,
+    investigationId: options.investigationId,
+    encKey: options.encKey ?? null,
+  });
   const manifestHash = (await manifest.manifestHash()) ?? '';
   const startedAt = new Date().toISOString();
 
@@ -85,7 +89,7 @@ export async function runResponseLatencyExtraction(
     .run();
   const extractorRunId = runRes.meta.last_row_id as number;
 
-  const archive = new ArchiveStore({ bucket: env.ARCHIVE });
+  const archive = openArchiveStore(env.ARCHIVE, options.investigationId, options.encKey);
   const entries = await manifest.list({
     investigationId: options.investigationId,
     status: 'present',

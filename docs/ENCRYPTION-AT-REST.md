@@ -7,14 +7,14 @@ implementation contract for paper §3.5; read them together.
 ## Threat model
 
 - **Protects against:** exfiltration of data at rest (a dump of the MySQL
-  database). The encrypted columns yield ciphertext with no key present in the
-  store to decrypt them.
+  database, or a copy of the R2 archive). The encrypted columns and the
+  archive objects yield ciphertext. The store has no key to decrypt them.
 - **Does NOT protect against:** a compromise of the running Worker/container
   while a request holds the derived key in memory; the structural metadata that
   stays plaintext by design (which public accounts were examined, the coarse
-  confidence band, timestamps); or the raw artifacts in R2, which are public
-  posts and stay content-addressed plaintext so the §3.1/§3.4 signed-manifest
-  reproducibility contract is untouched.
+  confidence band, timestamps). The object key still contains the plaintext
+  SHA-256, so a host can test whether a known artifact was stored. The host
+  cannot read the bytes.
 - **No recovery.** The investigation access token is the only key material.
   Losing it makes an encrypted investigation permanently unreadable. There is no
   operator escrow. An operator who needs recovery must escrow the token out of
@@ -50,6 +50,32 @@ enc:1:<base64url( nonce[12] || AES-256-GCM ciphertext || tag[16] )>
   still decrypt.
 - `isEncryptedCell()` distinguishes an encrypted cell from legacy plaintext by
   the `enc:1:` prefix, so readers are tolerant of mixed-vintage rows.
+
+## Archive objects
+
+Artifact bytes are encrypted with the same investigation key before the R2
+put. Code: `implementation/archive/encryption.ts` and `ArchiveStore`.
+
+- The content address is still the SHA-256 of the plaintext (§3.1). `put`
+  still uses a conditional `onlyIf` write. A failed put does not leave a
+  partial object as the artifact.
+- The stored key is `investigations/{id}/artifacts/sha256/...`. Two
+  investigations do not share one object, because their keys differ.
+- The envelope is `ctae1 || nonce[12] || AES-256-GCM`. AAD binds the
+  investigation id, the plaintext hash, and the extension.
+- A legacy plaintext object at the old `sha256/` path still reads. New writes
+  for an investigation that presents the key are ciphertext.
+- A read without the key does not return the ciphertext. It reports the
+  object as absent on the legacy path.
+- A read that finds an encrypted object and cannot decrypt it throws. It
+  does not treat that object as missing.
+- Manifest lines are `enc:1:` cells under the same key. `manifestHash()` and
+  the signature cover the stored bytes, which are the ciphertext lines.
+- Delete removes `investigations/{id}/artifacts/` when the bucket can list
+  that prefix. Legacy `sha256/` blobs stay, because an older investigation
+  may still reference them.
+- The replica bucket, when dual-write is on, receives the same ciphertext.
+  Delete lists the primary and removes each key from both buckets.
 
 ## What is encrypted (this release)
 
