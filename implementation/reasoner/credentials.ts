@@ -10,6 +10,9 @@
 
 export const DEFAULT_AI_GATEWAY_ALLOWED_HOSTS = [
   'gateway.ai.cloudflare.com',
+  // Documented direct-Anthropic BYOK host. The UI and the public docs
+  // tell a visitor to use this URL. Arbitrary hosts stay rejected.
+  'api.anthropic.com',
 ] as const;
 
 export interface AttributionCredentials {
