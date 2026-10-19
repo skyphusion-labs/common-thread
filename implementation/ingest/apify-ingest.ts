@@ -1,6 +1,6 @@
 // implementation/ingest/apify-ingest.ts
 
-import { ArchiveStore } from '../archive/store';
+import { openArchiveStore } from '../archive/store';
 import { execute, readCommittedRow, resolveDatabase } from '../db';
 import { sealInvestigationKeyForVpcHandoff } from '../crypto/investigation-key';
 import { dispatchIngestJob } from './dispatch';
@@ -99,7 +99,7 @@ export async function ingestApifyTwitter(
     throw new EncryptedIngestKeyRequiredError(investigationId);
   }
 
-  const archive = new ArchiveStore({ bucket: env.ARCHIVE });
+  const archive = openArchiveStore(env.ARCHIVE, investigationId, encKey);
   const rawBytes = new TextEncoder().encode(JSON.stringify(payload, null, 2));
   const { hash: rawHash } = await archive.put(rawBytes, {
     mimeType: 'application/json',
@@ -347,7 +347,7 @@ async function ingestApifyExport(
     throw new EncryptedIngestKeyRequiredError(investigationId);
   }
 
-  const archive = new ArchiveStore({ bucket: env.ARCHIVE });
+  const archive = openArchiveStore(env.ARCHIVE, investigationId, encKey);
   const rawBytes = new TextEncoder().encode(JSON.stringify(payload, null, 2));
   const { hash: rawHash } = await archive.put(rawBytes, {
     mimeType: 'application/json',

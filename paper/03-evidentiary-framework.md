@@ -19,6 +19,8 @@ This rule is operational. It is what makes the method usable in a court filing, 
 
 The collection layer writes the artifact bytes to content-addressed storage before normalization, parsing, deduplication, or analysis. The path comes from the SHA-256 hash of the bytes: `sha256/ab/cd/<full-hash>`. Identical bytes land at the same path. A difference of one byte lands at a different path.
 
+The reference implementation adds the investigation id to an encrypted object path. Identical bytes in two investigations do not share one object. §3.5 states that rule.
+
 Any transform can corrupt the record, even a benign one. A readable JSON rewrite changes whitespace and key order. HTML parsing drops comments. A timezone conversion drops information. The archive keeps the bytes the platform sent. Everything else is derived.
 
 You can rebuild derived data from the archive. You cannot rebuild the archive. If the archive is lost, the investigation is lost.
@@ -180,9 +182,13 @@ Two consequences follow:
 - A database compromise yields ciphertext. It does not yield the conclusion or a reconstructable signal table. The store does not contain the investigation secret.
 - There is no recovery. Loss of the secret makes an encrypted investigation permanently unreadable. That is a design choice. An operator who needs recovery must escrow the secret out of band. Escrow weakens the property that only the secret can decrypt.
 
-The scheme is limited. It protects the analysis and its structured inputs against exposure of data at rest. It does not defend a compromise of the running service while a request holds the derived key in memory. It does not hide structural facts that stay queryable on purpose. Those facts are which public accounts an investigation examined, the coarse confidence band for a pair, and timestamps. It does not encrypt the public artifacts.
+The scheme is limited. It protects the analysis, its structured inputs, and the archived artifact bytes against exposure of data at rest. It does not defend a compromise of the running service while a request holds the derived key in memory. It does not hide structural facts that stay queryable on purpose. Those facts are which public accounts an investigation examined, the coarse confidence band for a pair, and timestamps.
 
-Those artifacts stay content-addressed under §3.1 and §3.4.
+The reference implementation encrypts each archived artifact under the same investigation key. The content address is still the SHA-256 hash of the plaintext bytes (§3.1). The stored object is ciphertext. A reader with the investigation secret decrypts the object. The reader then checks the plaintext hash.
+
+A reader can still read an earlier plaintext object at the old path. Two investigations do not share one stored object. The object key contains the plaintext hash. A host can test whether a known artifact was stored. The host cannot read the bytes.
+
+The reference implementation encrypts each manifest line under the same key. The signature still covers the stored manifest bytes (§3.4).
 
 A practitioner who needs a stronger boundary should run the reference implementation on infrastructure they control, and should harden it to their own requirements.
 
@@ -192,7 +198,7 @@ At the level of the method, confidentiality of the analysis at rest is a require
 
 The framework requires four commitments. Archive raw artifacts at a content address before any transform. Use a calibrated probabilistic output, not a verdict. State what the method cannot do. Reproduce the deterministic pipeline, and document the nondeterminism of the language-model layer.
 
-The reference implementation adds §3.5. The conclusion and the structured inputs are encrypted under a key that only the investigation secret can derive. A data-at-rest breach yields ciphertext, not the conclusion and not a reconstructable signal table.
+The reference implementation adds §3.5. Only the investigation secret can derive the key. That key encrypts the conclusion, the structured inputs, and the archived artifact bytes. A data-at-rest breach yields ciphertext. It does not yield the conclusion, a reconstructable signal table, or the archived bytes.
 
 These commitments are not optional. §4, §5, §6, §7, and §8 assume that the framework holds. A practitioner who skips the framework should not expect reliable results from the later sections.
 

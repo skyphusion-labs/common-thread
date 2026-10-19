@@ -95,6 +95,29 @@ export function investigationManifestPath(investigationId: string): string {
   return `investigations/${investigationId}/manifest.jsonl`;
 }
 
+/**
+ * Per-investigation ciphertext path for an encrypted artifact.
+ *
+ * The plaintext hash stays in the key so a reader can address the object
+ * without a side table. The investigation id is in the key so two
+ * investigations never share one ciphertext (their keys differ). A host can
+ * test whether a known artifact was stored. The host cannot read the bytes.
+ */
+export function encryptedArtifactPath(
+  investigationId: string,
+  hash: string,
+  extension?: string
+): string {
+  assertSafeInvestigationId(investigationId);
+  return `investigations/${investigationId}/artifacts/${pathForHash(hash, extension)}`;
+}
+
+/** Prefix purged with the investigation. Not shared with any other investigation. */
+export function encryptedArtifactPrefix(investigationId: string): string {
+  assertSafeInvestigationId(investigationId);
+  return `investigations/${investigationId}/artifacts/`;
+}
+
 /** Sidecar signature log for a per-investigation manifest. */
 export function investigationSignaturesPath(investigationId: string): string {
   return `${investigationManifestPath(investigationId)}.sigs.jsonl`;

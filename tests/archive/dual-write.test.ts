@@ -5,6 +5,7 @@ import {
   resolveArchiveBucket,
 } from '../../implementation/archive/dual-write';
 import { ArchiveStore } from '../../implementation/archive/store';
+import { purgeInvestigationArchive } from '../../implementation/investigations/archive-purge';
 import { createFakeR2 } from '../helpers/fake-r2';
 
 describe('archive dual-write (§5.4.4)', () => {
@@ -57,5 +58,25 @@ describe('archive dual-write (§5.4.4)', () => {
     await bucket.delete('investigations/x/manifest.jsonl');
     expect(await primary.head('investigations/x/manifest.jsonl')).toBeNull();
     expect(await replica.head('investigations/x/manifest.jsonl')).toBeNull();
+  });
+
+  it('purges an encrypted artifact prefix from both buckets', async () => {
+    const primary = createFakeR2();
+    const replica = createFakeR2();
+    const bucket = new DualWriteBucket(primary, replica);
+    const artifact = 'investigations/inv1/artifacts/sha256/ab/cd/dead';
+    const legacy = 'sha256/ab/cd/dead';
+    await bucket.put(artifact, 'cipher');
+    await bucket.put('investigations/inv1/manifest.jsonl', 'm\n');
+    await primary.put(legacy, 'plain');
+    await replica.put(legacy, 'plain');
+
+    const result = await purgeInvestigationArchive(bucket, 'inv1');
+    expect(result.deletedKeys).toContain(artifact);
+    expect(await primary.head(artifact)).toBeNull();
+    expect(await replica.head(artifact)).toBeNull();
+    expect(await replica.head('investigations/inv1/manifest.jsonl')).toBeNull();
+    expect(await primary.head(legacy)).not.toBeNull();
+    expect(await replica.head(legacy)).not.toBeNull();
   });
 });

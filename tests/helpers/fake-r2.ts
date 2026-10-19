@@ -6,10 +6,10 @@
  * node project has no `cloudflare:test`, so there is no miniflare R2 binding.
  * This fake stands in for `env.ARCHIVE`.
  *
- * FIDELITY TRADEOFF (recorded per #46): this implements ONLY the R2 surface the
- * archive + manifest code actually calls -- head(), get(), put() -- with just
- * enough conditional-write semantics to preserve the content-addressed store's
- * behavior:
+ * FIDELITY TRADEOFF (recorded per #46): this implements the R2 surface the
+ * archive + manifest code actually calls -- head(), get(), put(), delete(),
+ * and list() -- with just enough conditional-write semantics to preserve the
+ * content-addressed store's behavior:
  *
  *   - put() honors `onlyIf: { etagDoesNotMatch: '*' }` as "create only if the
  *     key is absent" (returns null when the key already exists), which is the
@@ -17,13 +17,12 @@
  *   - get() returns an object exposing arrayBuffer()/text() over the stored
  *     bytes; head() returns `{ size }`.
  *
+ * list() returns every key with the given prefix and does not paginate.
+ * delete() removes one key. Purge of an encrypted investigation uses both.
  * It does NOT model: etags/versioning beyond the exists check, ranged reads,
- * list(), delete(), multipart uploads, checksums, or httpMetadata round-trips.
- * None of those are exercised by the archive/manifest/extractor/ingest paths
- * these suites drive. If a future suite needs real R2 fidelity (e.g. list or
- * range), run that subset in the workers pool instead; that is the separate
- * follow-up called out in #46. The prod path is unaffected: production uses a
- * real R2 binding; this fake exists only inside the test harness.
+ * multipart uploads, checksums, or httpMetadata round-trips.
+ * The prod path is unaffected: production uses a real R2 binding; this fake
+ * exists only inside the test harness.
  */
 
 interface StoredObject {
@@ -93,6 +92,21 @@ export function createFakeR2(): R2Bucket {
 
     async delete(key: string): Promise<void> {
       store.delete(key);
+    },
+
+    async list(options?: { prefix?: string; cursor?: string }): Promise<{
+      objects: Array<{ key: string }>;
+      truncated: boolean;
+      cursor?: string;
+    }> {
+      const prefix = options?.prefix ?? '';
+      const keys = [...store.keys()]
+        .filter((key) => key.startsWith(prefix))
+        .sort();
+      return {
+        objects: keys.map((key) => ({ key })),
+        truncated: false,
+      };
     },
   };
 

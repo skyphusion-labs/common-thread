@@ -50,7 +50,7 @@ export async function runBlueskyIngestPipeline(
   const now = ctx.now ?? new Date().toISOString();
   const handles = extractBlueskyHandles(ctx.payload);
   const archiveEnv = manifestBinding(env);
-  const manifest = manifestStoreFor(archiveEnv, ctx.investigationId);
+  const manifest = manifestStoreFor(archiveEnv, ctx.investigationId, ctx.encKey ?? null);
 
   await manifest.append({
     hash: ctx.rawHash,
@@ -92,6 +92,7 @@ export async function runBlueskyIngestPipeline(
 
   const timelineArchive = await archiveAccountTimelines(archiveEnv, {
     investigationId: ctx.investigationId,
+    encKey: ctx.encKey ?? null,
     timelines: listings.map((listing) => ({ account: listing.account, tweets: listing.posts })),
     collectedAt: now,
     timeBounds,

@@ -1,8 +1,8 @@
-# Errata for the v1.1 language edition
+# Errata
 
-This note lists claims that v1.1 states differently from v1.0 (2026-08-13). Wording changes that keep the same claim are not listed. The paper text is not a silent edit of those claims. Section numbers are unchanged.
+This note lists claims that v1.1 states differently from v1.0 (2026-08-13). Wording changes that keep the same claim are not listed. The paper text is not a silent edit of those claims. Section numbers are unchanged. The v1.2 section lists the claim that changed after v1.1.
 
-The reference implementation was read at `main` `ea21dfa` on 2026-10-15.
+The reference implementation was read at `main` `ea21dfa` on 2026-10-15. Items 1 to 8 record the v1.1 corrections from that revision. Item 9 records the archive encryption in this edition.
 
 ## Corrected descriptions of the reference implementation
 
@@ -23,6 +23,10 @@ The reference implementation was read at `main` `ea21dfa` on 2026-10-15.
 7. **Cited appendices.** v1.0 points at Appendix B and Appendix D. `paper/` has no appendix files. v1.1 says those texts are not in this deposit. Prompt versions are in `docs/PROMPT-VERSIONS.md`. The manifest is line-oriented JSON, as §3.1.2 describes.
 
 8. **Triage parse failure (§7.5.2).** v1.0 does not say what happens when the triage output cannot be parsed. The reference implementation sends that pair to the reasoning model. It does not treat the failure as insufficient. v1.1 states that rule.
+
+## v1.2
+
+9. **Archive encryption (§3.5).** v1.1 says the reference implementation does not encrypt archived artifacts. Those artifacts stay content-addressed and unencrypted in that edition. v1.2 encrypts the artifact bytes and the manifest lines under the investigation key. The content address is still the SHA-256 hash of the plaintext bytes. The stored object is ciphertext.
 
 ## Not changed
 

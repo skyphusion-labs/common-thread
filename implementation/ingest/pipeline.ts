@@ -117,7 +117,7 @@ export async function runTwitterIngestPipeline(
   const handles = ctx.handles ?? extractAllHandlesFromApifyTwitter(ctx.payload);
   const archiveEnv = manifestBinding(env);
 
-  const manifest = manifestStoreFor(archiveEnv, ctx.investigationId);
+  const manifest = manifestStoreFor(archiveEnv, ctx.investigationId, ctx.encKey ?? null);
 
   await manifest.append({
     hash: ctx.rawHash,
@@ -157,6 +157,7 @@ export async function runTwitterIngestPipeline(
 
   const timelineArchive = await archiveAccountTimelines(archiveEnv, {
       investigationId: ctx.investigationId,
+      encKey: ctx.encKey ?? null,
       timelines,
       collectedAt: now,
       timeBounds,
@@ -166,6 +167,7 @@ export async function runTwitterIngestPipeline(
 
   const recollection = await runTimelineRecollection(archiveEnv, env.db, {
     investigationId: ctx.investigationId,
+    encKey: ctx.encKey ?? null,
     timelines,
     priorTimelineByAccount,
     discoveredAt: now,
@@ -174,6 +176,7 @@ export async function runTwitterIngestPipeline(
   const profiles = aggregateProfilesFromParsedTweets(parsedTweets);
   const profileArchive = await archiveAccountProfiles(archiveEnv, {
       investigationId: ctx.investigationId,
+      encKey: ctx.encKey ?? null,
       profiles,
       collectedAt: now,
     }
@@ -190,6 +193,7 @@ export async function runTwitterIngestPipeline(
   ]);
   const imageCorpusArchive = await archivePostedImageCorpora(archiveEnv, {
       investigationId: ctx.investigationId,
+      encKey: ctx.encKey ?? null,
       corpora: allImageCorpora,
       collectedAt: now,
     }
@@ -197,6 +201,7 @@ export async function runTwitterIngestPipeline(
 
   const exifCorpusArchive = await archiveExifCorpora(archiveEnv, {
       investigationId: ctx.investigationId,
+      encKey: ctx.encKey ?? null,
       corpora: exifCorpora,
       collectedAt: now,
     }
@@ -204,6 +209,7 @@ export async function runTwitterIngestPipeline(
 
   const colorPaletteArchive = await archiveColorPaletteCorpora(archiveEnv, {
     investigationId: ctx.investigationId,
+    encKey: ctx.encKey ?? null,
     corpora: colorPaletteCorpora,
     collectedAt: now,
   });
@@ -211,6 +217,7 @@ export async function runTwitterIngestPipeline(
   const networkLists = extractNetworkListsFromPayload(ctx.payload);
   const networkArchive = await archiveNetworkLists(archiveEnv, {
       investigationId: ctx.investigationId,
+      encKey: ctx.encKey ?? null,
       lists: networkLists,
       collectedAt: now,
     }

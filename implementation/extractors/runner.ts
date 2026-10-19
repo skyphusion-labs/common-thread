@@ -11,7 +11,7 @@
  * should produce the same feature rows (modulo timestamps).
  */
 
-import { ArchiveStore } from '../archive/store';
+import { openArchiveStore } from '../archive/store';
 import { ManifestStore } from '../archive/manifest';
 import type { DatabaseClient } from '../db';
 import { packFeatureCell } from '../crypto/feature-cells';
@@ -82,8 +82,12 @@ export async function runAccountExtractors(
   env: RunnerEnv,
   options: RunAccountExtractorsOptions
 ): Promise<ExtractorRunResult[]> {
-  const archive = new ArchiveStore({ bucket: env.ARCHIVE });
-  const manifest = new ManifestStore({ bucket: env.ARCHIVE, investigationId: options.investigationId });
+  const archive = openArchiveStore(env.ARCHIVE, options.investigationId, options.encKey);
+  const manifest = new ManifestStore({
+    bucket: env.ARCHIVE,
+    investigationId: options.investigationId,
+    encKey: options.encKey ?? null,
+  });
 
   const manifestHash = await manifest.manifestHash();
   if (!manifestHash) {

@@ -565,7 +565,10 @@ async function handleDeleteInvestigation(ctx: RouteContext): Promise<Response> {
     // Assert committed-active before touching R2. Purging first then failing
     // the seal check would delete a sealed investigation's manifest (#277).
     await assertInvestigationActiveForWrite(env.DB, investigationId);
-    const archive = await purgeInvestigationArchive(env.ARCHIVE, investigationId);
+    const archive = await purgeInvestigationArchive(
+      resolveArchiveBucket(env),
+      investigationId
+    );
     const result = await deleteInvestigationData(env.DB, investigationId);
     if (!result.deleted) {
       return jsonResponse({ error: `Investigation not found: ${investigationId}` }, 404);
@@ -576,7 +579,7 @@ async function handleDeleteInvestigation(ctx: RouteContext): Promise<Response> {
       tables_purged: result.tablesPurged,
       archive_keys_deleted: archive.deletedKeys,
       archive_policy:
-        'Content-addressed sha256/ blobs are retained (global deduplicated storage).',
+        'Encrypted artifacts under investigations/{id}/artifacts/ are deleted. Legacy sha256/ blobs are retained.',
     });
   } catch (err) {
     if (err instanceof InvestigationAccessError) {
@@ -673,8 +676,41 @@ async function handleInternalManifestAppend(ctx: RouteContext): Promise<Response
     throw err;
   }
 
-  const body = await parseJsonBody<{ entry?: ManifestEntry }>(request);
+  const body = await parseJsonBody<{ entry?: ManifestEntry; line?: string }>(request);
   if (body instanceof Response) return body;
+
+  const manifest = manifestStoreFor(
+    { ARCHIVE: env.ARCHIVE, MANIFEST_COORDINATOR: env.MANIFEST_COORDINATOR },
+    investigationId
+  );
+
+  // A prepared line is stored as-is. The caller (the ingest container) already
+  // encrypted it when the investigation has a key. The Worker does not hold
+  // that key on this route. Ciphertext is larger than the plaintext cap, so
+  // the prepared-line cap is twice the entry cap.
+  if (typeof body.line === 'string') {
+    const lineBytes = new TextEncoder().encode(body.line).byteLength;
+    const lineLimit = MAX_MANIFEST_ENTRY_BYTES * 2;
+    if (lineBytes > lineLimit) {
+      return jsonResponse(
+        {
+          error: 'entry too large',
+          code: 'entry_too_large',
+          limit: lineLimit,
+          attempted: lineBytes,
+        },
+        400
+      );
+    }
+    try {
+      await manifest.writeLine(body.line);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'bad manifest line';
+      return jsonResponse({ error: message, code: 'bad_manifest_line' }, 400);
+    }
+    return new Response(null, { status: 204 });
+  }
+
   if (!body.entry || typeof body.entry !== 'object') {
     return jsonResponse({ error: 'entry is required' }, 400);
   }
@@ -695,10 +731,6 @@ async function handleInternalManifestAppend(ctx: RouteContext): Promise<Response
     );
   }
 
-  const manifest = manifestStoreFor(
-    { ARCHIVE: env.ARCHIVE, MANIFEST_COORDINATOR: env.MANIFEST_COORDINATOR },
-    investigationId
-  );
   await manifest.append(body.entry);
   return new Response(null, { status: 204 });
 }
@@ -795,7 +827,11 @@ async function handleSummary(ctx: RouteContext): Promise<Response> {
     [investigationId]
   );
 
-  const manifest = new ManifestStore({ bucket: env.ARCHIVE, investigationId });
+  const manifest = new ManifestStore({
+    bucket: env.ARCHIVE,
+    investigationId,
+    encKey: ctx.encKey ?? null,
+  });
   const artifacts = await manifest.list();
 
   return jsonResponse({
@@ -811,6 +847,7 @@ async function handleListManifest(ctx: RouteContext): Promise<Response> {
   const entries = await new ManifestStore({
     bucket: env.ARCHIVE,
     investigationId,
+    encKey: ctx.encKey ?? null,
   }).list();
   return jsonResponse({ investigationId, entries, count: entries.length });
 }
@@ -846,7 +883,11 @@ async function handleDebugIngest(ctx: RouteContext): Promise<Response> {
   const { env } = ctx;
   const investigationId = ctx.investigationId;
 
-  const manifest = new ManifestStore({ bucket: env.ARCHIVE, investigationId });
+  const manifest = new ManifestStore({
+    bucket: env.ARCHIVE,
+    investigationId,
+    encKey: ctx.encKey ?? null,
+  });
   const allEntries = await manifest.list();
   const entriesWithAccount = allEntries.filter((e) => e.account);
 
@@ -881,6 +922,7 @@ async function handleDebugManifest(ctx: RouteContext): Promise<Response> {
   const entries = await new ManifestStore({
     bucket: env.ARCHIVE,
     investigationId,
+    encKey: ctx.encKey ?? null,
   }).list();
   const withAccount = entries.filter((e) => e.account);
   const withoutAccount = entries.filter((e) => !e.account);

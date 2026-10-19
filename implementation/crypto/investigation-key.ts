@@ -12,13 +12,16 @@
  *
  * The encryption key is derived in Worker memory for the lifetime of a request
  * that presents the token, and is NEVER persisted. The server stores only
- * ciphertext plus the auth hash, so an at-rest dump of the database yields no
- * plaintext of the encrypted analytic payload, and losing the token makes an
- * encrypted investigation permanently unrecoverable by design (zero-knowledge;
- * no operator escrow). This protects against database exfiltration; it does NOT
- * protect against a compromised live Worker while a request holds the key, and
- * it deliberately leaves structural metadata (account identifiers, platforms,
- * timestamps, coarse confidence band) queryable in plaintext. See §3.5 and §10.
+ * ciphertext plus the auth hash. An at-rest dump of the database or of the
+ * archive bucket yields no plaintext of the analytic payload and no plaintext
+ * of the archived artifact bytes. Losing the token makes an encrypted
+ * investigation permanently unrecoverable by design (zero-knowledge; no
+ * operator escrow). This does NOT protect against a compromised live Worker
+ * while a request holds the key. It deliberately leaves structural metadata
+ * (account identifiers, platforms, timestamps, coarse confidence band)
+ * queryable in plaintext. The archive object key still contains the plaintext
+ * hash, so a host can test whether a known artifact was stored. See §3.5
+ * and docs/ENCRYPTION-AT-REST.md.
  *
  * Threat boundary and rationale are documented in
  * docs/ENCRYPTION-AT-REST.md and paper/03-evidentiary-framework.md §3.5.
