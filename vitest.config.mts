@@ -105,6 +105,11 @@ const nodeSuites = [
   'tests/attribution/async-dispatch.test.ts',
   // Pure unit suites that import ingest/archive modules (avoid workers-pool mysql2 load).
   'tests/extractors/profile-banner-visual.test.ts',
+  // Web worker is plain JS with node:vm; workers pool cannot load node:fs.
+  'tests/web/hosted-maintenance.test.ts',
+  // Deploy-gate matrix (#340): shells out to the gate script with
+  // node:child_process, which the workers pool cannot do.
+  'tests/deploy/require-wrangler-flag.test.ts',
   // Pure stylometric unit suites (no Workers runtime / wrangler bindings).
   'tests/extractors/jsd-distributions.test.ts',
   'tests/extractors/code-switching.test.ts',

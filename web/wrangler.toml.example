@@ -71,6 +71,10 @@ PUBLIC_URL = "https://common-thread.skyphusion.org"
 # path. Set to "true" for the hosted deploy. Leave unset for self-host, where the
 # backend may supply AI_GATEWAY_URL + CF_AIG_TOKEN/ANTHROPIC_API_KEY as secrets.
 PUBLIC_BYOK_ONLY = "1"   # "1" or "true"; same truthiness as backend (#201)
+# Hosted database and container tier are suspended. The public UI refuses
+# Create and does not treat Worker GET / as a healthy backend. Leave unset
+# for self-host and for env.operator.
+HOSTED_MAINTENANCE = "1"
 # DEFAULT_BACKEND_URL only if BACKEND service binding is unavailable
 
 [[env.production.routes]]

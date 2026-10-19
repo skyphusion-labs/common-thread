@@ -114,8 +114,8 @@ jobs:
           # Fail closed if the public BYOK gate is missing from escrow (#187).
           # A silent omit of PUBLIC_BYOK_ONLY re-opens host-credential fallback
           # messaging (503 + "server-side" UI) on the next tag deploy.
-          if ! grep -E '^\s*PUBLIC_BYOK_ONLY\s*=' wrangler.ci.toml | grep -Eq '["'\'']?(1|true)["'\'']?'; then
-            echo "::error::COMMON_THREAD_BACKEND_WRANGLER must set PUBLIC_BYOK_ONLY=1 (or true) under [env.production.vars]"
+          if ! .github/scripts/require-wrangler-flag.sh \
+            wrangler.ci.toml production PUBLIC_BYOK_ONLY COMMON_THREAD_BACKEND_WRANGLER; then
             rm -f wrangler.ci.toml
             exit 1
           fi
@@ -133,8 +133,15 @@ jobs:
             exit 1
           }
           printf '%s' "$COMMON_THREAD_WEB_WRANGLER" > web/wrangler.ci.toml
-          if ! grep -E '^\s*PUBLIC_BYOK_ONLY\s*=' web/wrangler.ci.toml | grep -Eq '["'\'']?(1|true)["'\'']?'; then
-            echo "::error::COMMON_THREAD_WEB_WRANGLER must set PUBLIC_BYOK_ONLY=1 (or true) under [env.production.vars]"
+          if ! .github/scripts/require-wrangler-flag.sh \
+            web/wrangler.ci.toml production PUBLIC_BYOK_ONLY COMMON_THREAD_WEB_WRANGLER; then
+            rm -f web/wrangler.ci.toml
+            exit 1
+          fi
+          # The public UI must not offer Create while the database and
+          # container tier are suspended. Operator deploy does not use this step.
+          if ! .github/scripts/require-wrangler-flag.sh \
+            web/wrangler.ci.toml production HOSTED_MAINTENANCE COMMON_THREAD_WEB_WRANGLER; then
             rm -f web/wrangler.ci.toml
             exit 1
           fi
