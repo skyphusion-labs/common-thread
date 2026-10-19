@@ -270,6 +270,36 @@ DEFAULT_BACKEND_URL = "http://127.0.0.1:8787"
   `env.operator` leave it unset. A tag deploy of the public web worker
   refuses to ship unless `COMMON_THREAD_WEB_WRANGLER` sets that var.
 
+**Escrow flag gates (`.github/scripts/require-wrangler-flag.sh`)**
+
+`PUBLIC_BYOK_ONLY` and `HOSTED_MAINTENANCE` are both required to be truthy at
+tag-deploy time. One script checks both, for the backend and the web worker:
+
+```
+.github/scripts/require-wrangler-flag.sh <toml> <env> <KEY> <SECRET_NAME>
+```
+
+It resolves the value from `[env.<env>.vars]` and nowhere else, strips any
+trailing comment before it looks at the value, and then compares the whole
+value against `1` or `true` after a trim and a lowercase. That matches
+`isTruthyFlag()` in `web/worker.js` exactly; change the two together or the
+gate starts accepting a value the runtime rejects.
+
+There is deliberately NO fallback to top-level `[vars]`. wrangler does not
+inherit `vars` into a named environment, and it does not fall back per key
+when `[env.production.vars]` exists but omits one. Verified with wrangler
+4.149.0 (`deploy --env production --dry-run`): a config with the flag only at
+the top level reports `No bindings found`, so the production Worker would run
+with the flag UNSET. A flag set under `[env.staging.vars]`,
+`[env.operator.vars]` or top-level `[vars]` therefore FAILS the gate.
+
+The script never prints the resolved value. These TOML files come from Actions
+secrets and this repo is public, so only the verdict reaches the log.
+
+`tests/deploy/require-wrangler-flag.test.ts` holds the config matrix, asserted
+in both directions so the gate is shown going red on a bad config and green on
+a good one.
+
 **Hyperdrive local dev**
 
 - Set `localConnectionString` on `[[hyperdrive]]` or export
