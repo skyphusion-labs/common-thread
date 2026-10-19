@@ -180,6 +180,23 @@ describe('require-wrangler-flag.sh fails closed on a bad config', () => {
   });
 });
 
+describe('CRLF line endings, which a secret pasted through a browser can carry', () => {
+  function writeCrlf(name: string, flagLine: string): string {
+    const body = ['name = "ct-web"', '', '[env.production.vars]', 'PUBLIC_URL = "https://x.test"', flagLine].join('\r\n');
+    const path = join(work, `${name}.toml`);
+    writeFileSync(path, `${body}\r\n`);
+    return path;
+  }
+
+  it('still passes a truthy value', () => {
+    expect(runGate(writeCrlf('crlf-truthy', 'HOSTED_MAINTENANCE = "1"'))).toBe(PASS);
+  });
+
+  it('still fails a falsy value with a truthy-looking comment', () => {
+    expect(runGate(writeCrlf('crlf-falsy', 'HOSTED_MAINTENANCE = "0"   # "1" or "true"'))).not.toBe(PASS);
+  });
+});
+
 describe('the gate reports the scope its error message names', () => {
   it('names [env.production.vars] and says why another scope does not count', () => {
     const path = writeConfig('msg-staging-only', { staging: 'HOSTED_MAINTENANCE = "1"' });
