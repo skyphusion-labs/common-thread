@@ -68,7 +68,7 @@ To prevent inquiries that the project is not equipped to handle:
 
 **The author is not a journalist.** Inquiries about specific networks or operators that would constitute investigative-journalism work are not within the project's scope. The methodology is intended to support such work by others, not to substitute for it.
 
-**The project is not a service.** Nobody runs Common Thread on the project's behalf. There is no instance to grant access to, no account to recover, no investigation the project can look up, and no data the project holds for anyone. If you ran an investigation on the hosted instance before 2026-11-09, see [PRIVACY.md](PRIVACY.md) and [TERMS.md](TERMS.md) for what is and is not confirmed about that material.
+**The project is not a service.** Nobody runs Common Thread on the project's behalf. There is no instance to grant access to, no account to recover, no investigation the project can look up, and no data the project holds for anyone. If you ran an investigation on the hosted instance before 2026-11-09, see [PRIVACY.md](PRIVACY.md) and [TERMS.md](TERMS.md): no Common Thread user data exists (Conrad, 2026-11-09).
 
 ## Encrypted communication
 

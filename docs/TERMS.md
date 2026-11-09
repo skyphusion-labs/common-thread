@@ -37,15 +37,18 @@ never linked it. No visitor was ever bound by it, and nothing in it creates an o
 
 What a past visitor should know:
 
-- The instance and its data stores were torn down. [PRIVACY.md](PRIVACY.md) says what is and is
-  not confirmed about the material you uploaded.
+- **No Common Thread user data exists.** Conrad, the operator, 2026-11-09: "there is no common
+  thread data". The MySQL database behind Hyperdrive was destroyed with the Hetzner fleet,
+  cancelled September 2026; the Cloudflare stores (the R2 archive bucket, D1, Hyperdrive) were
+  deleted on 2026-11-09. [PRIVACY.md](PRIVACY.md) has the detail.
 - An access token from the hosted instance opens nothing. There is nothing left for it to open.
 - Evidence packets you downloaded are your copies, and they are the only copies. A signed packet
   carries its own public key in `packet_signature` and still verifies offline with
   `npx -y @skyphusion/common-thread-verify <packet.json>` ([COMPONENTS.md](COMPONENTS.md)).
-  That check proves the packet is intact and matches the key inside it; it does not by itself
-  prove the key belonged to the retired instance, because that instance never published its
-  signer public key.
+  That check proves the packet is intact and matches the key inside it. It does not bind the
+  packet to the retired instance: the instance's signing key, where one was configured, was a
+  Worker secret (`SIGNER_PRIVATE_KEY`, set with `wrangler secret put`, never a tracked file) and
+  was destroyed with the Worker on 2026-11-09, and no public half was ever published.
 
 ---
 

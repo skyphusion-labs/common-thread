@@ -30,23 +30,31 @@ and this document said so. As of 2026-11-09 it is true.
 
 ## If you used the hosted instance before 2026-11-09
 
-- **What was torn down**, per the operator's own record
-  ([#349](https://github.com/skyphusion-labs/common-thread/pull/349)): the Workers, the custom
-  domains and DNS, the Access application, the Hyperdrive connection, D1 and the R2 archive
-  bucket. The R2 bucket held the archive (uploads, timelines, manifests), so that material is gone
-  with it.
-- **What this document does not confirm.** The investigation database behind Hyperdrive was MySQL
-  on a separate host (section 7 below), and the historical section 8 warned that provider backups
-  and snapshots are copies deletion does not reach. Whether that database and any backup of it
-  were destroyed is not established by the records this document is written from.
-  `[CONFIRM, Conrad: MySQL host and any backups or snapshots destroyed, with the date.]` Until it
-  is confirmed, this document says "torn down", not "erased".
+**No Common Thread user data exists.** Conrad, the operator, 2026-11-09: "there is no common
+thread data". Specifically:
+
+- The investigation database (MySQL, reached through Hyperdrive; section 7 below) ran on the
+  Hetzner fleet. That fleet was cancelled in September 2026 and the host was destroyed with it,
+  database included.
+- The Cloudflare stores were deleted on 2026-11-09: the R2 archive bucket (uploads, timelines,
+  manifests), D1, the Hyperdrive connection, the Workers, the custom domains and DNS, and the
+  Access application ([#349](https://github.com/skyphusion-labs/common-thread/pull/349) records the
+  inventory).
+- Edge request logs (historical section 3) were the infrastructure provider's, under its own
+  retention; the project never held them.
+
+Consequences:
+
 - **Searches are no longer possible.** Historical section 9 offered to search the unencrypted
-  records for a handle. There are no records to search and no system to search them with.
+  records for a handle. There are no records and no system to search them with.
 - **Access tokens** open nothing. Encrypted content was readable only with the token and only
-  through the instance; with the instance gone it is readable by nobody.
+  through the instance; the instance and the data are both gone.
 - **Evidence packets you downloaded** are the only copies and remain yours. See
-  [TERMS.md](TERMS.md) for how they still verify offline.
+  [TERMS.md](TERMS.md) for how they still verify offline, and why they cannot be bound to the
+  retired instance.
+- **No notice beyond this repository.** There was never an account, name or email on file, so
+  there is nobody to write to, and there is no data a notice could concern. This document is the
+  notice.
 
 ---
 

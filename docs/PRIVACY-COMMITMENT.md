@@ -64,8 +64,8 @@ From v0.1.2 until 2026-11-09 Skyphusion Labs ran a public instance at
 `common-thread.skyphusion.org`, offered as a public good so that someone who could not stand up
 their own deployment was not locked out. That put this repository in a small minority of products
 where Skyphusion Labs was in the data path, and the earlier revision of this file said so rather
-than reach for the self-host argument. The instance was torn down on 2026-11-09;
-[PRIVACY.md](PRIVACY.md) records what that is and is not confirmed to have destroyed.
+than reach for the self-host argument. The instance was torn down on 2026-11-09 and no Common Thread user data exists
+(Conrad, 2026-11-09: "there is no common thread data"); [PRIVACY.md](PRIVACY.md) has the detail.
 
 > The canonical table at the hub listed Common Thread among the hosted products. That row is now
 > history and the hub document owes an update; it is flagged, not changed from here.
