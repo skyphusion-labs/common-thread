@@ -12,7 +12,8 @@ confidence bands** -- `insufficient`, `consistent`, `strongly_consistent`. It
 stops at cluster-level attribution by design; it never identifies natural
 persons.
 
-**Hosting:** none. The hosted public UI (`common-thread.skyphusion.org`) was retired 2026-11-09 (Conrad: completely torn down); the URL no longer resolves. Self-host only.
+**Hosting:** none. The hosted public UI (`common-thread.skyphusion.org`) and API
+(`common-thread-backend.skyphusion.org`) were retired 2026-11-09 (Conrad: completely torn down); those URLs no longer resolve. Self-host only.
 
 **Status:** live product; root `package.json` is the version pin (currently **0.5.0** train; trust
 `package.json` + git tags, do not hardcode a frozen cut here). Pre-1.0 SemVer. Aviation-grade
@@ -44,15 +45,18 @@ because priority sits elsewhere.
 **`@skyphusion/common-thread-mcp`** (MIT, separate public repo
 [common-thread-mcp](https://github.com/skyphusion-labs/common-thread-mcp)): stdio MCP server with
 website/API parity (investigations, seeds, ingest, BYOK attribute, packets, archive). Install:
-`npx -y @skyphusion/common-thread-mcp`. Points at `COMMON_THREAD_API_URL` (default hosted backend).
+`npx -y @skyphusion/common-thread-mcp`. It reads `COMMON_THREAD_API_URL`. The package's old default was the hosted backend; that hostname does not resolve (retired 2026-11-09). Point it at your own deployment. This repo does not ship that default (`docs/API-OPENNESS-DECISION.md`).
 
 
 ### Hosted public gate (load-bearing)
 
-Public prod runs **`PUBLIC_BYOK_ONLY=1` fail-closed**: host AI secrets are not
-used for visitor attribution; callers must supply BYOK (AI Gateway / Anthropic).
-Deploy CI asserts the var is present in wrangler escrow before a tag deploy.
-See `docs/DEPLOYMENT.md` and `docs/PUBLIC-RELEASE.md`.
+There is no hosted public prod. Hosting was retired 2026-11-09; the public UI
+and API hostnames do not resolve (`README.md`, `docs/TERMS.md`). Self-host only.
+
+A `v[0-9]*` tag deploy still fail-closes unless production wrangler escrow sets
+`PUBLIC_BYOK_ONLY` and, on the web worker, `HOSTED_MAINTENANCE` (Create stays
+off). See `.github/workflows/deploy.yml`, `.github/scripts/require-wrangler-flag.sh`,
+and `docs/DEPLOYMENT.md`. Self-host leaves `HOSTED_MAINTENANCE` unset.
 
 Encrypted investigations use **VPC key-on-dispatch** (`inv-enc-handoff`): the
 Worker seals the investigation key under `INGEST_SECRET` and hands it to VPC
@@ -62,7 +66,7 @@ Detail: `docs/ENCRYPTION-AT-REST.md`.
 ## Commands
 
 ```bash
-npm test                 # vitest (one-shot) via @cloudflare/vitest-pool-workers
+npm test                 # vitest run: Workers pool plus a Node project (MySQL)
 npx vitest run tests/reasoner/runner.test.ts   # single test file
 npm run typecheck        # tsc --noEmit  (NOT run by vitest -- esbuild skips types)
 
@@ -240,8 +244,12 @@ these rather than re-deriving pair ordering or column packing.
 
 Integration tests use **MySQL** (`TEST_MYSQL_URL`, default
 `mysql://root@127.0.0.1:3306/common_thread_test`) via `tests/helpers/mysql.ts`.
-`tests/setup.ts` applies `mysql-schema.sql` once before tests run. R2 and
-`fetchMock` still use `@cloudflare/vitest-pool-workers` / `cloudflare:test`.
+`tests/global-setup.ts` applies `mysql-schema.sql` once before tests run
+(`vitest.config.mts` `globalSetup`). There is no `tests/setup.ts`. DB-backed
+suites run in the Node project with in-memory R2 (`tests/helpers/fake-r2.ts`)
+and an undici `fetchMock` shim (`tests/helpers/undici-mock.ts`), not
+`cloudflare:test`. Pure Workers-runtime suites still use
+`@cloudflare/vitest-pool-workers`.
 
 - LLM calls never hit the network: `fetchMock` intercepts the stubbed gateway.
   Helpers: `tests/helpers/db.ts`, `llm.ts`, `test-env.ts`.
@@ -287,13 +295,15 @@ tags** for the current cut; do not hardcode a frozen version in this file.
 
 ## Release / tagging
 
-**TAG-GATED deploy.** `.github/workflows/deploy.yml` runs on pushed `v*` tags (prod backend + web
-Workers). A bare merge to `main` does **not** redeploy production. Tag should match root
-`package.json` version (`vX.Y.Z` == `X.Y.Z`).
+**TAG-GATED deploy.** `.github/workflows/deploy.yml` runs on pushed `v[0-9]*` tags (prod backend + web
+Workers). A bare merge to `main` does **not** redeploy production. `verify-v*` does not match
+that filter. Tag should match root `package.json` version (`vX.Y.Z` == `X.Y.Z`).
+The production web escrow must set `HOSTED_MAINTENANCE` or the tag deploy refuses to ship.
 
-Operator instance (`--env operator`) is **manual only**: `workflow_dispatch` with
-`deploy_operator=true`. Never auto-fires on push. See private
-`fleet-chezmoi/system/common-thread/RUNBOOK-ops-instance.md`.
+The hosted operator instance (`common-thread-ops.skyphusion.org`) was torn down with the
+rest of hosting on 2026-11-09 (`docs/TERMS.md`). `deploy.yml` still has a `workflow_dispatch`
+input `deploy_operator` (it never auto-fires on push). That is not a live host. The old
+runbook is private `fleet-chezmoi/system/common-thread/RUNBOOK-ops-instance.md`.
 
 Image workflows (attribution/pdf/ingest) push GHCR on `v*` or `workflow_dispatch`, not on bare main
 push.
