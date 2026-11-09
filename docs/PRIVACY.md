@@ -1,13 +1,63 @@
-# Privacy (hosted instance)
+# Privacy (historical: the hosted instance, retired 2026-11-09)
 
-> **Status: DRAFT revision for review (#318).** It replaces the v0.1.2 disclosure, which left out
-> or misstated several things the code does. It is a plain description of what the hosted
-> instance does with data, written to be checked against the source.
+> **Status: HISTORICAL. There is no hosted instance.** Skyphusion Labs retired all Common Thread
+> hosting on 2026-11-09. The project operates no instance, collects no data through one, and
+> offers no hosted API. The former URLs (`common-thread`, `common-thread-backend` and
+> `common-thread-ops` under `skyphusion.org`) no longer resolve.
 
 > **Not legal advice, and not a compliance certification.** Written by Ernst (Conrad's
 > legal-affairs helper, who is named after a lawyer and is not one). It does not certify
-> compliance with GDPR, CCPA/CPRA or any other law. Sections marked **COUNSEL** need a licensed
-> lawyer. Sections marked **DECISION** wait on a call that is Conrad's alone.
+> compliance with GDPR, CCPA/CPRA or any other law. Items marked **COUNSEL** need a licensed
+> lawyer; items marked **DECISION** are Conrad's.
+
+## What applies now
+
+**We hold no visitor data, because there is nothing to visit.** The product-wide
+[privacy commitment](PRIVACY-COMMITMENT.md) makes a self-host argument: no hosted instance, so no
+user data at Skyphusion Labs. For Common Thread that argument was false while the instance ran,
+and this document said so. As of 2026-11-09 it is true.
+
+- **If you run an instance**, you are the operator and the data path is yours. The code's data
+  handling has not changed: everything the historical sections below say the instance held,
+  derived, encrypted and could not delete is what the code does for whoever runs it. Read "we" as
+  "the operator", use the inventory to write your own disclosure, and make the DECISION items
+  (retention, EXIF GPS, follower lists, author registration, log retention, region and backups)
+  your own calls. `docs/ENCRYPTION-AT-REST.md` has the threat model.
+- **If you only read the code or the paper**, nothing is collected. The repository is on GitHub,
+  which has its own privacy policy for what it logs about you.
+- **This project's own channels**: writing to `common-thread@skyphusion.org` or opening a GitHub
+  issue gives us what you send and nothing more ([contact.md](contact.md)).
+
+## If you used the hosted instance before 2026-11-09
+
+- **What was torn down**, per the operator's own record
+  ([#349](https://github.com/skyphusion-labs/common-thread/pull/349)): the Workers, the custom
+  domains and DNS, the Access application, the Hyperdrive connection, D1 and the R2 archive
+  bucket. The R2 bucket held the archive (uploads, timelines, manifests), so that material is gone
+  with it.
+- **What this document does not confirm.** The investigation database behind Hyperdrive was MySQL
+  on a separate host (section 7 below), and the historical section 8 warned that provider backups
+  and snapshots are copies deletion does not reach. Whether that database and any backup of it
+  were destroyed is not established by the records this document is written from.
+  `[CONFIRM, Conrad: MySQL host and any backups or snapshots destroyed, with the date.]` Until it
+  is confirmed, this document says "torn down", not "erased".
+- **Searches are no longer possible.** Historical section 9 offered to search the unencrypted
+  records for a handle. There are no records to search and no system to search them with.
+- **Access tokens** open nothing. Encrypted content was readable only with the token and only
+  through the instance; with the instance gone it is readable by nobody.
+- **Evidence packets you downloaded** are the only copies and remain yours. See
+  [TERMS.md](TERMS.md) for how they still verify offline.
+
+---
+
+## Historical disclosure: the hosted instance (retired 2026-11-09)
+
+> Kept as a record, with its section numbers unchanged so that earlier references
+> ([#318](https://github.com/skyphusion-labs/common-thread/issues/318),
+> [#331](https://github.com/skyphusion-labs/common-thread/issues/331)) still land, and because it
+> is the most complete description of what the code does with data. It was a draft revision under
+> review when the instance was retired; it was never finalised. "We" below means the operator of
+> an instance that no longer exists; for a self-hosted deployment it means you.
 
 ## The short version
 
@@ -20,8 +70,8 @@ what we hold, what is encrypted and what is not, and what we cannot delete.
 
 ## Scope
 
-This covers **only the hosted instance** at
-[common-thread.skyphusion.org](https://common-thread.skyphusion.org) (API:
+This covered **only the hosted instance** (retired 2026-11-09) at
+`common-thread.skyphusion.org` (API:
 `common-thread-backend.skyphusion.org`). If you self-host, none of it applies: you run your own
 instance and set your own posture. The AGPL-3.0 governs the code, not your data handling.
 
@@ -220,5 +270,5 @@ and it is public.
 
 ---
 
-**Status:** DRAFT revision for review (#318). Where this document and the code disagree, the code
+**Status:** HISTORICAL draft revision; the hosted instance it described was retired 2026-11-09 (#318, #351). Where this document and the code disagree, the code
 is what actually happens, and the document is the defect.

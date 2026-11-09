@@ -1,5 +1,17 @@
 # Decision needed: UI-public vs API-public
 
+> **Resolved by events, 2026-11-09.** Skyphusion Labs retired all Common Thread hosting on
+> 2026-11-09. There is no hosted UI and no hosted API, so the UI-public versus API-public question
+> this note posed has no object. No option below was ever formally chosen; option 1 was the
+> working default stated in the historical draft terms (TERMS.md section 12). The note is kept as a
+> record of the reasoning. The HTTP API is documented in [API.md](API.md) for self-hosted
+> deployments, where its openness is the operator's call.
+>
+> One live consequence outside this repository: the MCP server
+> (`@skyphusion/common-thread-mcp`, separate repo) defaulted `COMMON_THREAD_API_URL` to the
+> hosted backend. That default now points at a hostname that does not resolve. Flagged, not fixed
+> here.
+
 **DRAFT decision note (Ernst, #187). Nothing here changes the current stance.**
 This flags a distinction #187 has to resolve and lays out options. **Conrad
 decides;** I am not flipping the API stance unilaterally.
@@ -7,7 +19,7 @@ decides;** I am not flipping the API stance unilaterally.
 ## The tension
 
 #187 opens the **web UI** publicly at
-[common-thread.skyphusion.org](https://common-thread.skyphusion.org) with BYOK
+`common-thread.skyphusion.org` with BYOK
 attribution. Two existing docs currently say the **API** is closed to unsolicited
 third-party use:
 
@@ -73,4 +85,4 @@ to merge).
 
 ---
 
-**Status:** DRAFT, DECISION PENDING. No stance changed. Ernst, #187.
+**Status:** HISTORICAL. Resolved by events: hosting retired 2026-11-09 (#351). No decision was ever taken. Ernst, #187.
