@@ -55,7 +55,7 @@ cp web/wrangler.toml.example web/wrangler.toml
 **Backend bindings:** `DB` (Hyperdrive), `ARCHIVE` (R2). Optional:
 `VPC_INGEST`, `VPC_PDF` for production-scale ingest and PDF export.
 
-**Web bindings:** `BACKEND` (service binding → backend Worker name). Production:
+**Web bindings:** `BACKEND` (service binding → backend Worker name). Production (retired 2026-11-09, Conrad; these hostnames no longer resolve):
 UI https://common-thread.skyphusion.org · API https://common-thread-backend.skyphusion.org
 
 **Hosted API use:** The production API is not open for unsolicited third-party

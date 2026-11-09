@@ -10,11 +10,9 @@ and how practitioners should plan around both.
 
 ## Current maintainer
 
-**Skyphusion Labs** (Conrad Rockenhaus) maintains the public hosted instance at
-[common-thread.skyphusion.org](https://common-thread.skyphusion.org) and the
-reference implementation on GitHub during the v1 stabilization period.
+**Skyphusion Labs** (Conrad Rockenhaus) maintains the reference implementation on GitHub. The public hosted instance at `common-thread.skyphusion.org` was retired 2026-11-09 and no longer resolves.
 
-The hosted database and container tier are suspended. The public page stays up and does not offer Create. Self-host is unchanged. There is no new host.
+Hosting was retired 2026-11-09 (Conrad: completely torn down): the Workers, database, container tier and DNS are gone. Self-host is unchanged. There is no new host.
 
 ## Bounded commitment (v1 window)
 
@@ -61,7 +59,7 @@ in `CONTRIBUTORS` or release notes is expected.
 
 | Surface | Operator | SLA |
 |---------|----------|-----|
-| [common-thread.skyphusion.org](https://common-thread.skyphusion.org) | Skyphusion Labs | Best-effort during bounded window |
+| `common-thread.skyphusion.org` (retired 2026-11-09) | none | none |
 | Self-hosted Worker + MySQL + R2 | You | Your ops |
 
 Self-hosters should not depend on the public API for production workflows without

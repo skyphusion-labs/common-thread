@@ -17,7 +17,7 @@ researchers who need documented methodology without platform-internal data or
 commercial OSINT tooling. Read the paper's audience exclusions (§1.2) before
 applying the methodology.
 
-**Hosted public UI:** https://common-thread.skyphusion.org (suspended: the database and the container tier are not running, and Create is disabled. Self-host still works.)  
+**Hosted public UI:** none. Hosting was retired 2026-11-09 (Conrad); `common-thread.skyphusion.org` no longer resolves. Self-host still works.  
 **Current release:** v0.5.0 (see [CHANGELOG.md](CHANGELOG.md)).
 
 ## Repository layout
@@ -132,9 +132,7 @@ volunteers are welcome via GitHub Discussions.
 v1 in active stabilization. Methodology paper complete. Backend Worker, web
 frontend, and optional VPC ingest/PDF containers are implemented.
 
-**Public UI:** https://common-thread.skyphusion.org
-
-**Public API:** https://common-thread-backend.skyphusion.org (see [docs/API.md](docs/API.md)).
+**Public UI / API:** none. Hosting was retired 2026-11-09 (Conrad); `common-thread.skyphusion.org` and `common-thread-backend.skyphusion.org` no longer resolve. The API is documented in [docs/API.md](docs/API.md) for self-hosted deploys.
 Using the hosted API in your own project requires prior contact with the
 operator -- email **common-thread@skyphusion.org** or see [docs/contact.md](docs/contact.md).
 To run your own instance without asking, self-host per `docs/SETUP.md`.
