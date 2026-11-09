@@ -18,52 +18,66 @@ traded against it; when a feature cannot be built without violating that, **we d
 the line**; public source is the audit mechanism that makes the promise checkable; and the CSAM and
 NCII bright line is the one stated exception.
 
-## Why the pointer sits here, and why this repo is unusual
+## How it applies to Common Thread now
 
-**Common Thread is one of the few products Skyphusion Labs hosts.** The others are Prism, at
-`play.skyphusion.org`, and the Vivijure hosted tier, which is pre-launch; the canonical document
-carries the complete table. Everything else we make is strictly self-host, permanently. The hosted
-instances are offered deliberately, **as a public good**: they exist so that someone who cannot stand
-up their own deployment is not thereby locked out. They are not the business model.
+**Common Thread is self-host only.** Skyphusion Labs retired all Common Thread hosting on
+2026-11-09. Nobody runs an instance on the project's behalf, the project collects no data through
+one, and there is no hosted API. So the commitment's self-host argument applies here in its plain
+form: there is no hosted instance, so there is no Common Thread user data at Skyphusion Labs.
 
-That puts this repository in a small minority: **we are actually in the data path here.** The
-commitment's self-host argument ("there is no hosted instance, so there is no user data at
-Skyphusion Labs") does not apply, and reaching for it would be a lie. What applies instead is the
-harder version: we hold real material, so we say exactly what, and we keep it to what the product
-mechanically needs.
+What the commitment asks of this repository is therefore what it asks of every self-host product:
+keep the source public so the promise stays checkable, keep the code to what the product
+mechanically needs, and say plainly what the code does with data so that an operator can write an
+honest disclosure. [PRIVACY.md](PRIVACY.md) is that description.
 
-For the public instance at `common-thread.skyphusion.org`, that means we hold the investigation
-material you upload, the features extracted from it, attribution results, and the evidence packets
-it generates. This is investigative material about real accounts, which makes it more sensitive than
-most of what we handle, not less.
+**If you run an instance, the data path is yours.** The code still holds investigation material,
+derived features, results and packets for whoever deploys it, and that is investigative material
+about real accounts, more sensitive than most of what the code family handles. The design choices
+below survive in the code and are yours to keep or drop.
 
-## The one thing we deliberately do not hold
+## The design choices that survive in the code
 
-**Attribution runs on your own Anthropic credentials, and we never hold them.** The key is read from
-the request, used for that request, and never written to a database or a log. The public instance
-carries no shared model key at all, so attribution **fails closed** until you supply your own rather
-than silently billing to a house account.
-
-That design is Section 1.2 of the commitment applied to a real decision: the easier product would
-have fronted a shared key and metered usage. Not holding your credentials was worth the friction of
-making you bring one.
+- **Bring your own credentials.** Attribution runs on the practitioner's own AI credentials, read
+  from the request, used for that request, and never written to a database or a log. The
+  `PUBLIC_BYOK_ONLY` setting makes an instance **fail closed** when no caller credential is
+  supplied, rather than silently billing a house key. That is Section 1.2 of the commitment applied
+  to a real decision: the easier product fronted a shared key and metered usage, and the code
+  chose the friction instead.
+- **Content encryption keyed to the access token.** The analytic payload of an investigation is
+  encrypted under a key derived from the token and never stored, so an operator cannot read it.
+  The boundary is partial and [PRIVACY.md](PRIVACY.md) section 6 says exactly where
+  ([#331](https://github.com/skyphusion-labs/common-thread/issues/331) records the gap between the
+  shipped boundary and the stated model).
 
 ## The tripwire
 
-**If this instance ever persists a caller's model credentials, logs them, backfills server-side
-credentials into a caller-driven request, or begins retaining investigation material beyond what the
-product needs to function, the commitment stops being true, and whoever ships it owns updating the
-canonical document in the same PR.** See the canonical copy for the full set of drift tripwires.
+**If any future hosting of this code by Skyphusion Labs persists a caller's model credentials, logs
+them, backfills server-side credentials into a caller-driven request, or retains investigation
+material beyond what the product needs to function, the commitment stops being true, and whoever
+ships it owns updating the canonical document in the same PR.** Re-hosting at all is itself a change
+to the canonical table and owes the same PR. See the canonical copy for the full set of drift
+tripwires.
 
-## Status: the policies for this instance, and what is still owed
+## History: the hosted era
 
-**The acceptable-use policy is in force** ([ACCEPTABLE-USE.md](ACCEPTABLE-USE.md), landed in
-[#190](https://github.com/skyphusion-labs/common-thread/pull/190), active since v0.1.2). **The privacy
-disclosure is a draft revision under review** ([PRIVACY.md](PRIVACY.md)) and **the terms of service are
-drafted and not in force** ([TERMS.md](TERMS.md)); both landed in #319 for
-[#318](https://github.com/skyphusion-labs/common-thread/issues/318), and both carry DECISION and
-COUNSEL markers that are Conrad's and a licensed lawyer's to close. The public-release readiness
-evaluation ([#187](https://github.com/skyphusion-labs/common-thread/issues/187)) is closed.
+From v0.1.2 until 2026-11-09 Skyphusion Labs ran a public instance at
+`common-thread.skyphusion.org`, offered as a public good so that someone who could not stand up
+their own deployment was not locked out. That put this repository in a small minority of products
+where Skyphusion Labs was in the data path, and the earlier revision of this file said so rather
+than reach for the self-host argument. The instance was torn down on 2026-11-09 and no Common Thread user data exists
+(Conrad, 2026-11-09: "there is no common thread data"); [PRIVACY.md](PRIVACY.md) has the detail.
+
+> The canonical table at the hub listed Common Thread among the hosted products. That row is now
+> history and the hub document owes an update; it is flagged, not changed from here.
+
+## Status: the policies for this repository
+
+- [ACCEPTABLE-USE.md](ACCEPTABLE-USE.md) is a statement of the methodology's use limits, addressed
+  to practitioners and operators; it was the hosted instance's active policy until 2026-11-09.
+- [PRIVACY.md](PRIVACY.md) and [TERMS.md](TERMS.md) say what applies now (nothing is collected;
+  the AGPL-3.0-only license is the whole contract for the code) and keep the hosted-era drafts as
+  historical record. The draft terms were never in force. The DECISION and COUNSEL markers in
+  those drafts stay as a record of what was open when the instance was retired.
 
 This file is a pointer to a commitment, not a substitute for those policies. Where a policy and the
 code disagree, the code is what actually happens, and the policy is the defect.

@@ -1,16 +1,68 @@
-# Terms of Service (hosted instance)
+# Terms of Service (historical: the hosted instance, retired 2026-11-09)
 
-> **Status: DRAFT for review. NOT IN FORCE.** Nothing here binds anyone until Conrad puts it in
-> force and the hosted UI links it. Tracked on
-> [#318](https://github.com/skyphusion-labs/common-thread/issues/318).
+> **Status: HISTORICAL. There is no hosted instance, and no terms of service are in force.**
+> Skyphusion Labs retired all Common Thread hosting on 2026-11-09. The Workers, the three custom
+> domains (`common-thread`, `common-thread-backend` and `common-thread-ops` under
+> `skyphusion.org`), the database connection, the archive bucket, the Access policy, the container
+> services and the AI gateway were torn down. Those URLs no longer resolve. Nobody operates a
+> Common Thread instance on behalf of this project, and the project offers no hosted API.
 
 > **Not legal advice.** Written by Ernst (Conrad's legal-affairs helper, who is named after a lawyer
-> and is not one). Sections marked **COUNSEL** are left empty on purpose: they need a licensed
-> lawyer, and a guess in their place would be worse than a gap. Sections marked **DECISION** wait
-> on a call that is Conrad's alone.
+> and is not one). Items marked **COUNSEL** need a licensed lawyer; items marked **DECISION** are
+> Conrad's. Nothing here creates an attorney-client relationship.
 
-These terms cover **only the hosted instance** at
-[common-thread.skyphusion.org](https://common-thread.skyphusion.org). If you self-host, none of
+## What applies now
+
+Common Thread is a published methodology paper and a reference implementation. Nothing else.
+
+- **If you use the code**, the AGPL-3.0-only license ([LICENSE](../LICENSE)) is the whole
+  contract between you and the copyright holder. It grants rights in the software and it disclaims
+  warranty and liability for the software (its sections 15 and 16). There is no service, so there
+  are no service terms to add to it.
+- **If you run an instance**, you are its operator. You set its terms, you answer for its data
+  handling, and you decide and enforce its acceptable use. The methodology's commitments still
+  describe what it means to run something called "Common Thread" honestly
+  ([ACCEPTABLE-USE.md](ACCEPTABLE-USE.md); paper section 10.8), but those are the paper's
+  commitments, not a contract between you and us.
+- **If you use the paper**, CC-BY-4.0 ([paper/LICENSE](../paper/LICENSE)) governs. See
+  [NOTICE](../NOTICE) for the full license map, including the MIT npm packages.
+
+Questions: `common-thread@skyphusion.org` ([contact.md](contact.md)).
+
+## If you used the hosted instance before 2026-11-09
+
+The draft below was written for that instance. **It was never put in force.** It was a draft for
+review ([#318](https://github.com/skyphusion-labs/common-thread/issues/318)), and the hosted UI
+never linked it. No visitor was ever bound by it, and nothing in it creates an obligation now.
+
+What a past visitor should know:
+
+- **No Common Thread user data exists.** Conrad, the operator, 2026-11-09: "there is no common
+  thread data". The MySQL database behind Hyperdrive was destroyed with the Hetzner fleet,
+  cancelled September 2026; the Cloudflare stores (the R2 archive bucket, D1, Hyperdrive) were
+  deleted on 2026-11-09. [PRIVACY.md](PRIVACY.md) has the detail.
+- An access token from the hosted instance opens nothing. There is nothing left for it to open.
+- Evidence packets you downloaded are your copies, and they are the only copies. A signed packet
+  carries its own public key in `packet_signature` and still verifies offline with
+  `npx -y @skyphusion/common-thread-verify <packet.json>` ([COMPONENTS.md](COMPONENTS.md)).
+  That check proves the packet is intact and matches the key inside it. It does not bind the
+  packet to the retired instance: the instance's signing key, where one was configured, was a
+  Worker secret (`SIGNER_PRIVATE_KEY`, set with `wrangler secret put`, never a tracked file) and
+  was destroyed with the Worker on 2026-11-09, and no public half was ever published.
+
+---
+
+## Historical draft: terms for the hosted instance (never in force)
+
+> Kept as a record of what was drafted, with its section numbers unchanged so that earlier
+> references ([#318](https://github.com/skyphusion-labs/common-thread/issues/318),
+> [#331](https://github.com/skyphusion-labs/common-thread/issues/331)) still land. Every "we"
+> below means the operator of an instance that no longer exists. The DECISION and COUNSEL
+> markers are left as they were: they record what was open when the instance was retired, and
+> they would reopen in the same form if anyone hosted it again.
+
+These terms covered **only the hosted instance** (retired 2026-11-09) at
+`common-thread.skyphusion.org`. If you self-host, none of
 this applies to you: you run your own instance under the AGPL-3.0 and you set your own terms.
 Self-hosting is the option we prefer, and it is the one where we never see your data.
 
@@ -194,5 +246,5 @@ no rights in the code or the paper beyond what those licenses already give every
 
 ---
 
-**Status:** DRAFT for review, not in force (#318). Where this document and the code disagree, the
+**Status:** HISTORICAL draft, never in force; the hosted instance it was written for was retired 2026-11-09 (#318, #351). Where this document and the code disagree, the
 code is what actually happens, and the document is the defect.

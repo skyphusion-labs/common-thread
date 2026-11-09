@@ -62,7 +62,7 @@ See also `examples/README.md` and `docs/PAPER-GAPS.md` (out of scope list).
       `github.com/SkyPhusion/common-thread`.
 - [ ] Mention reference implementation license (AGPL-3.0, root `LICENSE`) separately
       from paper license (`paper/LICENSE`, CC-BY-4.0).
-- [ ] Link hosted demo only as optional context (`common-thread.skyphusion.org`);
+- [ ] Link no hosted demo: there is none (hosting retired 2026-11-09). Point at the
       self-host path via `docs/SETUP.md` / `docs/DEPLOYMENT.md`.
 - [ ] `docs/PAPER-GAPS.md` and `docs/PROMPT-VERSIONS.md` are current on `main` at
       the pinned commit.
