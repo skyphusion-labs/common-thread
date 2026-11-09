@@ -12,7 +12,7 @@ confidence bands** -- `insufficient`, `consistent`, `strongly_consistent`. It
 stops at cluster-level attribution by design; it never identifies natural
 persons.
 
-**Hosted public UI (BYOK):** https://common-thread.skyphusion.org
+**Hosting:** none. The hosted public UI (`common-thread.skyphusion.org`) was retired 2026-11-09 (Conrad: completely torn down); the URL no longer resolves. Self-host only.
 
 **Status:** live product; root `package.json` is the version pin (currently **0.5.0** train; trust
 `package.json` + git tags, do not hardcode a frozen cut here). Pre-1.0 SemVer. Aviation-grade
@@ -35,8 +35,8 @@ yields when it conflicts).
 ### Product priority (estate)
 
 Global product priority is **vivijure + postern** (and the **Prism 1.0** client/plane
-estate when that lane is open). Common Thread remains a **live hosted product** at the
-URL above and is fine to work when tasked. Do not treat the repo as shelved or dead
+estate when that lane is open). Common Thread remains a **live project as code** (its hosting was retired
+2026-11-09 by Conrad; the former hosted URL no longer resolves) and is fine to work when tasked. Do not treat the repo as shelved or dead
 because priority sits elsewhere.
 
 ### Agent door (MCP)

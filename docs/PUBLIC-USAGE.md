@@ -1,6 +1,8 @@
 # Public usage guide (common-thread.skyphusion.org)
 
-**The hosted instance is suspended.** The database and the container tier are not running. The public page does not offer Create. Self-host the reference implementation to run an investigation. The steps below are the hosted flow for when that tier is running, and the same steps apply on a self-hosted deploy.
+> Historical: the hosted instance was retired 2026-11-09 (Conrad: completely torn down); `common-thread.skyphusion.org` no longer resolves. Kept as the self-host reference.
+
+**The hosted instance is retired.** Self-host the reference implementation to run an investigation. The steps below are the hosted flow for when that tier is running, and the same steps apply on a self-hosted deploy.
 
 This is the happy path for a first-time visitor to the hosted Common Thread
 instance. It covers what the host provides, what you must bring yourself
