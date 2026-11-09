@@ -133,9 +133,8 @@ v1 in active stabilization. Methodology paper complete. Backend Worker, web
 frontend, and optional VPC ingest/PDF containers are implemented.
 
 **Public UI / API:** none. Hosting was retired 2026-11-09 (Conrad); `common-thread.skyphusion.org` and `common-thread-backend.skyphusion.org` no longer resolve. The API is documented in [docs/API.md](docs/API.md) for self-hosted deploys.
-Using the hosted API in your own project requires prior contact with the
-operator -- email **common-thread@skyphusion.org** or see [docs/contact.md](docs/contact.md).
-To run your own instance without asking, self-host per `docs/SETUP.md`.
+There is no hosted API any more. To use Common Thread, self-host per `docs/SETUP.md`; no
+permission is needed. Questions: **common-thread@skyphusion.org** or [docs/contact.md](docs/contact.md).
 
 **Skyphusion Labs:** https://skyphusion.org · **Org:** https://github.com/skyphusion-labs
 
