@@ -11,6 +11,8 @@ Base URL examples:
 
 ## Using the hosted API
 
+> Historical: the hosted API was retired 2026-11-09 (Conrad: completely torn down) and no longer resolves. Call your own deployment instead; the rest of this section describes the former hosted policy.
+
 The production API at **https://common-thread-backend.skyphusion.org** is
 operated by the project author for the public web UI and approved integrations.
 It is **not** a general-purpose open API for third-party projects.

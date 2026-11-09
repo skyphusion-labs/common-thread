@@ -1,5 +1,7 @@
 # Deployment guide
 
+> Historical: the hosted instance was retired 2026-11-09 (Conrad: completely torn down); `common-thread.skyphusion.org` no longer resolves. Kept as the self-host reference.
+
 Deploy the **backend Worker** (API, extractors, reasoner) and **web Worker**
 (browser UI). Each has its own `wrangler.toml`.
 

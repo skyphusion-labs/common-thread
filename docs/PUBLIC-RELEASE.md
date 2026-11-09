@@ -1,5 +1,7 @@
 # Public release readiness -- common-thread.skyphusion.org
 
+> Historical: the hosted instance was retired 2026-11-09 (Conrad: completely torn down); `common-thread.skyphusion.org` no longer resolves. Kept as the self-host reference.
+
 Go / no-go evaluation for opening the hosted instance to unsolicited public use
 (BYOK attribution only). Tracks [#187](https://github.com/skyphusion-labs/common-thread/issues/187).
 Companion: `docs/COMPONENTS.md` (distribution), `docs/PUBLIC-USAGE.md` (stranger
