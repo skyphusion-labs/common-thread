@@ -2,7 +2,7 @@
  * Vitest config for Common Thread (two projects).
  *
  * The DB layer (implementation/db.ts -> mysql2/promise) fails to LOAD under
- * @cloudflare/vitest-pool-workers: the pool force-injects nodejs_compat v1,
+ * @cloudflare/vitest-plugin: the pool force-injects nodejs_compat v1,
  * where mysql2's `lru.min` does not resolve (Cannot destructure createLRU).
  * This is a TEST-HARNESS limitation, NOT a prod issue -- in production the
  * worker reaches MySQL via Hyperdrive using mysql2 with `disableEval: true` +
@@ -22,12 +22,12 @@
  * separate follow-up (#46).
  *
  * This file uses the `.mts` extension so Node/Vite load it as ESM.
- * `@cloudflare/vitest-pool-workers` is ESM-only and fails when the config is
+ * `@cloudflare/vitest-plugin` is ESM-only and fails when the config is
  * bundled as CommonJS (vitest.config.ts without "type": "module").
  */
 
 import { defineConfig } from 'vitest/config';
-import { cloudflareTest } from '@cloudflare/vitest-pool-workers';
+import { cloudflareTest } from '@cloudflare/vitest-plugin';
 
 const testMysqlUrl =
   process.env.TEST_MYSQL_URL ?? 'mysql://root@127.0.0.1:3306/common_thread_test';
@@ -133,7 +133,7 @@ export default defineConfig({
     // Scoped to implementation/** (the shipped Worker source); tests/, scripts/
     // and config are not the subject under measurement. istanbul (not v8) is
     // required because the v8 provider does not instrument code inside the
-    // @cloudflare/vitest-pool-workers (workerd) runtime; istanbul does, and it
+    // @cloudflare/vitest-plugin (workerd) runtime; istanbul does, and it
     // is already the installed devDependency.
     //
     // Thresholds are a deliberately MODEST floor set just under the current
