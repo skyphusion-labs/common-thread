@@ -25,6 +25,7 @@ updates:
           - "wrangler"
           - "@cloudflare/workers-types"
           - "@cloudflare/vitest-pool-workers"
+          - "@cloudflare/vitest-plugin"
           - "vitest"
           - "@vitest/*"
       npm-minor-patch:
@@ -33,6 +34,7 @@ updates:
           - "wrangler"
           - "@cloudflare/workers-types"
           - "@cloudflare/vitest-pool-workers"
+          - "@cloudflare/vitest-plugin"
           - "vitest"
           - "@vitest/*"
         update-types: ["minor", "patch"]

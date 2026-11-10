@@ -249,7 +249,7 @@ Integration tests use **MySQL** (`TEST_MYSQL_URL`, default
 suites run in the Node project with in-memory R2 (`tests/helpers/fake-r2.ts`)
 and an undici `fetchMock` shim (`tests/helpers/undici-mock.ts`), not
 `cloudflare:test`. Pure Workers-runtime suites still use
-`@cloudflare/vitest-pool-workers`.
+`@cloudflare/vitest-plugin`.
 
 - LLM calls never hit the network: `fetchMock` intercepts the stubbed gateway.
   Helpers: `tests/helpers/db.ts`, `llm.ts`, `test-env.ts`.

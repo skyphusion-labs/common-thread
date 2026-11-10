@@ -2,7 +2,7 @@
  * Shared bindings for the node-project integration tests: MySQL + in-memory R2.
  *
  * These suites moved out of the workers pool (#46): mysql2 cannot load under
- * @cloudflare/vitest-pool-workers, so the DB-backed suites run in the node
+ * @cloudflare/vitest-plugin, so the DB-backed suites run in the node
  * project against a real MySQL (TEST_MYSQL_URL). There is no `cloudflare:test`
  * here, so `env.ARCHIVE` is an in-memory fake R2 (see fake-r2.ts for the
  * fidelity tradeoff) and `env.DB` is a Hyperdrive-shaped object the worker

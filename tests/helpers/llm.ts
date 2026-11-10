@@ -1,7 +1,7 @@
 /**
  * AI Gateway mocking helpers.
  *
- * Wraps the undici-style fetchMock exposed by @cloudflare/vitest-pool-workers
+ * Wraps the undici-style fetchMock exposed by @cloudflare/vitest-plugin
  * with shapers that build well-formed Anthropic /v1/messages responses
  * for the most common test scenarios:
  *
