@@ -50,13 +50,13 @@
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.23.0",
-    "@cloudflare/workers-types": "^5.20261012.1",
-    "@vitest/coverage-istanbul": "^4.1.11",
+    "@cloudflare/workers-types": "^5.20261107.1",
+    "@vitest/coverage-istanbul": "^5.1.0",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "undici": "^8.12.4",
-    "vitest": "^4.1.11",
-    "wrangler": "^4.149.0"
+    "vitest": "^5.1.0",
+    "wrangler": "^4.158.0"
   },
   "engines": {
     "node": ">=18.0.0"
