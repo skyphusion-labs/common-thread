@@ -81,7 +81,11 @@ jobs:
 
   pdfa-validation:
     # Sample PDF/A-2b render + veraPDF conformance check (§8.1.2 hardening).
-    runs-on: ubuntu-latest
+    # wkhtmltopdf has no installation candidate on Ubuntu 26.04 (resolute).
+    # The 2026-11-10 push 163203ca drew a resolute runner and apt failed.
+    # The same day's pull_request run was ubuntu-24.04 and installed it.
+    # Stay on 24.04 until this job no longer needs wkhtmltopdf.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
