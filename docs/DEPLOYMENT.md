@@ -191,7 +191,7 @@ Worker-to-Worker path and does not depend on the backend custom domain. API clie
 **`workers_dev = false` is load-bearing security** for any Worker reached via a
 custom domain (and for the operator env, which must not re-open on
 `*.workers.dev`). Local first deploys without a custom domain may omit it;
-production and operator configs in GH secrets / crew-secrets escrow set it.
+production and operator configs in GitHub Actions secrets set it.
 
 ## 6. Workers VPC (optional)
 
@@ -350,7 +350,6 @@ common-thread-ops.skyphusion.org   OPS web (env.operator), behind CF Access (own
 - Deploy is **manual and gated**: run the `deploy` workflow via
   `workflow_dispatch` with `deploy_operator = true` (a push to main NEVER
   deploys the operator env). Backend deploys before web (service-binding order).
-- Full deploy + Cloudflare Access + secrets runbook (aviation-grade,
-  reproducible-from-docs) lives in fleet-chezmoi:
-  **`system/common-thread/RUNBOOK-ops-instance.md`**, with the Access IaC at
-  `system/cloudflare/access/apply-common-thread-ops-access.sh`.
+- Full deploy, Cloudflare Access, and secrets procedure for the hosted
+  operator instance lives in private operator docs. This public repo keeps
+  the config shape and the gated `workflow_dispatch` path above.

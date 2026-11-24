@@ -90,14 +90,13 @@ unhandled error; container bearer auth + 32MB body cap.
 3. **UI-public vs API-public** -- default remains Option 1 (UI public; CORS empty on API). Confirm if changing.
 4. ~~**Retention / deletion policy (code truth)**~~ -- documented in `PRIVACY.md` (DELETE graph + investigation archive keys; retain global `sha256/` blobs; default indefinite). Optional: fixed calendar purge later.
 5. **Controller vs processor** framing for ingested third-party public data (counsel if scaled).
-6. ~~**WAF apply**~~ -- **DONE** 2026-08-04 (2 rate-limit rules + managed WAF on CT hosts; fleet-chezmoi CR APPLIED).
+6. ~~**WAF apply**~~ -- **DONE** 2026-08-04 (2 rate-limit rules + managed WAF on CT hosts).
 7. ~~**Positive BYOK E2E**~~ -- **DONE** 2026-08-04 (CF AIG Run token path; optional Anthropic-key smoke is same client contract).
 
 ## Infra
-- **WAF / rate-limit:** **APPLIED** 2026-08-04. IaC in fleet-chezmoi
-  `system/cloudflare/waf-ratelimit/`. Live: 2 CT rate rules (30/60s expensive paths,
+- **WAF / rate-limit:** **APPLIED** 2026-08-04. Live: 2 CT rate rules (30/60s expensive paths,
   300/60s backend host) + Cloudflare Managed Ruleset execute scoped to CT hosts.
-  Re-apply: `apply-waf-ratelimit.sh` (merge-preserving). CR-2026-07-18.
+  Re-apply lives in private operator IaC.
 
 ## Acceptance criteria (#187) status
 - [x] Readiness evaluation written (this doc)
