@@ -350,6 +350,6 @@ common-thread-ops.skyphusion.org   OPS web (env.operator), behind CF Access (own
 - Deploy is **manual and gated**: run the `deploy` workflow via
   `workflow_dispatch` with `deploy_operator = true` (a push to main NEVER
   deploys the operator env). Backend deploys before web (service-binding order).
-- Full deploy, Cloudflare Access, and secrets procedure for the hosted
-  operator instance lives in private operator docs. This public repo keeps
-  the config shape and the gated `workflow_dispatch` path above.
+- Cloudflare Access gates the operator host.
+  The procedure for Access and operator secrets is not in this public repository.
+  This public doc keeps the config shape and the gated `workflow_dispatch` path above.
