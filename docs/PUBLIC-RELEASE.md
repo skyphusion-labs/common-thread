@@ -96,7 +96,6 @@ unhandled error; container bearer auth + 32MB body cap.
 ## Infra
 - **WAF / rate-limit:** **APPLIED** 2026-08-04. Live: 2 CT rate rules (30/60s expensive paths,
   300/60s backend host) + Cloudflare Managed Ruleset execute scoped to CT hosts.
-  Re-apply lives in private operator IaC.
 
 ## Acceptance criteria (#187) status
 - [x] Readiness evaluation written (this doc)
